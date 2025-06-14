@@ -2348,5 +2348,11 @@ async def display_inventory(ctx):
 
     await ctx.send(embed=embed)
 
+TOKEN = os.environ.get("BOT_TOKEN")
 
-bot.run('MTM2OTAwMzAxNDY3NzA2OTkxNQ.GIJa-G.0RBT_gSpQPXFOVAFAWGKgTZYva7tusECIOayZM')
+if TOKEN is None:
+    print("Error: BOT_TOKEN environment variable not set.")
+    print("Please set the BOT_TOKEN environment variable with your bot's authentication token.")
+    sys.exit(1) # Exit if the token is not found
+
+bot.run(TOKEN)
