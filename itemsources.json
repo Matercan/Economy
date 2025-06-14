@@ -1,0 +1,22 @@
+[
+    [
+        "Pickaxe",
+        false,
+        500,
+        "tool for mining.",
+        "Mining",
+        "Miner",
+        null,
+        null
+    ],
+    [
+        "Normal Item",
+        false,
+        "No special effect",
+        "just a regular item.",
+        null,
+        null,
+        null,
+        null
+    ]
+]
