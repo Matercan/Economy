@@ -48,5 +48,25 @@
         null,
         null,
         null
+    ],
+    [
+        "Freedom",
+        false,
+        150000,
+        "You attain freedom from the wrteched Knife",
+        null,
+        "Tin",
+        "Knife",
+        "Knife"
+    ],
+    [
+        "Gay",
+        false,
+        10000,
+        "Gay gay homosexual gay",
+        "Gay",
+        "Gay",
+        null,
+        null
     ]
 ]

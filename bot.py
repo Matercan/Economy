@@ -546,7 +546,6 @@ async def usebomb(ctx, member: discord.Member):
         await ctx.send(f"Unfortunately you don't have a bomb.")
         return
 
-    await removerole(ctx, member, "Bomb")
 
     
     await ctx.send(f"{member.mention} used the bomb!")
@@ -1323,6 +1322,35 @@ async def on_message(message):
         print("Member is none")
         return
     
+    has_knife = False
+    has_tin = False
+
+    for role in message.author.roles:
+        if role.name == "Knife":
+            has_knife = True
+        if role.name == "tin":
+            has_tin = True
+    
+    if has_tin and has_knife:
+        await ctx.send("Oh, you think you can cheat by having tin and Knife at the same time \n smh my head")
+        
+        if message.guild:
+            guild_ctx = bot.get_guild(message.guild.id) # This is a guild object, not a ctx
+            if guild_ctx:
+                # You'd need to create a dummy context or modify removerole to not require ctx
+                # Or, as above, get ctx from message
+                try:
+                    # This line might still error if the generated 'ctx' is not fully fledged for permissions
+                    await removerole(ctx, message.author, role_name="tin")
+                except Exception as e:
+                    print(f"Error calling removerole from on_message: {e}")
+                    await message.channel.send(f"An internal error occurred trying to remove the role: {e}")
+            else:
+                await message.channel.send("Could not determine guild context to remove role.")
+        else:
+            await message.channel.send("This action can only be performed in a guild channel.")
+
+    
     # Check if spellcheck is enabled for this user
     state = load_spellcheck_state()
     user_id = str(message.author.id)
@@ -1432,8 +1460,6 @@ async def on_message(message):
     message_log[user_id].append(content)
 
 
-    if message.content == "!use bomb":
-        await usebomb(ctx, member)
 
     if message.content.startswith("!use brick"):
         target = message.mentions[0]
@@ -1454,6 +1480,9 @@ async def on_message(message):
     if not ctx.author.bot:
         Bank.addcash(user_id=user_id, money=random.randrange(10, 100)) 
 
+    for item_index, item_name in enumerate(Items.get_user_items(str(message.author.id))):
+        if message.content.lower() == item_name.lower():
+            await use_item(item_name)
     
     try:
         await bot.process_commands(message)
@@ -2331,7 +2360,7 @@ async def list_items(ctx):
     await ctx.send(embed=embed)
             
 @bot.command(name='buy', aliases=['purchase', 'get', 'buy-item'])
-async def buy_item(ctx, item: str):
+async def buy_item(ctx, *, item: str):
     """
     Let's a user buy an item
     Usage: !buy-item 
@@ -2360,7 +2389,7 @@ async def buy_item(ctx, item: str):
     try:
         cost = float(item_data[2])
     except ValueError as e:
-        await ctx.send("This item cannot be acquired from the store - I don't actually now why it's in there")
+        await ctx.send("This item cannot be acquired from the store - I don't actually know why it's in there")
         return
 
     if Bank.read_balance(user_id_str)["cash"] < cost and Bank.gettotal(user_id_str) >= cost:
@@ -2417,6 +2446,34 @@ async def display_inventory(ctx):
         embed.add_field(name=item_data[0], value=item_data[3], inline=False)
 
     await ctx.send(embed=embed)
+
+@bot.command(name='use')
+async def use_item(ctx, item: str, target: str=""):
+    """
+    Lets users use their items
+    Usage: !use bomb
+    """
+
+    user_id_str = str(ctx.author.id)
+    inventory_data = Items.get_user_items(user_id_str)
+
+    item_index_int = inventory_data.get(item[0].capitalize() + item[1:], -1)
+
+    print(item_index_int)
+
+    if item_index_int == -1:
+        await ctx.send("Item not found")
+        return
+    
+    if item_index_int == 2:
+        await ctx.send("Used Bomb")
+        await usebomb(ctx, ctx.author)
+        Items.removefromitems(user_id_str, item)
+
+    if item_index_int == 3:
+        await usebrick(ctx, ctx.author, target=target)
+        Items.removefromitems(user_id_str, item)
+
 
 TOKEN = os.environ.get("BOT_TOKEN")
 

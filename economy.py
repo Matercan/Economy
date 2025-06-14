@@ -673,6 +673,33 @@ class Items:
         if not Items.player_inventory:
             Items.player_inventory = Items.load_player_inventory()
         return Items.player_inventory.get(user_id, {})
+    
+    @staticmethod
+    def removefromitems(user_id: str, item_name: str) -> bool:
+        """
+        Removes one instance of a specific item from a user's inventory.
+        Returns True if the item was found and removed, False otherwise.
+        """
+        Items.load_player_inventory() # Ensure inventory is loaded
+        
+        if user_id not in Items.player_inventory or not Items.player_inventory[user_id]:
+            return False # User has no inventory or does not exist
+
+        item_removed = False
+        # Iterate in reverse to safely remove elements without messing up iteration
+        for i in range(len(Items.player_inventory[user_id]) - 1, -1, -1):
+            stored_item_name = Items.player_inventory[user_id][i][0] # Access the item name from the tuple
+            if stored_item_name.lower() == item_name.lower(): # Case-insensitive comparison
+                del Items.player_inventory[user_id][i]
+                item_removed = True
+                break # Remove only the first instance found (which would be the latest one added in a reverse loop)
+        
+        if item_removed:
+            Items.save_player_inventory()
+        return item_removed
+        
+
+        
 
 
 # # --- Test Section ---
