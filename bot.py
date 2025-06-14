@@ -23,6 +23,7 @@ from economy import Bank, Income, Items
 from mss import mss
 from nltk.corpus import words
 import locale
+import datetime
 
 english_words = set(words.words())
 
@@ -39,6 +40,8 @@ is_restarting_for_disconnect = False
 RESTART_FLAG_FILE = "_restarting_flag.tmp" 
 
 can_load_sources = False
+
+user_last_message_timestamps = {}
 
 
 intents = discord.Intents.all()
@@ -1295,7 +1298,7 @@ async def take_screenshot(region=None):
 @bot.event
 async def on_message(message):
 
-    
+    user_id = str(message.author.id)
 
     ctx = await bot.get_context(message)
 
@@ -1325,6 +1328,8 @@ async def on_message(message):
     has_knife = False
     has_tin = False
 
+    
+
     for role in message.author.roles:
         if role.name == "Knife":
             has_knife = True
@@ -1350,10 +1355,22 @@ async def on_message(message):
         else:
             await message.channel.send("This action can only be performed in a guild channel.")
 
-    
+    current_time = message.created_at # message.created_at is a datetime object
+
+    if user_id not in user_last_message_timestamps:
+        user_last_message_timestamps[user_id] = []
+
+    # Add the new timestamp
+    user_last_message_timestamps[user_id].append(current_time)
+
+    # Keep only the last two timestamps
+    if len(user_last_message_timestamps[user_id]) > 2:
+        user_last_message_timestamps[user_id].pop(0) # Remove the oldest timestamp
+
+
     # Check if spellcheck is enabled for this user
     state = load_spellcheck_state()
-    user_id = str(message.author.id)
+    
     if state.get(user_id, False):  # Default to True if not set
         # Check for non-English words and suggest corrections
         words = message.content.lower().split()
@@ -1460,12 +1477,6 @@ async def on_message(message):
     message_log[user_id].append(content)
 
 
-
-    if message.content.startswith("!use brick"):
-        target = message.mentions[0]
-        print(target)
-        await usebrick(ctx, member, target)
-
     if "mater" in message.content.lower():
         await ctx.send("It's pronounceed 'matter' btw")
 
@@ -1477,11 +1488,23 @@ async def on_message(message):
         # Or Bank.bank_accounts[user_id_str] = {"bank": 0, "cash": 100} followed by Bank.save_balances()
         await ctx.send(f"Welcome {ctx.author.mention}! Here's your starting cash!")
 
-    if not ctx.author.bot:
-        Bank.addcash(user_id=user_id, money=random.randrange(10, 100)) 
+    if not ctx.author.bot and user_id in user_last_message_timestamps and len(user_last_message_timestamps[user_id]) >= 2:
+        old_message_val = user_last_message_timestamps[user_id][0]
+        new_message_val = user_last_message_timestamps[user_id][1]
+        time_difference = new_message_val - old_message_val
+        print(time_difference)
+        print(f"DEBUG: Types in comparison: old_message_val={type(old_message_val)}, new_message_val={type(new_message_val)}")
+        if time_difference >= datetime.timedelta(seconds=5):
+            print("Added cash")
+            Bank.addcash(user_id=user_id, money=random.randrange(10, 100)) 
 
+        print(old_message_val)
+        print(new_message_val)
+
+    print(user_last_message_timestamps)
+    
     for item_index, item_name in enumerate(Items.get_user_items(str(message.author.id))):
-        if message.content.lower() == item_name.lower():
+        if message.content.lower() == "!" + item_name.lower():
             await use_item(item_name)
     
     try:
@@ -2468,12 +2491,72 @@ async def use_item(ctx, item: str, target: str=""):
     if item_index_int == 2:
         await ctx.send("Used Bomb")
         await usebomb(ctx, ctx.author)
-        Items.removefromitems(user_id_str, item)
+        Items.removefromitems(user_id_str, item[0].capitalize() + item[1:], -1)
 
     if item_index_int == 3:
         await usebrick(ctx, ctx.author, target=target)
-        Items.removefromitems(user_id_str, item)
+        Items.removefromitems(user_id_str, item[0].capitalize() + item[1:], -1)
 
+@bot.command(name='lastmessagediff', aliases=['lmd', 'msgtime'])
+async def last_message_difference(ctx, member: discord.Member = None):
+    """
+    Shows the time difference between the last two messages of a user.
+    Usage: !lastmessagediff
+           !lastmessagediff @MemberName
+    """
+    target_member = member if member else ctx.author
+    target_user_id = target_member.id
+
+    if target_user_id not in user_last_message_timestamps or \
+       len(user_last_message_timestamps[target_user_id]) < 2:
+        await ctx.send(f"{target_member.display_name} needs to send at least 2 messages for me to calculate the difference.")
+        return
+
+    # Get the last two timestamps
+    oldest_msg_time = user_last_message_timestamps[target_user_id][0]
+    latest_msg_time = user_last_message_timestamps[target_user_id][1]
+
+    # --- DEBUG PRINT: Verify types retrieved from the list ---
+    print(f"DEBUG - !lastmessagediff: Oldest message time: {oldest_msg_time} (Type: {type(oldest_msg_time)})")
+    print(f"DEBUG - !lastmessagediff: Latest message time: {latest_msg_time} (Type: {type(latest_msg_time)})")
+    # --- END DEBUG PRINT ---
+
+    # --- CRITICAL: Ensure both are datetime.datetime objects ---
+    if not isinstance(oldest_msg_time, datetime.datetime) or \
+       not isinstance(latest_msg_time, datetime.datetime):
+        await ctx.send(f"An internal error occurred: Stored message timestamps for {target_member.display_name} are corrupted or not in the expected format (datetime objects). Please try again later or contact the bot developer.")
+        print(f"ERROR: Expected datetime.datetime objects, but found {type(oldest_msg_time)} and {type(latest_msg_time)} for user {target_user_id}. Resetting timestamps for this user.")
+        # Optionally, clear the problematic data for this user to allow it to be re-populated correctly
+        if target_user_id in user_last_message_timestamps:
+            del user_last_message_timestamps[target_user_id]
+        return
+    # --- END CRITICAL ---
+
+    time_difference = latest_msg_time - oldest_msg_time
+
+    # Format the timedelta object into a human-readable string
+    total_seconds = int(time_difference.total_seconds())
+    
+    days = total_seconds // (24 * 3600)
+    total_seconds %= (24 * 3600)
+    hours = total_seconds // 3600
+    total_seconds %= 3600
+    minutes = total_seconds // 60
+    seconds = total_seconds % 60
+
+    time_str_parts = []
+    if days > 0:
+        time_str_parts.append(f"{days} day{'s' if days != 1 else ''}")
+    if hours > 0:
+        time_str_parts.append(f"{hours} hour{'s' if hours != 1 else ''}")
+    if minutes > 0:
+        time_str_parts.append(f"{minutes} minute{'s' if minutes != 1 else ''}")
+    if seconds > 0 or not time_str_parts: # Always show seconds if there's any time, or if everything else is zero
+        time_str_parts.append(f"{seconds} second{'s' if seconds != 1 else ''}")
+
+    time_difference_str = ", ".join(time_str_parts)
+
+    await ctx.send(f"The time difference between {target_member.display_name}'s last two messages was: **{time_difference_str}**.")
 
 TOKEN = os.environ.get("BOT_TOKEN")
 

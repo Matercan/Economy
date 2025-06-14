@@ -675,28 +675,30 @@ class Items:
         return Items.player_inventory.get(user_id, {})
     
     @staticmethod
-    def removefromitems(user_id: str, item_name: str) -> bool:
+    def removefromitems(user_id: str, item_name: str, quantity: int = 1) -> bool:
         """
-        Removes one instance of a specific item from a user's inventory.
-        Returns True if the item was found and removed, False otherwise.
+        Removes a specified quantity of an item from a user's inventory.
+        Returns True if removal was successful, False otherwise (e.g., not enough items).
         """
         Items.load_player_inventory() # Ensure inventory is loaded
         
-        if user_id not in Items.player_inventory or not Items.player_inventory[user_id]:
-            return False # User has no inventory or does not exist
-
-        item_removed = False
-        # Iterate in reverse to safely remove elements without messing up iteration
-        for i in range(len(Items.player_inventory[user_id]) - 1, -1, -1):
-            stored_item_name = Items.player_inventory[user_id][i][0] # Access the item name from the tuple
-            if stored_item_name.lower() == item_name.lower(): # Case-insensitive comparison
-                del Items.player_inventory[user_id][i]
-                item_removed = True
-                break # Remove only the first instance found (which would be the latest one added in a reverse loop)
+        if user_id not in Items.player_inventory:
+            print(f"DEBUG: User {user_id} has no inventory.")
+            return False # User has no inventory
         
-        if item_removed:
-            Items.save_player_inventory()
-        return item_removed
+        item_key = item_name[0].capitalize() + item_name[1:] # Use lowercased key for lookup and consistency
+        print(item_key)
+        print(Items.player_inventory[user_id])
+
+        if item_key not in Items.player_inventory[user_id]:
+            print(f"DEBUG: Item '{item_name}' not found for user {user_id}.")
+            return False # Item not in inventory
+        
+        del Items.player_inventory[user_id][item_name]
+        print(f"DEBUG: Removed '{item_name}' from {user_id}'s inventory as count reached 0.")
+            
+        Items.save_player_inventory()
+        return True
         
 
         
