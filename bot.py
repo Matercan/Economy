@@ -286,6 +286,75 @@ async def timeout(ctx, member: discord.Member, minutes: int, ping: bool=True):
         await ctx.send(f"Failed to timeout user: {e} - Ping mater")
 
 @bot.command()
+@commands.has_permissions(manage_roles=True)
+async def addrole(ctx, member: discord.Member, role_name: str):
+    """
+    Gives a specified role to a member.
+    Usage: !giverole @biotomatensaft knife
+    """
+
+    role = discord.utils.get(ctx.guild.roles, name=role_name)
+    if role is None:
+        await ctx.send(f"❌ Role '{role_name}' not found. Please ensure the role name is exact.")
+        return
+
+    # Check if the bot can modify the target member's roles (if the target member has a higher role than the bot)
+    if ctx.guild.me.top_role <= member.top_role and ctx.author.id != ctx.guild.owner_id:
+        await ctx.send(f"❌ I cannot assign roles to {member.display_name} because my highest role is not above their highest role.")
+        return
+
+    if role in member.roles:
+        await ctx.send(f"✅ {member.display_name} already has the '{role.name}' role.")
+        return
+
+    try:
+        await member.add_roles(role)
+        await ctx.send(f"✅ Successfully gave '{role.name}' role to {member.display_name}.")
+    except discord.Forbidden:
+        await ctx.send("❌ I don't have the necessary permissions to manage roles. Make sure I have 'Manage Roles' permission and my role is higher than the role I'm trying to assign.")
+    except discord.HTTPException as e:
+        await ctx.send(f"An error occurred while trying to give the role: {e}")
+    except Exception as e:
+        await ctx.send(f"An unexpected error occurred: {e}")
+
+@bot.command()
+@commands.has_permissions(manage_roles=True) # Only users with 'Manage Roles' permission can use this
+async def removerole(ctx, member: discord.Member, *, role_name: str):
+    """
+    Removes a specified role from a member.
+    Usage: !removerole @MemberName Role Name Here
+            !removerole 123456789012345678 "Another Role"
+    """
+    # Try to find the role by its name (case-insensitive for better usability)
+    role = discord.utils.get(ctx.guild.roles, name=role_name)
+
+    if role is None:
+        await ctx.send(f"❌ Role '{role_name}' not found. Please ensure the role name is exact.")
+        return
+
+    # Check if the bot's role is higher than the role it's trying to remove
+    # The bot cannot remove roles that are higher than or equal to its own top role
+    if ctx.guild.me.top_role <= role:
+        await ctx.send(f"❌ I cannot remove the role '{role.name}' because my highest role is not above it in the hierarchy.")
+        return
+
+    # Check if the target member actually has the role
+    if role not in member.roles:
+        await ctx.send(f"✅ {member.display_name} does not have the '{role.name}' role.")
+        return
+
+    try:
+        await member.remove_roles(role)
+        await ctx.send(f"✅ Successfully removed '{role.name}' role from {member.display_name}.")
+    except discord.Forbidden:
+        await ctx.send("❌ I don't have the necessary permissions to manage roles. Make sure I have 'Manage Roles' permission and my role is higher than the role I'm trying to remove.")
+    except discord.HTTPException as e:
+        await ctx.send(f"An error occurred while trying to remove the role: {e}")
+    except Exception as e:
+        await ctx.send(f"An unexpected error occurred: {e}")
+
+
+@bot.command()
 @commands.has_permissions(administrator=True)
 async def shutdown(ctx):
     await ctx.send("Shutting down...")
@@ -447,25 +516,6 @@ async def random_member(ctx):
     await ctx.send(f"🎯 Random member: {chosen.mention}")
     return chosen
 
-@bot.command()
-@commands.has_permissions(manage_roles=True)
-async def removerole(ctx, member: discord.Member, *, role_name):
-    await remove_role_by_name(ctx, member, role_name)
-
-async def remove_role_by_name(ctx, member: discord.Member, role_name: str):
-    role = discord.utils.get(ctx.guild.roles, name=role_name)
-    print(role)
-    print("trying to remove role")
-    if role is None:
-        await ctx.send(f"Role '{role_name}' not found.")
-        return False
-
-    try:
-        await member.remove_roles(role, reason=f"Removed by {ctx.author}")
-        return True
-    except discord.Forbidden:
-        await ctx.send("I don't have permission to remove that role.")
-        return False
 
 @bot.command()
 async def killcount(ctx, member: discord.Member = None):
@@ -496,7 +546,7 @@ async def usebomb(ctx, member: discord.Member):
         await ctx.send(f"Unfortunately you don't have a bomb.")
         return
 
-    await remove_role_by_name(ctx, member, "Bomb")
+    await removerole(ctx, member, "Bomb")
 
     
     await ctx.send(f"{member.mention} used the bomb!")
@@ -519,7 +569,7 @@ async def usebrick(ctx, member: discord.Member, target: discord.member):
         await ctx.send(f"Unfortunately you don't have a brick.")
         return
 
-    await remove_role_by_name(ctx, member, "Brick")
+    await removerole(ctx, member, "Brick")
     await timeout(ctx, target, 5)
     await ctx.send(f"{target.mention} was hit by the brick!")
 
@@ -1250,7 +1300,7 @@ async def on_message(message):
 
     ctx = await bot.get_context(message)
 
-    if not can_load_sources:
+    if not can_load_sources and not message.author.bot:
         await ctx.send("I'm not willing to let all data be wiped.")
         return
 
@@ -2246,11 +2296,11 @@ async def list_items(ctx):
             
             try:
                 price = float(value_or_effect)
-                value_display += f"for the low low price of {price} "
+                value_display += f"for the low low price of {price:,.0f} "
             except ValueError:
                 value_display += f"with {value_or_effect} "
             
-            value_display += f"that is {description} "
+            value_display += f"that {description} "
             
             if associated_income_source:
                 value_display += f"which gives you {associated_income_source} income "
@@ -2276,6 +2326,8 @@ async def list_items(ctx):
                 inline=False
             )
 
+    embed.set_thumbnail(url="https://www.ulisses-ebooks.de/images/8135/_product_images/397725/DeanSpencer-filler-armourmerchant.jpg")
+
     await ctx.send(embed=embed)
             
 @bot.command(name='buy', aliases=['purchase', 'get', 'buy-item'])
@@ -2285,6 +2337,8 @@ async def buy_item(ctx, item: str):
     Usage: !buy-item 
     """
 
+    item = item[0].capitalize() + item[1:]
+    print(item)
     items = Items.load_item_sources()
     user_id_str = str(ctx.author.id)
 
@@ -2315,7 +2369,15 @@ async def buy_item(ctx, item: str):
     elif Bank.gettotal(user_id_str) <= cost:
         await ctx.send(f"you need {cost - Bank.gettotal(user_id_str)} more to purchase {item_data[0]}")
         return
-    
+    if item_data[7]:
+        has_role = False
+        for role in ctx.author.roles:
+            if role.name == item_data[7].lower():
+                has_role = True
+        if not has_role:
+            await ctx.send(f"This item requires role {item_data[7]}")
+            return
+
     embed = discord.Embed(
         title=f"{ctx.author.display_name}",
         description=f"Bought {item_data[0]} for {item_data[2]}",
@@ -2323,6 +2385,14 @@ async def buy_item(ctx, item: str):
     )
 
     Items.addtoitems(user_id_str, item_data[0])
+
+    if item_data[5]:
+        # Pass role_name as a keyword argument
+        await addrole(ctx, ctx.author, role_name=item_data[5]) 
+    
+    if item_data[6]:
+        # Pass role_name as a keyword argument
+        await removerole(ctx, ctx.author, role_name=item_data[6]) 
 
     await ctx.send(embed=embed)
 
