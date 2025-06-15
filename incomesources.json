@@ -9,7 +9,7 @@
     [
         "Tying",
         false,
-        55,
+        5,
         0,
         false
     ],
@@ -58,7 +58,7 @@
     [
         "Reality bending",
         true,
-        10,
+        0.1,
         86400,
         true
     ],

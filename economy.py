@@ -506,7 +506,19 @@ class Income():
             })
         return user_incomes_status
 
-            
+    @staticmethod
+    def is_any_income_ready(user_id: str):
+        """
+        Checks if a user has at least one income source that is 'Ready to collect!'.
+        Returns the dictionary of the FIRST ready income found, or None if none are ready.
+        """
+        all_income_statuses = Income.get_user_income_status(user_id) # Get the full list
+
+        for income_status in all_income_statuses:
+            if income_status.get("status") == "Ready to collect!":
+                return income_status # Return the specific ready income data
+        return None # No ready income found    
+    
 
 
 

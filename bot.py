@@ -3,7 +3,7 @@ import random
 import discord
 from discord.ext.commands import BucketType, has_permissions
 from datetime import timedelta
-from discord.ext import commands
+from discord.ext import commands, tasks
 from discord.utils import get
 import json
 import os
@@ -48,13 +48,14 @@ intents = discord.Intents.all()
 intents.message_content = True
 intents.members = True 
 
-bot = commands.Bot(command_prefix='!', intents=intents)
+bot = commands.Bot(command_prefix='m!', intents=intents)
 bot.remove_command('help') 
 
 # It's good practice to define these at the top or in a config.py
 ONLINE_ROLE_ID = 1383129931541643295 # Role to ping when bot comes online
 OFFLINE_ROLE_ID = 1383130035984142386 # Role to ping when bot goes offline
 STATUS_CHANNEL_ID = 1368285968632778862 # Channel for online/offline pings
+TARGET_GUILD_ID = 1331355137741950997
 
 print(f"Current working directory: {os.getcwd()}")
 print(f"Absolute path of economy.py: {os.path.abspath(__file__)}")
@@ -169,6 +170,10 @@ async def on_ready():
     conditionally based on whether it's a restart.
     """
     print(f"Logged in as {bot.user}")
+    # Start your background tasks here
+    if not ping_collect_income.is_running():
+        ping_collect_income.start()
+        print("DEBUG: ping_collect_income task started.")
     global can_load_sources
 
     # Check for restart flag file. If it exists, it means the bot is restarting.
@@ -214,7 +219,7 @@ async def on_ready():
     # Start recurring tasks
     bot.loop.create_task(check_guillotine_cooldown())
     bot.loop.create_task(checkbankrobery())
-
+    ping_collect_income.start()
     # Logging guild and member info (for debugging/monitoring)
     for guild in bot.guilds:
         print(f"- {guild.name} (id: {guild.id}) with {guild.member_count} members")
@@ -270,11 +275,58 @@ async def checkbankrobery():
 
         await asyncio.sleep(3600)
 
+@tasks.loop(minutes=5) 
+async def ping_collect_income():
+    print(f"DEBUG: Running ping_collect_income task at {datetime.datetime.now()}")
+
+    target_guild = bot.get_guild(TARGET_GUILD_ID)
+    if not target_guild:
+        print(f"ERROR: Guild with ID {TARGET_GUILD_ID} not found. Cannot send income reminders.")
+        return
+
+    reminder_channel = discord.utils.get(target_guild.text_channels, name="reminders")
+    if not reminder_channel:
+        print(f"ERROR: 'reminders' channel not found in guild '{target_guild.name}' ({TARGET_GUILD_ID}). Cannot send income reminders.")
+        return
+
+    collect_income_role = discord.utils.get(target_guild.roles, name="collect-income")
+    if not collect_income_role:
+        print(f"WARNING: Role 'collect-income' not found in guild '{target_guild.name}'. Skipping income reminders.")
+        return
+        
+    for member in target_guild.members:
+        if collect_income_role in member.roles:
+            user_id_str = str(member.id)
+            
+            # --- USE THE NEW HELPER METHOD HERE ---
+            ready_income = Income.is_any_income_ready(user_id_str)
+            
+            if ready_income: # If ready_income is not None, it means an income is ready
+                income_name_for_ping = ready_income.get("name", "your income") # Get the name of the ready income
+                try:
+                    await reminder_channel.send(
+                        f"{member.mention}, Your income source '{income_name_for_ping}' can be collected! Use `!collect` to get it."
+                    )
+                    print(f"DEBUG: Sent income reminder to {member.display_name} for '{income_name_for_ping}'.")
+                except discord.HTTPException as e:
+                    print(f"ERROR: Failed to send reminder to {member.display_name} in {reminder_channel.name}: {e}")
+            else:
+                # If ready_income is None, no income is ready
+                # print(f"DEBUG: {member.display_name} has the role but no income is ready yet.")
+                pass
+
+# --- Background Task for Income Collection Reminders ---
+# This decorator ensures the task waits until the bot is fully ready before starting
+@ping_collect_income.before_loop
+async def before_ping_collect_income():
+    await bot.wait_until_ready()
+    print("DEBUG: ping_collect_income task is ready and waiting to start.")
+
 
 @bot.command()
 async def hello(ctx):
     await ctx.send("Hello, world!")
-
+                
 
 @bot.command()
 @commands.has_permissions(moderate_members=True)
@@ -575,10 +627,7 @@ async def usebrick(ctx, member: discord.Member, target: discord.member):
     await timeout(ctx, target, 5)
     await ctx.send(f"{target.mention} was hit by the brick!")
 
-@bot.command()
-async def brick(ctx, member: discord.Member):
-    usebrick(ctx, ctx.author, member)
-    await ctx.send("That is unfortunately not the correct chain of commands. You first need to type '!buy brick' to buy a brick, once you then use  '!use brick', it will then give u the brick role. Finally use !brick @user then you will throw your brick at them :)")
+
 
 @bot.command()
 async def stab(ctx, member: discord.Member):
@@ -666,7 +715,7 @@ async def send_economy_commands_embed(interaction: discord.Interaction):
     )
 
     help_embed.add_field(
-        name="!incomesources",
+        name="!incomes",
         value="Displays info about your specific income sources",
         inline=False
     )
@@ -754,7 +803,7 @@ async def commands(ctx):
     )
 
     help_embed.add_field(
-        name="!rob_bank",
+        name="!rob-bank",
         value="Attempt to rob the bank. Has a 10% success rate and 24 hour cooldown. If successful, money is robbed from all people it can find.",
         inline=False
     )
@@ -1314,7 +1363,7 @@ async def on_message(message):
 
     if "hello" in message.content.lower():
         await message.channel.send("Hello! 👋")
-        await ctx.send("Type !commands to see all the commands")
+        await ctx.send("Type m!commands to see all the commands")
 
     member = message.guild.get_member(message.author.id)  # Correct, no await needed  or just use message.author if intents are working
 
@@ -1468,7 +1517,7 @@ async def on_message(message):
         
     if timeoutcount > 1:
             if not ctx.author.bot or user_id == "503720029456695306":
-                await timeout(ctx, ctx.author, timeoutcount)
+                # await timeout(ctx, ctx.author, timeoutcount)
                 await ctx.send("No spamming")
 
     if timeoutcount == 5:
@@ -1492,16 +1541,16 @@ async def on_message(message):
         old_message_val = user_last_message_timestamps[user_id][0]
         new_message_val = user_last_message_timestamps[user_id][1]
         time_difference = new_message_val - old_message_val
-        print(time_difference)
-        print(f"DEBUG: Types in comparison: old_message_val={type(old_message_val)}, new_message_val={type(new_message_val)}")
+        #print(time_difference)
+        #print(f"DEBUG: Types in comparison: old_message_val={type(old_message_val)}, new_message_val={type(new_message_val)}")
         if time_difference >= datetime.timedelta(seconds=5):
-            print("Added cash")
+            #print("Added cash")
             Bank.addcash(user_id=user_id, money=random.randrange(10, 100)) 
 
         print(old_message_val)
         print(new_message_val)
 
-    print(user_last_message_timestamps)
+    #print(user_last_message_timestamps)
     
     for item_index, item_name in enumerate(Items.get_user_items(str(message.author.id))):
         if message.content.lower() == "!" + item_name.lower():
@@ -1866,7 +1915,7 @@ async def collect_income_command(ctx):
     Usage: !collect
     """
     user_id_str = str(ctx.author.id)
-    
+
     # 1. Call Income.collectincomes() to perform the collection
     # This method updates timestamps for collected incomes and returns messages
     collection_results = Income.collectincomes(user_id_str)
