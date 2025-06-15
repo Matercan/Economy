@@ -57,7 +57,7 @@ OFFLINE_ROLE_ID = 1383130035984142386 # Role to ping when bot goes offline
 STATUS_CHANNEL_ID = 1368285968632778862 # Channel for online/offline pings
 TARGET_GUILD_ID = 1331355137741950997
 
-print(f"Current working directory: {os.getcwd()}")
+print(f"Current working directory: {os.getcwd()}") 
 print(f"Absolute path of economy.py: {os.path.abspath(__file__)}")
 print(f"Expected balance.json path: {os.path.join(os.path.dirname(__file__), 'balance.json')}")
 
@@ -110,7 +110,7 @@ class OCR:
         try:
             version = pytesseract.get_tesseract_version()
             print(f"Tesseract version: {version}")
-        except Exception as e:
+        except Exception as e: 
             print(f"Error getting Tesseract version: {e}")
             print("Please ensure Tesseract is installed correctly")
 
@@ -302,12 +302,20 @@ async def ping_collect_income():
             ready_income = Income.is_any_income_ready(user_id_str)
             
             if ready_income: # If ready_income is not None, it means an income is ready
-                income_name_for_ping = ready_income.get("name", "your income") # Get the name of the ready income
+                income_name_for_ping = ready_income.get("name", "your income")# Get the name of the ready income
+                to_ping = []
+                for income in  income_name_for_ping: 
+                    source_index = Income.get_source_index_by_name(income)
+                    income_value = Income.income_sources[source_index][2]
+                    if income_value > 0:
+                        to_ping.append(income_value)
+                # Is it positive?
                 try:
-                    await reminder_channel.send(
-                        f"{member.mention}, Your income source '{income_name_for_ping}' can be collected! Use `!collect` to get it."
-                    )
-                    print(f"DEBUG: Sent income reminder to {member.display_name} for '{income_name_for_ping}'.")
+                    if to_ping != []:
+                        await reminder_channel.send(
+                             f"{member.mention}, Your income source '{income_name_for_ping}' can be collected! Use `!collect` to get it."
+                        )  
+                        print(f"DEBUG: Sent income reminder to {member.display_name} for '{income_name_for_ping}'.")
                 except discord.HTTPException as e:
                     print(f"ERROR: Failed to send reminder to {member.display_name} in {reminder_channel.name}: {e}")
             else:
@@ -619,11 +627,7 @@ async def usebomb(ctx, member: discord.Member):
 async def usebrick(ctx, member: discord.Member, target: discord.member):
     await ctx.send(f"{member.mention} used the brick!")
 
-    if not any(role.name == "Brick" for role in member.roles):
-        await ctx.send(f"Unfortunately you don't have a brick.")
-        return
-
-    await removerole(ctx, member, "Brick")
+    
     await timeout(ctx, target, 5)
     await ctx.send(f"{target.mention} was hit by the brick!")
 
@@ -1514,14 +1518,15 @@ async def on_message(message):
 
         if content.lower() == lastmessages.lower():
             timeoutcount += 1
-        
+         
     if timeoutcount > 1:
             if not ctx.author.bot or user_id == "503720029456695306":
                 # await timeout(ctx, ctx.author, timeoutcount)
-                await ctx.send("No spamming")
+                #await ctx.send("No spamming")
+                pass
 
-    if timeoutcount == 5:
-        await timeout(ctx, user_id, 60)
+    #if timeoutcount == 5: 
+        #await timeout(ctx, user_id, 60)
 
     message_log[user_id].append(content)
 
@@ -1972,7 +1977,13 @@ Slut_respondes = [
     "kakashi came by and killed the mood. You lose ___",
     "kakashi came and u partied really hard and u gain ___ ",
     "you failed you unfortunately lose your husband/or wife you lose ___",
-    "you gained the attention of some rich furries at a party. You wake up sore on the ground, with no memory of what happened but with ___ in your underpants"
+    "you gained the attention of some rich furries at a party. You wake up sore on the ground, with no memory of what happened but with ___ in your underpants",
+    "Your dazzling performance as the lead dancer at the 'Femboy Fantasy' cabaret captivated the crowd! You absolutely cleaned up, managing to gain ____ in tips and admirers.",
+    "You charmed a particularly lonely group of forest creatures, and they bestowed upon you a trove of shiny trinkets, which you successfully pawned for a gain of ____. Who knew foxes were so generous?",
+    "Your exceptional 'cuddle services' at the local furry convention were a massive hit! You successfully gained ____ and probably a few new lint rollers.",
+    "You tried to seduce a stoic femboy barista for a free coffee, but he just gave you decaf and charged extra. You lost ____ and your faith in cheap thrills.",
+    "While attempting to woo a wealthy fox, you tripped over a root and spilled your expensive elixir all over yourself. You lost ____, and now you smell faintly of wet dog.",
+    "Your attempt to start a 'furry fashion advice' TikTok account flopped harder than a pancake. You lost ____ on props and frankly, your reputation."
 ]
 
 @bot.command(name='slut')
@@ -1998,6 +2009,15 @@ async def slut(ctx):
 
     await ctx.send(message)
 
+crime_responses=[
+    "You skillfully repossessed a femboy's prized collection of oversized hoodies and managed to gain ____ by selling them as 'vintage couture'!",
+    "After a daring midnight raid on a local chicken coop (don't ask why), you made off with enough golden eggs to gain ____. Those foxes taught you well!",
+    "Your elaborate scheme to 'borrow' all the squeaky toys from a furry daycare paid off! You expertly fenced them for a clean gain of ____. No one suspected the floofy mastermind.",
+    "You attempted to pickpocket a femboy, but he was wearing leggings with no pockets. You tripped over your own feet in embarrassment and lost ____ in hospital bills for your bruised ego.",
+    "Your master plan to 'liberate' snacks from a picnic went south when a territorial fox mistook you for a rival. You barely escaped with your dignity, but lost ____ in the ensuing chase.",
+    "Trying to hack into the 'Furry Friend Finder' database, you accidentally signed yourself up for a lifetime supply of 'yarn for cats.' You didn't gain anything, but you lost ____ in the subscription fee!"
+]
+
 @bot.command(name='crime')
 async def crime(ctx):
     cooldown_msg = check_cooldown(ctx, 'crime')
@@ -2012,13 +2032,19 @@ async def crime(ctx):
     amount_lost = -user_total * random.randint(20, 40) // 100
     amount_lost = int(amount_lost)
 
-    if random.randint(1, 10) > 6:
+    response_message = crime_responses[random.randint(0, len(crime_responses)-1)]
+    if 'gain' in response_message:
+        response_message = response_message.replace('___', str(amount_gained))
         Bank.addcash(user_id=user_id, money=amount_gained)
-        await ctx.send(f"Crime successful, gain {amount_gained}")
     else:
+        response_message = response_message.replace('___', str(amount_lost))
         Bank.addcash(user_id=user_id, money=amount_lost)
-        await ctx.send(f"You were caught, lose {amount_lost}")
 
+work_responses = [
+    "You spent the day as a professional 'femboy hype man,' ensuring everyone was adequately glittered and confident. You earned a decent wage, plus a lifetime supply of self-esteem!",
+    "Your shift involved herding unruly cartoon foxes through an obstacle course. You're exhausted, but your paycheck is foxy!",
+    "You were employed as a 'chief tail floof manager' at a prestigious furry spa. It was surprisingly hard work, but your bank account is now as fluffy as your clients' tails!"
+]
 
 @bot.command(name='work')
 async def work(ctx):
@@ -2058,8 +2084,7 @@ async def work(ctx):
         earned_amount = random.uniform(mini_earnings, maxi_earnings)
         earned_amount = int(earned_amount) # Convert to an integer for currency
 
-        message = f"💰 You worked diligently and earned {earned_amount:,.2f} cash!"
-
+        message = work_responses[random.randint(1, len(work_responses)-1)] + f"You gain {earned_amount}"
     # Add the earned cash to the user's balance
     Bank.addcash(user_id=user_id_str, money=earned_amount) # Corrected parameter name to user_id
 
@@ -2520,7 +2545,7 @@ async def display_inventory(ctx):
     await ctx.send(embed=embed)
 
 @bot.command(name='use')
-async def use_item(ctx, item: str, target: str=""):
+async def use_item(ctx, item: str, target: discord.Member):
     """
     Lets users use their items
     Usage: !use bomb
@@ -2534,7 +2559,7 @@ async def use_item(ctx, item: str, target: str=""):
     print(item_index_int)
 
     if item_index_int == -1:
-        await ctx.send("Item not found")
+        await ctx.send("Item not found") 
         return
     
     if item_index_int == 2:
@@ -2542,7 +2567,7 @@ async def use_item(ctx, item: str, target: str=""):
         await usebomb(ctx, ctx.author)
         Items.removefromitems(user_id_str, item[0].capitalize() + item[1:], -1)
 
-    if item_index_int == 3:
+    if item_index_int == 4:
         await usebrick(ctx, ctx.author, target=target)
         Items.removefromitems(user_id_str, item[0].capitalize() + item[1:], -1)
 

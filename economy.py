@@ -383,7 +383,7 @@ class Income():
             if time_since_last_collected >= cooldown:
                 # Perform the transaction
                 if income_destination_type == "cash":
-                    if is_interest and value < 1 and value > -1: # Assume value is a percentage (e.g., 0.05 for 5%)
+                    if is_interest and value < 1: # Assume value is a percentage (e.g., 0.05 for 5%)
                         user_cash_balance = Bank.read_balance(user_id).get("cash", 0)
                         amount_gained = user_cash_balance * value
                         Bank.addcash(user_id, amount_gained) # Pass user_id

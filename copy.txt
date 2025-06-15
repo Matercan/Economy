@@ -1,0 +1,78 @@
+
+@staticmethod
+    def get_user_income_status(user_id: str):
+        """
+        Retrieves the status of all income sources assigned to a specific user,
+        including their cooldown status.
+        """
+        Income.playerincomes = Income.loadincomes() # Ensure player incomes are loaded
+        Income.create_sources() # Ensure global income sources are loaded/initialized
+
+        user_incomes_status = [] # List to store dictionaries of income statuses
+        user_assigned_incomes = Income.playerincomes.get(user_id, {}) # Correctly gets a dictionary
+
+        if not user_assigned_incomes:
+            return [] # No incomes assigned to this user
+
+        # Iterate over the key (source_name) and value (details dictionary)
+        for source_name_key, details in user_assigned_incomes.items():
+            index = details.get("index")
+            last_collected = details.get("since")
+
+            # Validate the income source index and existence
+            if index is None or not (0 <= index < len(Income.income_sources)):
+                user_incomes_status.append({
+                    "name": source_name_key, # Use the key from playerincomes if source is invalid
+                    "status": "Invalid Source (index out of bounds)",
+                    "details_valid": False, # Flag to indicate detailed source data is not available
+                    "cooldown_remaining": 0
+                })
+                continue
+
+            source_data = Income.income_sources[index]
+            # Validate the structure of the income source data (must have at least 5 elements)
+            if not source_data or len(source_data) < 5:
+                user_incomes_status.append({
+                    "name": source_name_key, # Still use the key if source data is malformed
+                    "status": "Malformed Source Data",
+                    "details_valid": False,
+                    "cooldown_remaining": 0
+                })
+                continue
+
+            # Extract details from the source definition
+            # income_source_data: [name, interest, value, cooldown, bank]
+            cooldown = source_data[3]
+            
+            time_since_last_collected = time.time() - last_collected
+            
+            # Determine cooldown status
+            if time_since_last_collected >= cooldown:
+                status = "Ready to collect!"
+                cooldown_remaining = 0
+            else:
+                cooldown_remaining = cooldown - time_since_last_collected
+                # Format remaining time for better display
+                m, s = divmod(cooldown_remaining, 60)
+                h, m = divmod(m, 60)
+                if h > 0:
+                    status = f"On cooldown ({int(h)}h {int(m)}m {int(s)}s remaining)"
+                elif m > 0:
+                    status = f"On cooldown ({int(m)}m {int(s)}s remaining)"
+                else:
+                    status = f"On cooldown ({int(s)}s remaining)"
+
+            # Append comprehensive status for this income source
+            user_incomes_status.append({
+                "name": source_data[0], # Use the name from the actual source data for display
+                "is_interest": source_data[1],
+                "value": source_data[2],
+                "cooldown": source_data[3],
+                "goes_to_bank": source_data[4],
+                "status": status,
+                "cooldown_remaining": cooldown_remaining,
+                "details_valid": True # Flag to indicate detailed source data is valid
+            })
+        return user_incomes_status
+
+
