@@ -30,7 +30,7 @@ class Bank:
         # Ensure the directory exists before saving (optional, but good practice)
         os.makedirs(os.path.dirname(Bank._DATA_FILE), exist_ok=True)
         with open(Bank._DATA_FILE, "w") as f:
-            json.dump(Bank.bank_accounts, f, indent=4)
+            json.dump(Bank.bank_accounts, f, indent=2)
 
 
     @staticmethod
@@ -230,7 +230,7 @@ class Income():
     @staticmethod
     def savesources():
         with open("incomesources.json", "w") as f:
-            json.dump(Income.income_sources, f, indent=4)
+            json.dump(Income.income_sources, f, indent=2)
 
     @staticmethod
     def loadincomes():
@@ -243,7 +243,7 @@ class Income():
     @staticmethod
     def saveincomes():
         with open("playerincomes.json", "w") as f:
-            json.dump(Income.playerincomes, f, indent=4)
+            json.dump(Income.playerincomes, f, indent=2)
 
     @staticmethod
     def readincomes(user_id: str, income_type: str): 
@@ -547,7 +547,7 @@ class Items:
     @staticmethod
     def save_item_sources():
         with open("itemsources.json", "w") as f:
-            json.dump(Items.item_sources, f, indent=4)
+            json.dump(Items.item_sources, f, indent=2)
 
     @staticmethod
     def create_source(name: str, is_collectible: bool, value_or_effect: any, description: str, associated_income_source_name: str = None, role_added: str = None, role_removed: str = None, role_required: str = None):
@@ -599,7 +599,7 @@ class Items:
     @staticmethod
     def save_player_inventory():
         with open("playerinventory.json", "w") as f:
-            json.dump(Items.player_inventory, f, indent=4)
+            json.dump(Items.player_inventory, f, indent=2)
 
     @staticmethod
     def addtoitems(user_id: str, item_name: str):

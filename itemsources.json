@@ -1,72 +1,72 @@
 [
-    [
-        "Pickaxe",
-        false,
-        500,
-        "is tool for mining.",
-        "Mining",
-        "Miner",
-        null,
-        null
-    ],
-    [
-        "Normal Item",
-        false,
-        "No special effect",
-        "is just a regular item.",
-        null,
-        null,
-        null,
-        null
-    ],
-    [
-        "Bomb",
-        false,
-        500,
-        "can blow up yourself, or other people",
-        null,
-        null,
-        null,
-        null
-    ],
-    [
-        "Knife",
-        false,
-        500,
-        "houses the ability to stab people and a good source of income",
-        "Knife",
-        "Knife",
-        "tin",
-        "tin"
-    ],
-    [
-        "Brick",
-        false,
-        10000,
-        "you can throw at someone and time them out for a bit",
-        null,
-        null,
-        null,
-        null
-    ],
-    [
-        "Freedom",
-        false,
-        150000,
-        "You attain freedom from the wrteched Knife",
-        null,
-        "tin",
-        "Knife",
-        "Knife"
-    ],
-    [
-        "Gay",
-        false,
-        10000,
-        "Gay gay homosexual gay",
-        "Gay",
-        "Gay",
-        null,
-        "tin"
-    ]
+  [
+    "Bomb",
+    false,
+    500,
+    "can blow up yourself, or other people",
+    null,
+    null,
+    null,
+    null
+  ],
+  [
+    "Knife",
+    false,
+    500,
+    "houses the ability to stab people and a good source of income",
+    "Knife",
+    "Knife",
+    "tin",
+    "tin"
+  ],
+  [
+    "Brick",
+    false,
+    10000,
+    "you can throw at someone and time them out for a bit",
+    null,
+    null,
+    null,
+    null
+  ],
+  [
+    "Freedom",
+    false,
+    150000,
+    "attains you freedom from the wrteched Knife",
+    null,
+    "tin",
+    "Knife",
+    "Knife"
+  ],
+  [
+    "Gay",
+    false,
+    10000,
+    "Gay gay homosexual gay",
+    "Gay",
+    "Gay",
+    null,
+    "tin"
+  ],
+  [
+    "Pickaxe",
+    false,
+    5000,
+    "can be used to mine things",
+    "Mining",
+    null,
+    null,
+    null
+  ],
+  [
+    "Shield",
+    false,
+    1000,
+    "can be used to not be get timed out",
+    null,
+    null,
+    null,
+    null
+  ]
 ]

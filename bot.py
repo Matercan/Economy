@@ -62,79 +62,7 @@ print(f"Absolute path of economy.py: {os.path.abspath(__file__)}")
 print(f"Expected balance.json path: {os.path.join(os.path.dirname(__file__), 'balance.json')}")
 
 
-class OS(enum.Enum):
-    WINDOWS = 0
-    MAC = 1
-    LINUX = 2
 
-
-class Language(enum.Enum):
-    ENG = 'eng'
-    NL = 'nl'
-
-lang = Language.ENG
-
-class OCR:
-
-    def __init__(self, operating_system: OS):
-        # Get the absolute path to the project directory
-        self.project_dir = os.path.abspath(os.path.dirname(__file__))
-        
-        if operating_system == OS.WINDOWS:
-            self.tesseract_path = r"C:\Program Files\Tesseract-OCR\tesseract.exe"
-            # Use local tessdata directory with absolute path
-            self.tessdata_prefix = os.path.join(self.project_dir, "tessdata")
-            
-            # Ensure tessdata directory exists
-            os.makedirs(self.tessdata_prefix, exist_ok=True)
-            
-            # Set environment variables
-            os.environ['TESSDATA_PREFIX'] = self.tessdata_prefix
-            pytesseract.tesseract_cmd = self.tesseract_path
-            
-            print(f"Project directory: {self.project_dir}")
-            print(f"Tesseract path set to: {self.tesseract_path}")
-            print(f"TESSDATA_PREFIX set to: {self.tessdata_prefix}")
-        elif operating_system == OS.MAC:
-            print("Using system Tesseract installation for Mac")
-            self.tessdata_prefix = "/usr/share/tessdata"
-        elif operating_system == OS.LINUX:
-            print("Using system Tesseract installation for Linux")
-            self.tessdata_prefix = "/usr/share/tessdata"
-            # On Linux, pytesseract will find the system installation automatically
-        
-        # Debug information
-        print(f"Current TESSDATA_PREFIX: {os.getenv('TESSDATA_PREFIX')}")
-        print(f"Checking if tessdata directory exists: {os.path.exists(self.tessdata_prefix)}")
-        
-        try:
-            version = pytesseract.get_tesseract_version()
-            print(f"Tesseract version: {version}")
-        except Exception as e: 
-            print(f"Error getting Tesseract version: {e}")
-            print("Please ensure Tesseract is installed correctly")
-
-    def ocr_core(self, image_path: str, lang: str) -> str:
-        try:
-            # Convert to absolute path if not already
-            image_path = os.path.abspath(image_path)
-            
-            if not os.path.exists(image_path):
-                print(f"Error: Image file not found at {image_path}")
-                return ""
-                
-            image = Image.open(image_path)
-            # Add preprocessing to improve OCR accuracy
-            image = image.convert('L')  # Convert to grayscale
-            
-            extracted_text = pytesseract.image_to_string(image, lang=lang, config='--psm 6')
-            return extracted_text.strip()
-        except Exception as e:
-            print(f"Error performing OCR: {e}")
-            print(f"Current working directory: {os.getcwd()}")
-            print(f"Image path: {image_path}")
-            print(f"Language: {lang}")
-            return ""
 
 
 if os.path.exists('kill_counts.json'):
@@ -346,6 +274,14 @@ async def hello(ctx):
 @commands.has_permissions(moderate_members=True)
 async def timeout(ctx, member: discord.Member, minutes: int, ping: bool=True):
     try:
+        
+        if "Sheild" in Items.get_user_items(str(member.id)):
+            await ctx.send(f"user {member.display_name} couldn't be timed out - they have a shield")
+            if random.randint(1, 3) == 1:
+                await ctx.send(f"{member.mention} you're sheild has broken")
+                Items.removefromitems(str(member.id), "Shield")
+            return
+
         duration = timedelta(minutes=minutes)
         await member.timeout(duration, reason=f"Timed out by {ctx.author}")
         if ping: await ctx.send(f"{member.mention} has been timed out for {minutes} minute(s).")
@@ -611,12 +547,6 @@ async def usebomb(ctx, member: discord.Member):
     save_kill_counts()
 
     
-    if not any(role.name == "Bomb" for role in member.roles):
-        await ctx.send(f"Unfortunately you don't have a bomb.")
-        return
-
-
-    
     await ctx.send(f"{member.mention} used the bomb!")
     if random.randint(1, 10) == 1:
         await ctx.send(f"{member.mention} blew up yourself!")
@@ -630,6 +560,7 @@ async def usebomb(ctx, member: discord.Member):
     else:
         await ctx.send(f"{member.mention} missed!")
 
+@bot.command()
 async def usebrick(ctx, member: discord.Member, target: discord.member):
     await ctx.send(f"{member.mention} used the brick!")
 
@@ -645,10 +576,14 @@ async def stab(ctx, member: discord.Member):
     if cooldown_msg:
         await ctx.send(cooldown_msg)
         return
+    
+    for role in ctx.author.roles:
+        if role.name == "Knife":
+            Items.addtoitems(str(ctx.author.id), "Knife")
 
     await ctx.send(f"{member.mention}, you've been stabbed!")
     
-    if not any(role.name == "Knife" for role in ctx.author.roles):
+    if not "Knife" in Items.get_user_items(str(ctx.author.id)):
         await ctx.send(f"Unfortunately you don't have a knife.")
         return
 
@@ -1034,7 +969,7 @@ def save_cooldowns(cooldowns):
         # Use a temporary file to prevent corruption
         temp_path = file_path + '.tmp'
         with open(temp_path, 'w') as f:
-            json.dump(cooldowns, f, indent=4)
+            json.dump(cooldowns, f, indent=2)
         
         # Safely replace the old file with the new one
         if os.path.exists(file_path):
@@ -1668,7 +1603,7 @@ else:
 
 def save_message_log():
     with open(last5messages, "w") as f:
-        json.dump(message_log, f, indent=4)
+        json.dump(message_log, f, indent=2)
 
 @bot.command()
 async def indictionary(ctx, word: str):
@@ -1905,7 +1840,7 @@ async def give(ctx, member: discord.Member, money: float):
         print(f"An error occurred in !give command: {e}") # Log the actual error for debugging
         await ctx.send(f"❌ An unexpected error occurred during the transaction. Tell me when this happens. (Error: {e})")
 
-@bot.command(name='incomesources', aliases=['list-incomes', 'income-info'])
+@bot.command(name='incomesources', aliases=['list-incomes', 'income-info', 'ini'])
 async def list_income_sources(ctx):
     """
     Displays information about all available income sources.
@@ -2633,7 +2568,7 @@ async def buy_item(ctx, *, item: str):
 
     await ctx.send(embed=embed)
 
-@bot.command(name='inventory')
+@bot.command(name='inventory', aliases=['inv', 'my-items'])
 async def display_inventory(ctx):
     """
     Displays the items within the user's inventory
@@ -2644,14 +2579,33 @@ async def display_inventory(ctx):
     inventory_data = Items.get_user_items(user_id_str)
 
     embed = discord.Embed(
-        title=f"{ctx.author.display_name}'s items",
+        title=f"{ctx.author.display_name}'s items ⛏️",
         description="The items you have acquired over your travels",
         color=discord.Color.brand_red()
     )
 
+    item_emoji = ["🗡️", "⚔️", "🛡️", "💸"]
+
     for item, i in enumerate(inventory_data):
         item_data = Items.item_sources[Items.get_item_source_index_by_name(i)]
-        embed.add_field(name=item_data[0], value=item_data[3], inline=False)
+        embed.add_field(name=item_data[0],
+                        value=item_data[3] + " " + item_emoji[random.randint(0, len(item_emoji)-1)],
+                        inline=False)
+
+    field_emoji = []
+    for field in embed.fields:
+        print(field)
+        emoji = field.__getattribute__("value")[len(field.__getattribute__("value"))-1]
+        print(emoji)
+        field_emoji.append(emoji)
+
+    for i in range(len(field_emoji)):
+        if len(field_emoji) < 2: break
+        if field_emoji[i-1] == field_emoji[i] and field_emoji[i-1] == field_emoji[i-2]: pass
+            #await ctx.send("Congrats you got 3 emojis in a row \n gain 5000")
+            #Bank.addcash(user_id_str, 5000)
+
+    embed.set_thumbnail(url='https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcTYjkNcpGalEIy9SRBVj8IO8YjAxOgtnR8uAg&s')
 
     await ctx.send(embed=embed)
 
