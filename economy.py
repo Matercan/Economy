@@ -260,9 +260,9 @@ class Income():
                 since_value = income_data.get("since", 0.0)
                 return {"index": index_value, "since": since_value}
             else:
-                return {"index": 0, "since": 0.0}
+                return {"index": -1, "since": 0.0}
         else:
-            return {"index": 0, "since": 0.0}
+            return {"index": -1, "since": 0.0}
 
     @staticmethod
     def read_source(rw: int = None, collum: int = None):
@@ -393,7 +393,7 @@ class Income():
                         collection_messages.append(f"✅ Collected `{value:,.2f}` cash from '{source_name_key}'!")
                 elif income_destination_type == "bank":
                     # For bank income, if 'is_interest' is true and value is a percentage, calculate it from user's current bank balance
-                    if is_interest and value < 1 and value > 0: # Assume value is a percentage (e.g., 0.05 for 5%)
+                    if is_interest and value < 1: # Assume value is a percentage (e.g., 0.05 for 5%)
                         user_bank_balance = Bank.read_balance(user_id).get("bank", 0)
                         amount_gained = user_bank_balance * value
                         Bank.addbank(user_id, amount_gained) # Pass user_id

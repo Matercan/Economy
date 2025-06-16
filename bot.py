@@ -275,6 +275,7 @@ async def checkbankrobery():
 
         await asyncio.sleep(3600)
 
+
 @tasks.loop(minutes=5) 
 async def ping_collect_income():
     print(f"DEBUG: Running ping_collect_income task at {datetime.datetime.now()}")
@@ -298,32 +299,37 @@ async def ping_collect_income():
         if collect_income_role in member.roles:
             user_id_str = str(member.id)
             
-            # --- USE THE NEW HELPER METHOD HERE ---
-            ready_income = Income.is_any_income_ready(user_id_str)
+            ready_income_data = Income.is_any_income_ready(user_id_str) # This returns a dictionary like {"name": "Knife", "status": "Ready to collect!", ...} or None
             
-            if ready_income: # If ready_income is not None, it means an income is ready
-                income_name_for_ping = ready_income.get("name", "your income")# Get the name of the ready income
-                to_ping = []
-                for income in  income_name_for_ping: 
-                    source_index = Income.get_source_index_by_name(income)
-                    income_value = Income.income_sources[source_index][2]
-                    if income_value > 0:
-                        to_ping.append(income_value)
-                # Is it positive?
-                try:
-                    if to_ping != []:
-                        await reminder_channel.send(
-                             f"{member.mention}, Your income source '{income_name_for_ping}' can be collected! Use `!collect` to get it."
-                        )  
-                        print(f"DEBUG: Sent income reminder to {member.display_name} for '{income_name_for_ping}'.")
-                except discord.HTTPException as e:
-                    print(f"ERROR: Failed to send reminder to {member.display_name} in {reminder_channel.name}: {e}")
-            else:
-                # If ready_income is None, no income is ready
-                # print(f"DEBUG: {member.display_name} has the role but no income is ready yet.")
-                pass
+            if ready_income_data: # If ready_income_data is not None, it means an income is ready
+                income_name_for_ping = ready_income_data.get("name", "your income")
+                
+                # Get the full source definition for this specific income by its name
+                # Assuming Income.read_source(source_name=name) returns the list:
+                # [name, is_interest, value, cooldown, goes_to_bank]
 
-# --- Background Task for Income Collection Reminders ---
+                source_definition = Income.read_source(rw=Income.get_source_index_by_name(income_name_for_ping))
+
+                if source_definition and len(source_definition) > 2: # Ensure source_definition is valid and has a value at index 2
+                    income_value = source_definition[2] # The income value is at index 2 in the source_definition list
+                    
+                    if income_value > 0 and member.status != discord.Status.offline: # Check if the income's value is positive
+                        try:
+                            await reminder_channel.send(
+                                f"{member.mention}, Your income source '{income_name_for_ping}' can be collected! Use `!collect` to get it."
+                            )
+                            print(f"DEBUG: Sent income reminder to {member.display_name} for '{income_name_for_ping}' (Value: ${income_value}).")
+                        except discord.HTTPException as e:
+                            print(f"ERROR: Failed to send reminder to {member.display_name} in {reminder_channel.name}: {e}")
+                    else:
+                        print(f"DEBUG: Income '{income_name_for_ping}' for {member.display_name} is ready but has a non-positive value ({income_value}). Skipping ping.")
+                else:
+                    print(f"ERROR: Could not retrieve valid source definition for income '{income_name_for_ping}' for user {member.display_name}. Skipping ping.")
+            else:
+                # If ready_income_data is None, no income is ready
+                # print(f"DEBUG: {member.display_name} has the role but no income is ready yet.")
+                pass# --- Background Task for Income Collection Reminders ---
+
 # This decorator ensures the task waits until the bot is fully ready before starting
 @ping_collect_income.before_loop
 async def before_ping_collect_income():
@@ -729,14 +735,20 @@ async def send_economy_commands_embed(interaction: discord.Interaction):
         value="Displays the richest member this side of the economy",
         inline=False
     )
-
+ 
     help_embed.add_field(
         name="!store",
         value="Gets all the items within the store",
         inline=False
     )
 
-    await interaction.response.send_message(embed=help_embed, ephemeral=True)
+    help_embed.add_field(
+        name="!loan",
+        value="Takes out a 50000 loan for the user",
+        inline=False
+    )
+
+    await interaction.response.edit_message(embed=help_embed)
 
 async def send_violent_commands(interaction: discord.Interaction):
     help_embed = discord.Embed(
@@ -746,7 +758,7 @@ async def send_violent_commands(interaction: discord.Interaction):
 
     help_embed.add_field(
         name="!stab [user]",
-        value="Stab another user, You can only stab once every hour and if you have a knife. Has a cooldown.",
+        value="Stab another user, You can only stab once every hour and if you have a knife. Has a cooldown.", 
         inline=False
     )
 
@@ -786,7 +798,7 @@ async def send_violent_commands(interaction: discord.Interaction):
         inline=False
     )
 
-    await interaction.response.send_message(embed=help_embed, ephemeral=True)
+    await interaction.response.edit_message(embed=help_embed)
 
 
 @bot.command(name='commands', aliases=['help', 'economy'])
@@ -1351,6 +1363,9 @@ async def take_screenshot(region=None):
 @bot.event
 async def on_message(message):
 
+    if "general" in message.channel.name:
+        return
+
     user_id = str(message.author.id)
 
     ctx = await bot.get_context(message)
@@ -1400,14 +1415,37 @@ async def on_message(message):
                 try:
                     # This line might still error if the generated 'ctx' is not fully fledged for permissions
                     await removerole(ctx, message.author, role_name="tin")
-                except Exception as e:
+                except Exception as e: 
                     print(f"Error calling removerole from on_message: {e}")
                     await message.channel.send(f"An internal error occurred trying to remove the role: {e}")
             else:
                 await message.channel.send("Could not determine guild context to remove role.")
         else:
             await message.channel.send("This action can only be performed in a guild channel.")
+     
+    if Bank.gettotal(user_id) >= 100000 and Income.readincomes(user_id, "Loan")["index"] != -1:
+        await ctx.send("Congrats, you paid off your loan")
+        Income.playerincomes[user_id]["Loan interest"]["since"] = 0
+        Income.saveincomes()
+        #await ctx.send(Income.playerincomes[user_id])
 
+        Income.collectincomes(user_id)
+        Bank.addbank(user_id, -50000)
+        #await ctx.send(Bank.read_balance(user_id))
+
+        # Safely delete "Loan" income source
+        # .pop() with a second argument (like None) will remove the key if it exists,
+        # but will not raise an error if the key doesn't exist.
+        Income.playerincomes[user_id].pop("Loan", None)
+        
+        # Safely delete "Loan interest" income source
+        Income.playerincomes[user_id].pop("Loan interest", None)
+        
+        Income.saveincomes() # Save the updated incomes after deletion
+
+    if Bank.gettotal(user_id) <= 0 and not message.author.bot:
+        await take_loan(ctx)
+ 
     current_time = message.created_at # message.created_at is a datetime object
 
     if user_id not in user_last_message_timestamps:
@@ -1426,7 +1464,7 @@ async def on_message(message):
     
     if state.get(user_id, False):  # Default to True if not set
         # Check for non-English words and suggest corrections
-        words = message.content.lower().split()
+        words = message.content.lower().split() 
         corrections_needed = False
         corrected_words = []
         
@@ -1487,7 +1525,7 @@ async def on_message(message):
             json.dump(houseometer, f)
 
         if houseometer[member.name] == 10:
-            if random.randint(1, 2) < 1:
+            if random.randint(1, 2) <= 1:
                 await ctx.send("You win!")
                 Bank.addcash(user_id, random.randrange(1000, 10000))
                 houseometer[member.name] = 0
@@ -1496,7 +1534,7 @@ async def on_message(message):
             else:
                 await ctx.send("You lose!")
                 Bank.addbank(user_id, -random.randrange(1000, 10000))
-                houseometer[member.name] = 0
+                houseometer [member.name] = 0
                 with open('house.json', 'w') as f:
                     json.dump(houseometer, f)
 
@@ -1666,6 +1704,60 @@ async def englishwords(ctx, starting_letter: str = None):
             await ctx.send(word)
     await ctx.send(f'{ctx.author.mention} done!')
 
+@bot.command(name='rank', aliases=[])
+async def get_user_rank(ctx, member: discord.Member = None):
+    """
+    Shows the rank of a user (or yourself) based on their total money (cash + bank).
+    Usage: !rank
+           !rank @Username
+    """
+    target_member = member if member else ctx.author
+    target_user_id = str(target_member.id) # User IDs are usually stored as strings in JSON keys
+
+    # Ensure playerdata is loaded from the JSON file
+    # Bank.playerdata will be populated by this call if it hasn't been already
+     
+
+    # Prepare a list to store (total_money, user_id) for sorting
+    ranked_users = []
+    for user_id, data in Bank.read_balance().items():
+        try:
+            # Safely get cash and bank amounts, defaulting to 0 if not present
+            cash = data.get("cash", 0)
+            bank = data.get("bank", 0)
+            total_money = cash + bank
+            ranked_users.append((total_money, user_id))
+        except (TypeError, ValueError) as e:
+            # Log any issues with specific user data without stopping the process
+            print(f"WARNING: Skipping invalid balance data for user ID {user_id}: {data}. Error: {e}")
+            continue
+
+    # Sort the list by total_money in descending order (highest money first)
+    ranked_users.sort(key=lambda x: x[0], reverse=True)
+
+    # Find the rank of the target user
+    rank = -1
+    target_money = 0
+    total_members_with_balance = len(ranked_users) # Total number of users who have a recorded balance
+
+    for i, (money, user_id) in enumerate(ranked_users):
+        if user_id == target_user_id:
+            rank = i + 1 # Ranks are 1-based (first item is rank 1)
+            target_money = money
+            break
+    
+    if rank != -1:
+        # Format the money with commas for readability
+        await ctx.send(
+            f"{target_member.display_name}'s rank: **#{rank}** "
+            f"out of {total_members_with_balance} members with a balance. "
+            f"Total money: {target_money:,.2f}"
+        )
+    else:
+        await ctx.send(f"{target_member.display_name} does not have a recorded balance yet.")
+
+# ... (rest of your bot.py code) ...
+
 @bot.command(name='balance', aliases=['bal', 'money'])
 async def balance(ctx, member: discord.Member = None):
 
@@ -1678,6 +1770,21 @@ async def balance(ctx, member: discord.Member = None):
     cash = Bank.read_balance(user_id)["cash"]
     bank = Bank.read_balance(user_id)["bank"]
     
+    ranked_members = []
+
+    for user_id_str, data in Bank.read_balance().items():
+        ranked_members.append((Bank.gettotal(user_id_str), user_id_str))
+
+    ranked_members.sort(key=lambda x: x[0], reverse=True)
+    rank=-1
+    richens = len(ranked_members)
+
+    for i, (money, user_id_str) in enumerate(ranked_members):
+        if user_id_str == user_id:
+            rank = i + 1
+            break
+
+
     # Using an embed for better presentation
     embed = discord.Embed(
         title=f"{target_member.display_name}'s Balance",
@@ -1689,14 +1796,16 @@ async def balance(ctx, member: discord.Member = None):
     # Calculate and display total worth using your gettotal method
     total_worth = Bank.gettotal(user_id)
     embed.add_field(name="✨ Total Worth", value=f"{total_worth:,.2f}", inline=False)
-    
+    embed.add_field(name="Rank", value=rank, inline=False)
+
     embed.set_thumbnail(url=target_member.avatar.url if target_member.avatar else None)
     embed.set_footer(text=f"Requested by {ctx.author.display_name}", icon_url=ctx.author.avatar.url if ctx.author.avatar else None)
+
 
     await ctx.send(embed=embed)
 
 @bot.command(name='deposit', aliases=['dep'])
-async def deposit(ctx, money: str):
+async def deposit(ctx, money: str="all"):
     user_id = str(ctx.author.id)
 
     if money == "all":
@@ -1710,7 +1819,7 @@ async def deposit(ctx, money: str):
     if Bank.read_balance(user_id=user_id)["cash"] < money:
         await ctx.send("You don't have that much money in your bank")
         return
-
+ 
     Bank.movetobank(user_id=user_id, money=money)
     
     embed = discord.Embed(
@@ -1744,7 +1853,7 @@ async def suicide(ctx):
     kill_counts[killer_id] += len([member for member in ctx.guild.members if not member.bot])
 
 @bot.command(name='withdraw', aliases=['wit', 'with'])
-async def withdraw(ctx, money: str):
+async def withdraw(ctx, money: str="all"):
     user_id = str(ctx.author.id)
 
     if money == "all":
@@ -1848,7 +1957,7 @@ async def list_income_sources(ctx):
     
     await ctx.send(embed=embed)
 
-@bot.command(name='incomes', aliases=['see-incomes', 'find-incomes'])
+@bot.command(name='incomes', aliases=['see-incomes', 'find-incomes', 'investments', 'in'])
 async def display_incomes(ctx):
     """
     Displays your currently assigned income sources and their cooldown status.
@@ -1913,7 +2022,7 @@ from economy import Bank, Income, Items
 
 # ... (your bot setup and other commands) ...
 
-@bot.command(name='collect', aliases=['getincome', 'claim'])
+@bot.command(name='collect', aliases=['getincome', 'claim', 'inc', 'clm'])
 async def collect_income_command(ctx):
     """
     Collects available income from your sources and shows their updated status.
@@ -1974,10 +2083,10 @@ async def collect_income_command(ctx):
     await ctx.send(embed=embed) # Send the final embed
 
 Slut_respondes = [
-    "kakashi came by and killed the mood. You lose ___",
-    "kakashi came and u partied really hard and u gain ___ ",
-    "you failed you unfortunately lose your husband/or wife you lose ___",
-    "you gained the attention of some rich furries at a party. You wake up sore on the ground, with no memory of what happened but with ___ in your underpants",
+    "kakashi came by and killed the mood. You lose ____",
+    "kakashi came and u partied really hard and u gain ____ ",
+    "you failed you unfortunately lose your husband/or wife you lose ____",
+    "you gained the attention of some rich furries at a party. You wake up sore on the ground, with no memory of what happened but with ____ in your underpants",
     "Your dazzling performance as the lead dancer at the 'Femboy Fantasy' cabaret captivated the crowd! You absolutely cleaned up, managing to gain ____ in tips and admirers.",
     "You charmed a particularly lonely group of forest creatures, and they bestowed upon you a trove of shiny trinkets, which you successfully pawned for a gain of ____. Who knew foxes were so generous?",
     "Your exceptional 'cuddle services' at the local furry convention were a massive hit! You successfully gained ____ and probably a few new lint rollers.",
@@ -2000,11 +2109,11 @@ async def slut(ctx):
 
     if 'gain' in message:
         Bank.addcash(user_id=user_id, money=amount_gained)
-        message = message.replace('___', str(amount_gained))
+        message = message.replace('____', str(amount_gained))
     else:
         amount_lost = -Bank.gettotal(user_id=user_id)*random.randint(20, 60)//100
         Bank.addcash(user_id=user_id, money=amount_lost)
-        message = message.replace('___', str(amount_lost))
+        message = message.replace('____', str(amount_lost))
         
 
     await ctx.send(message)
@@ -2034,11 +2143,13 @@ async def crime(ctx):
 
     response_message = crime_responses[random.randint(0, len(crime_responses)-1)]
     if 'gain' in response_message:
-        response_message = response_message.replace('___', str(amount_gained))
+        response_message = response_message.replace('____', str(amount_gained))
         Bank.addcash(user_id=user_id, money=amount_gained)
     else:
-        response_message = response_message.replace('___', str(amount_lost))
+        response_message = response_message.replace('____', str(amount_lost))
         Bank.addcash(user_id=user_id, money=amount_lost)
+
+    await ctx.send(response_message)
 
 work_responses = [
     "You spent the day as a professional 'femboy hype man,' ensuring everyone was adequately glittered and confident. You earned a decent wage, plus a lifetime supply of self-esteem!",
@@ -2101,7 +2212,7 @@ async def work(ctx):
     embed.set_footer(text=f"Your current balance: Cash: {current_cash}, Bank: {current_bank}")
 
     await ctx.send(embed=embed)
-
+ 
 @bot.command(name='leaderboard', aliases=['richest', 'leader'])
 async def leaderboard(ctx):
     # Ensure bank accounts are loaded before accessing them directly
@@ -2179,7 +2290,7 @@ async def rob(ctx, target: discord.Member):
     if random.randint(1, 10) > 4:
         await ctx.send(f"You robbed {target.display_name} for {amount_gained}")
         Bank.addcash(user_id_str, amount_gained)
-        Bank.addcash[target_id_str, -amount_gained]
+        Bank.addcash(target_id_str, -amount_gained)
         await balance(ctx)
     else:
         await ctx.send(f"You were caught and pay {amount_lost} as fine")
@@ -2511,7 +2622,7 @@ async def buy_item(ctx, *, item: str):
     )
 
     Items.addtoitems(user_id_str, item_data[0])
-
+ 
     if item_data[5]:
         # Pass role_name as a keyword argument
         await addrole(ctx, ctx.author, role_name=item_data[5]) 
@@ -2545,7 +2656,7 @@ async def display_inventory(ctx):
     await ctx.send(embed=embed)
 
 @bot.command(name='use')
-async def use_item(ctx, item: str, target: discord.Member):
+async def use_item(ctx, item: str, target: discord.Member = None):
     """
     Lets users use their items
     Usage: !use bomb
@@ -2632,7 +2743,84 @@ async def last_message_difference(ctx, member: discord.Member = None):
 
     await ctx.send(f"The time difference between {target_member.display_name}'s last two messages was: **{time_difference_str}**.")
 
+@bot.command(name='statuscheck', aliases=['checkstatus'])
+async def check_user_status(ctx, member: discord.Member=None):
+    """
+    Checks the online/offline status of a specified member.
+    Usage: !statuscheck @Username
+    """
+    if member is None:
+        await ctx.send("Please mention a member to check their status.")
+        return
+
+    # member.status will be a discord.Status enum
+    status = member.status
+
+    if status == discord.Status.online:
+        await ctx.send(f"{member.display_name} is currently **online**.")
+    elif status == discord.Status.offline or status == discord.Status.invisible:
+        await ctx.send(f"{member.display_name} is currently **offline**.")
+    elif status == discord.Status.idle:
+        await ctx.send(f"{member.display_name} is currently **idle**.")
+    elif status == discord.Status.dnd:
+        await ctx.send(f"{member.display_name} is currently on **Do Not Disturb**.")
+    else:
+        await ctx.send(f"{member.display_name} has an **unknown** status ({status}).")
+
+@bot.command(name='loan', aliases=['lend', 'cash'])
+async def take_loan(ctx):
+    
+   
+    user_id_str = str(ctx.author.id)
+
+    if "Loan" in Income.playerincomes[user_id_str]:
+        await ctx.send("You already have a loan")
+        return
+
+
+
+    Income.addtoincomes(user_id_str, "Loan", Income.get_source_index_by_name("Loan"))
+    Income.addtoincomes(user_id_str, "Loan interest", Income.get_source_index_by_name("Loan interest"))
+    
+    Income.playerincomes[user_id_str]["Loan"]["since"] = 0
+
+    Income.saveincomes()
+
+    #await ctx.send(Income.collectincomes(user_id_str))
+    
+ 
+    await ctx.send("Taken out loan of Value 50,000")
+
+@bot.command(name='coin-flip', aliases=['cf'])
+async def gamble_coinflip(ctx, *, money: str="all"):
+    win_lose = random.randint(0, 1)
+    
+    try:
+        money=float(money)
+    except ValueError:
+        if money == "all" or money=="all in":
+            money=Bank.read_balance(ctx.author.id)["cash"]
+        else:
+            ctx.send("Not a valid amount of money, please either dont type a money amount, type all or type a number")
+
+    await ctx.send(f"{ctx.author.display_name} put a bet of {money} into a coinflip")
+    await ctx.send("Let's see how what happens")
+    asyncio.timeout(3)
+    
+    if win_lose == 1:
+        await ctx.send(f"{ctx.author.display_name} won {money}")
+        Bank.addcash(ctx.author.id, money)
+    else:
+        await ctx.send(f"{ctx.author.display_name} lost {money}")
+        Bank.addcash(ctx.author.id, -money)
+
+@bot.command(name='remove-bank-account', aliases=['rm-b'])
+async def removeaccount(ctx):
+    del Bank.bank_accounts[str(ctx.author.id)]
+    Bank.save_balances()
+
 TOKEN = os.environ.get("BOT_TOKEN")
+
 
 if TOKEN is None:
     print("Error: BOT_TOKEN environment variable not set.")

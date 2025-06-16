@@ -68,5 +68,19 @@
         -300000,
         21600,
         true
+    ],
+    [
+        "Loan",
+        false,
+        50000,
+        86400,
+        true
+    ],
+    [
+        "Loan interest",
+        true,
+        -0.2,
+        14400,
+        true
     ]
 ]
