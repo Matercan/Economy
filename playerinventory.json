@@ -5,7 +5,7 @@
     "Shield": 6
   },
   "606937826587705372": {
-    "Pickaxe": 0,
+    "Pickaxe": 5,
     "Knife": 1,
     "Shield": 6,
     "Brick": 2,
@@ -13,7 +13,8 @@
   },
   "763559063501012992": {
     "Knife": 3,
-    "Pickaxe": 0
+    "Pickaxe": 5,
+    "Shield": 6
   },
   "727830793493413936": {
     "Pickaxe": 0,
