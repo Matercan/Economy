@@ -68,5 +68,25 @@
     null,
     null,
     null
+  ],
+  [
+    "Slippery gloves",
+    false,
+    1000,
+    "Can be used once to make robbing a guarantee",
+    null,
+    null,
+    null,
+    null
+  ],
+  [
+    "A good lawyer",
+    false,
+    100000,
+    "stops you from being fined for robbing/crime/slut \n it costs 100000 per loss",
+    null,
+    null,
+    null,
+    null
   ]
 ]

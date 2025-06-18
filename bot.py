@@ -1,7 +1,6 @@
-from functools import cmp_to_key
 import random
 import discord
-from discord.ext.commands import BucketType, has_permissions
+from discord.ext.commands import has_permissions
 from datetime import timedelta
 from discord.ext import commands, tasks
 from discord.utils import get
@@ -10,19 +9,10 @@ import os
 import nltk
 from fuzzywuzzy import fuzz
 import time
-import subprocess
-from PIL import Image
-from pytesseract import pytesseract
-import enum
 import asyncio
-#from pynput.keyboard import Controller, Key
-#import pyautogui
-import webbrowser
 import sys
 from economy import Bank, Income, Items
-from mss import mss
 from nltk.corpus import words
-import locale
 import datetime
 
 english_words = set(words.words())
@@ -1280,27 +1270,6 @@ async def toggle_spellcheck(ctx):
     status = "enabled" if state[user_id] else "disabled"
     await ctx.send(f"Spellcheck has been {status} for you.")
 
-async def take_screenshot(region=None):
-    """Take a screenshot using mss"""
-    try:
-        screenshot_path = os.path.abspath("screenshot.png")
-        
-        with mss() as sct:
-            if region:
-                # Take screenshot of a specific region
-                screenshot = sct.grab(region)
-            else:
-                # Take full screenshot of primary monitor
-                screenshot = sct.grab(sct.monitors[1])
-            
-            # Convert to PIL Image
-            image = Image.frombytes("RGB", screenshot.size, screenshot.rgb)
-            image.save(screenshot_path)
-            
-        return screenshot_path
-    except Exception as e:
-        raise Exception(f"Screenshot error: {e}")
-
 @bot.event
 async def on_message(message):
 
@@ -1885,7 +1854,12 @@ async def list_income_sources(ctx):
             else:
                 value_display = f"**{value}** {'to bank' if goes_to_bank else 'to cash'}."
             
-            cooldown_display = f"{cooldown} seconds"
+            cooldown_days = int(cooldown // 86400)
+            cooldown_hours = int((cooldown % 86400)// 3600)
+            cooldown_minutes = int((cooldown % 3600) // 60)
+            cooldown_seconds = (cooldown % 60) 
+            
+            cooldown_display = f"{cooldown_days}d {cooldown_hours}h {cooldown_minutes}m, and {cooldown_seconds}s"
 
             embed.add_field(
                 name=f"📈 {name}",
@@ -1937,11 +1911,17 @@ async def display_incomes(ctx):
             else:
                 value_display = f"**{value}** {'to bank' if goes_to_bank else 'to cash'}"
             
+            cooldown_days = int(cooldown // 86400)
+            cooldown_hours = int((cooldown % 86400)// 3600)
+            cooldown_minutes = int((cooldown % 3600) // 60)
+            cooldown_seconds = (cooldown % 60) 
+
+
             # Show current status and detailed info
             field_value = (
                 f"Status: `{status}`\n" # Displays if ready or cooldown remaining
                 f"Value: {value_display}\n"
-                f"Base Cooldown: {cooldown} seconds" # Base cooldown duration
+                f"Base Cooldown: {cooldown_days}d {cooldown_hours}h {cooldown_minutes}m {cooldown_seconds}s" # Base cooldown duration
             )
         else:
             # For invalid or malformed sources, just show the error status
@@ -2071,11 +2051,19 @@ crime_responses=[
     "You bypassed the security systems of a furry convention's main server by meticulously editing a configuration file with Neovim after gaining ssh access via a Linux live USB. You managed to siphon off enough 'con-cash' to gain ____!",
     "You tried to brute-force a femboy's secure SSH server, but your custom Neovim script had a typo. The server locked you out and simultaneously wiped your entire ~/.config/nvim folder. You lost ____ in therapy bills and the sheer horror of a default Neovim setup.",
     "Your attempt to 'sudo rm -rf /' the local animal shelter's antiquated Windows server (why?) was thwarted by a vigilant security fox who unplugged your Linux machine. You lost ____ in fines and had to reinstall your own OS.",
-    "While attempting to exfiltrate data from a furry's laptop, you accidentally opened their very private Neovim config file. The cringe caused your system to crash, and you lost ____ when they charged you for 'emotional damages and Neovim support'."
+    "While attempting to exfiltrate data from a furry's laptop, you accidentally opened their very private Neovim config file. The cringe caused your system to crash, and you lost ____ when they charged you for 'emotional damages and Neovim support'.",
+    "You skillfully convinced a group of squirrels that 'finders keepers' applied to all the local park's unattended wallets. You split the take 60/40 (in your favor, of course) and gained ____!",
+    "Through sheer force of questionable charisma, you talked a highly secure bank vault into opening itself. The guards were too bewildered to react, and you walked out with a cool gain of ____.",
+    "You pulled off the legendary 'Invisible Sandwich Heist,' stealing a chef's prize-winning, perfectly balanced lunch right off their plate without them ever noticing. The chef's confusion bought you enough time to fence the sandwich for a solid gain of ____."
 ]
+
+crime_success_dict = {}
 
 @bot.command(name='crime')
 async def crime(ctx):
+    global crime_success_dict
+    print(crime_success_dict)
+
     cooldown_msg = check_cooldown(ctx, 'crime')
     if cooldown_msg:
         await ctx.send("Unfortunately, all the places are robbed :)")
@@ -2090,8 +2078,20 @@ async def crime(ctx):
 
     response_message = crime_responses[random.randint(0, len(crime_responses)-1)]
     if 'gain' in response_message:
+
+        if not user_id in crime_success_dict:
+            crime_success_dict[user_id] = 0
+
+        crime_success_dict[user_id] += 1
+
         response_message = response_message.replace('____', str(amount_gained))
         Bank.addcash(user_id=user_id, money=amount_gained)
+
+        if crime_success_dict[user_id] == 5:
+            
+            await ctx.send("Due to the impressive amount of crimes you have succeeded in a row, criminals flock to you with you as their boss (check m!in)")
+            Income.addtoincomes(user_id, "Organized crime ring", 13)
+
     else:
         response_message = response_message.replace('____', str(amount_lost))
         Bank.addcash(user_id=user_id, money=amount_lost)
@@ -2227,6 +2227,9 @@ async def leaderboard(ctx):
 
 @bot.command(name='rob', aliases=['steal', 'yoink'])
 async def rob(ctx, target: discord.Member):
+    global crime_success_dict
+    print(crime_success_dict)
+
     cooldown_msg = check_cooldown(ctx, 'rob')
     if cooldown_msg:
         await ctx.send(cooldown_msg)
@@ -2240,10 +2243,21 @@ async def rob(ctx, target: discord.Member):
     amount_lost = -random.randint(20, 40) * Bank.gettotal(user_id_str) // 100
 
     if random.randint(1, 10) > 4:
+
+
+        if not crime_success_dict[user_id_str]:
+            crime_success_dict[user_id_str] = 0
+        crime_success_dict[user_id_str] += 1
+            
+
         await ctx.send(f"You robbed {target.display_name} for {amount_gained}")
         Bank.addcash(user_id_str, amount_gained)
         Bank.addcash(target_id_str, -amount_gained)
         await balance(ctx)
+
+        if crime_success_dict == 5:
+            await ctx.send("Due to the impressive amount of crimes you have succeeded in a row, criminals flock to you with you as their boss (check m!in)")
+
     else:
         await ctx.send(f"You were caught and pay {amount_lost} as fine")
         Bank.addcash(user_id_str, amount_lost)

@@ -89,5 +89,12 @@
     5000,
     3600,
     false
+  ],
+  [
+    "Organized crime",
+    true,
+    0.1,
+    172800,
+    false
   ]
 ]
