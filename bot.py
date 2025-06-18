@@ -126,7 +126,7 @@ async def on_ready():
             # If the flag file does NOT exist, it's a fresh start (not a restart)
             try:
                 # Ping the role by its ID
-                await status_channel.send(f"✅ Bot is now online! <@&{ONLINE_ROLE_ID}>")
+                await status_channel.send(f"✅ Bot is now online! <@{ONLINE_ROLE_ID}>")
                 print("Sent 'bot online' ping.")
             except discord.Forbidden:
                 print(f"Error: Bot does not have permission to send messages or ping role in channel {STATUS_CHANNEL_ID}.")
@@ -147,6 +147,7 @@ async def on_ready():
     # Start recurring tasks
     bot.loop.create_task(check_guillotine_cooldown())
     bot.loop.create_task(checkbankrobery())
+    ping_collect_income.stop()
     ping_collect_income.start()
     # Logging guild and member info (for debugging/monitoring)
     for guild in bot.guilds:
@@ -160,8 +161,13 @@ async def on_ready():
                 print(f"{member.name} ({member.display_name}, {member.id}) ")
 
 async def check_guillotine_cooldown():
+    global is_restarting_for_disconnect
     await bot.wait_until_ready()
     while not bot.is_closed():
+
+        if is_restarting_for_disconnect:
+            return
+
         for guild in bot.guilds:
             cooldowns = load_cooldowns()
             guild_id = str(guild.id)
@@ -2059,7 +2065,13 @@ crime_responses=[
     "Your elaborate scheme to 'borrow' all the squeaky toys from a furry daycare paid off! You expertly fenced them for a clean gain of ____. No one suspected the floofy mastermind.",
     "You attempted to pickpocket a femboy, but he was wearing leggings with no pockets. You tripped over your own feet in embarrassment and lost ____ in hospital bills for your bruised ego.",
     "Your master plan to 'liberate' snacks from a picnic went south when a territorial fox mistook you for a rival. You barely escaped with your dignity, but lost ____ in the ensuing chase.",
-    "Trying to hack into the 'Furry Friend Finder' database, you accidentally signed yourself up for a lifetime supply of 'yarn for cats.' You didn't gain anything, but you lost ____ in the subscription fee!"
+    "Trying to hack into the 'Furry Friend Finder' database, you accidentally signed yourself up for a lifetime supply of 'yarn for cats.' You didn't gain anything, but you lost ____ in the subscription fee!",
+    "You skillfully exploited a zero-day vulnerability in a femboy streamer's custom Linux kernel, using Neovim to craft the perfect exploit. You stole all their rare in-game cosmetics and gained ____ by selling them on the dark web!",
+    "Using a highly customized Arch Linux distro and your Neovim mastery, you infiltrated a 'Fox-themed NFT Farm' and minted enough new, unique 'pixelated furballs' to gain ____. Truly a digital art heist!",
+    "You bypassed the security systems of a furry convention's main server by meticulously editing a configuration file with Neovim after gaining ssh access via a Linux live USB. You managed to siphon off enough 'con-cash' to gain ____!",
+    "You tried to brute-force a femboy's secure SSH server, but your custom Neovim script had a typo. The server locked you out and simultaneously wiped your entire ~/.config/nvim folder. You lost ____ in therapy bills and the sheer horror of a default Neovim setup.",
+    "Your attempt to 'sudo rm -rf /' the local animal shelter's antiquated Windows server (why?) was thwarted by a vigilant security fox who unplugged your Linux machine. You lost ____ in fines and had to reinstall your own OS.",
+    "While attempting to exfiltrate data from a furry's laptop, you accidentally opened their very private Neovim config file. The cringe caused your system to crash, and you lost ____ when they charged you for 'emotional damages and Neovim support'."
 ]
 
 @bot.command(name='crime')
@@ -2089,7 +2101,12 @@ async def crime(ctx):
 work_responses = [
     "You spent the day as a professional 'femboy hype man,' ensuring everyone was adequately glittered and confident. You earned a decent wage, plus a lifetime supply of self-esteem!",
     "Your shift involved herding unruly cartoon foxes through an obstacle course. You're exhausted, but your paycheck is foxy!",
-    "You were employed as a 'chief tail floof manager' at a prestigious furry spa. It was surprisingly hard work, but your bank account is now as fluffy as your clients' tails!"
+    "You were employed as a 'chief tail floof manager' at a prestigious furry spa. It was surprisingly hard work, but your bank account is now as fluffy as your clients' tails!",
+    "You spent the day as a 'Femboy's Neovim Configurator,' meticulously setting up plugins and themes to ensure maximum aesthetic appeal and productivity. You earned a surprisingly high wage and a newfound appreciation for Lua scripting.",
+    "Your job was to teach a group of very fluffy, very enthusiastic foxes how to compile their own custom Linux kernels. You barely survived the 'segmentation fault' tantrums, but you earned enough to buy a new mechanical keyboard.",
+    "You worked as a 'Bash Script Whisperer' for a tech startup run entirely by furries. Your task was to untangle their convoluted .bashrc files, all while exclusively using Neovim. Your hands ache, but your bank account is purring.",
+    "You were hired to optimize the startup time of a Linux-powered robot that serves snacks at furry conventions. After hours in Neovim, tweaking systemd services, you got it down to under 2 seconds! You earned a hefty bonus and a lifetime supply of convention snacks.",
+    "Your new gig: migrating a femboy's entire productivity workflow from VS Code to Neovim on their Arch Linux setup. It was a harrowing, caffeine-fueled journey, but you successfully completed the task and earned enough to pay off your technical debt."
 ]
 
 @bot.command(name='work')
@@ -2627,12 +2644,12 @@ async def use_item(ctx, item: str, target: discord.Member = None):
         await ctx.send("Item not found") 
         return
     
-    if item_index_int == 2:
+    if item_index_int == Items.get_item_source_index_by_name("Bomb"):
         await ctx.send("Used Bomb")
         await usebomb(ctx, ctx.author)
         Items.removefromitems(user_id_str, item[0].capitalize() + item[1:], -1)
 
-    if item_index_int == 4:
+    if item_index_int == Items.get_item_source_index_by_name("Brick"):
         await usebrick(ctx, ctx.author, target=target)
         Items.removefromitems(user_id_str, item[0].capitalize() + item[1:], -1)
 
