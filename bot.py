@@ -2064,6 +2064,8 @@ async def crime(ctx):
     global crime_success_dict
     print(crime_success_dict)
 
+    
+
     cooldown_msg = check_cooldown(ctx, 'crime')
     if cooldown_msg:
         await ctx.send("Unfortunately, all the places are robbed :)")
@@ -2076,21 +2078,27 @@ async def crime(ctx):
     amount_lost = -user_total * random.randint(20, 40) // 100
     amount_lost = int(amount_lost)
 
+    if not user_id in crime_success_dict:
+        crime_success_dict[user_id] = 0
+
     response_message = crime_responses[random.randint(0, len(crime_responses)-1)]
-    if 'gain' in response_message:
+    if 'gain' in response_message or 'Slippery gloves' in Items.get_user_items(user_id):
+        if 'gain' in response_message:
+            
 
-        if not user_id in crime_success_dict:
-            crime_success_dict[user_id] = 0
+            crime_success_dict[user_id] += 1
 
-        crime_success_dict[user_id] += 1
+            response_message = response_message.replace('____', str(amount_gained))
+            Bank.addcash(user_id=user_id, money=amount_gained)
+        else:
+            await ctx.send("Those slippery gloves prevented your capture, but you don't gain anything")
+            if 'Slippery gloves' in Items.get_user_items(user_id):
+                Items.removefromitems(user_id, 'Slipery gloves', 1)
 
-        response_message = response_message.replace('____', str(amount_gained))
-        Bank.addcash(user_id=user_id, money=amount_gained)
-
-        if crime_success_dict[user_id] == 5:
+        if crime_success_dict[user_id] == 3:
             
             await ctx.send("Due to the impressive amount of crimes you have succeeded in a row, criminals flock to you with you as their boss (check m!in)")
-            Income.addtoincomes(user_id, "Organized crime ring", 13)
+            Income.addtoincomes(user_id, "Organized crime ring leader", 13)
 
     else:
         response_message = response_message.replace('____', str(amount_lost))
@@ -2242,7 +2250,7 @@ async def rob(ctx, target: discord.Member):
     amount_gained = random.randint(80, 90) * Bank.read_balance(target_id_str)["cash"] // 100
     amount_lost = -random.randint(20, 40) * Bank.gettotal(user_id_str) // 100
 
-    if random.randint(1, 10) > 4:
+    if random.randint(1, 10) > 4 or 'Slippery gloves' in Items.get_user_items(user_id_str):
 
 
         if not crime_success_dict[user_id_str]:
@@ -2255,8 +2263,11 @@ async def rob(ctx, target: discord.Member):
         Bank.addcash(target_id_str, -amount_gained)
         await balance(ctx)
 
-        if crime_success_dict == 5:
+        if crime_success_dict == 3:
             await ctx.send("Due to the impressive amount of crimes you have succeeded in a row, criminals flock to you with you as their boss (check m!in)")
+        if 'Slippery gloves' in Items.get_user_items(user_id_str):
+            Items.removefromitems(user_id_str, 'Slipery gloves', 1)
+
 
     else:
         await ctx.send(f"You were caught and pay {amount_lost} as fine")
