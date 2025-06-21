@@ -116,7 +116,7 @@ async def on_ready():
             # If the flag file does NOT exist, it's a fresh start (not a restart)
             try:
                 # Ping the role by its ID
-                await status_channel.send(f"✅ Bot is now online! <@{ONLINE_ROLE_ID}>")
+                await status_channel.send(f"✅ Bot is now online! <@&{ONLINE_ROLE_ID}>")
                 print("Sent 'bot online' ping.")
             except discord.Forbidden:
                 print(f"Error: Bot does not have permission to send messages or ping role in channel {STATUS_CHANNEL_ID}.")
@@ -203,6 +203,27 @@ async def checkbankrobery():
 @tasks.loop(minutes=5) 
 async def ping_collect_income():
     print(f"DEBUG: Running ping_collect_income task at {datetime.datetime.now()}")
+    
+    try:
+        # Reload player incomes (which income sources users have)
+        Income.playerincomes = Income.loadincomes()
+    except FileNotFoundError:
+        print("WARNING: playerincomes.json not found during task loop. Initializing empty.")
+        Income.playerincomes = {} # Initialize empty if file doesn't exist
+    except Exception as e:
+        print(f"ERROR: Failed to load playerincomes in task loop: {e}")
+        Income.playerincomes = {} # Fallback to empty to prevent further errors
+
+    try:
+        # Reload income source definitions (like Mining, Organized Crime details)
+        # create_sources handles loading from incomesources.json or initializing
+        Income.create_sources() 
+    except FileNotFoundError:
+        print("WARNING: incomesources.json not found during task loop. Initializing empty.")
+        Income.income_sources = [] # Initialize empty if file doesn't exist
+    except Exception as e:
+        print(f"ERROR: Failed to load income sources in task loop: {e}")
+        Income.income_sources = [] # Fallback to empty
 
     target_guild = bot.get_guild(TARGET_GUILD_ID)
     if not target_guild:
@@ -250,9 +271,8 @@ async def ping_collect_income():
                 else:
                     print(f"ERROR: Could not retrieve valid source definition for income '{income_name_for_ping}' for user {member.display_name}. Skipping ping.")
             else:
-                # If ready_income_data is None, no income is ready
-                # print(f"DEBUG: {member.display_name} has the role but no income is ready yet.")
-                pass# --- Background Task for Income Collection Reminders ---
+                print(f"DEBUG: {member.display_name} has the role but no income is ready yet.")
+                pass
 
 # This decorator ensures the task waits until the bot is fully ready before starting
 @ping_collect_income.before_loop
@@ -260,6 +280,23 @@ async def before_ping_collect_income():
     await bot.wait_until_ready()
     print("DEBUG: ping_collect_income task is ready and waiting to start.")
 
+@bot.event
+async def on_command_error(ctx, error):
+    """
+    Handles errors that occur during command invocation.
+    ctx: the conext of the command.
+    error: the exception that was raised
+    """
+
+    if isinstance(error, commands.CommandNotFound):
+        await ctx.send("That command doesn't exist - type m!help or m!commands for a list of available commands")
+        return
+
+    if isinstance(error, commands.MissingRequiredArgument):
+        await ctx.send(f"You're missing a rquired argument `{error.param.name}`")
+
+    if isinstance(error, commands.BadArgument):
+        await ctx.send(f"Invalid argument provided: `{error}`.")    
 
 @bot.command()
 async def hello(ctx):
@@ -600,7 +637,7 @@ class CommandsView(discord.ui.View):
     @discord.ui.button(label="Economy Commands", style=discord.ButtonStyle.success, emoji="💰")
     async def economy_button_callback(self, interaction: discord.Interaction, button: discord.ui.Button):
         """
-        Callback for the Economy Commands button.
+      Callback for the Economy Commands button.
         When clicked, it sends the economy commands embed.
         """
         await send_economy_commands_embed(interaction)
@@ -1305,8 +1342,20 @@ async def on_message(message):
     
     has_knife = False
     has_tin = False
-
+ 
+    print(Income.playerincomes.get(user_id))
     
+    for source_name, income_details in Income.playerincomes.get(user_id, {}).items():
+        if income_details["index"] == Income.get_source_index_by_name("Organized crime") and Bank.read_balance(user_id)["cash"] > 10000:
+            await ctx.send(f"The cops have found out about your dirty cash and that you have {source_name}; quickly deposit your cash now!")
+            if random.randint(1, 10) < 4:
+                # Calculate amount_lost as a percentage of cash, not as an absolute multiplier
+                amount_lost_percentage = random.randrange(60, 100) # This will be 60-99
+                user_cash = Bank.read_balance(user_id)["cash"]
+                amount_lost = int(user_cash * amount_lost_percentage / 100) # Calculate as percentage
+
+                await ctx.send(f"They have also managed to take {amount_lost:,} cash from you!") # Added formatting and clarified what was taken
+                Bank.addcash(user_id, -amount_lost)
 
     for role in message.author.roles:
         if role.name == "Knife":
@@ -1706,13 +1755,45 @@ async def balance(ctx, member: discord.Member = None):
     # Calculate and display total worth using your gettotal method
     total_worth = Bank.gettotal(user_id)
     embed.add_field(name="✨ Total Worth", value=f"{total_worth:,.2f}", inline=False)
-    embed.add_field(name="Rank", value=rank, inline=False)
+    embed.add_field(name="Rank", value=f"#{rank}", inline=False)
 
     embed.set_thumbnail(url=target_member.avatar.url if target_member.avatar else None)
     embed.set_footer(text=f"Requested by {ctx.author.display_name}", icon_url=ctx.author.avatar.url if ctx.author.avatar else None)
 
 
     await ctx.send(embed=embed)
+
+@bot.command(name='economy-stats', aliases=['stats', 'economy-total', 'econ-stats', 'total'])
+async def economy_stats_display(ctx):
+    embed = discord.Embed(
+        title="📊 Our economy's stats", 
+        description="The total users, average wealth and combined wealth",
+        color=discord.Color.green()
+    )
+
+    embed.add_field(
+        name="Total tracked wealth (in the bank)",
+        value=Bank.get_bank_total(),
+        inline=False
+    )
+
+    embed.add_field(
+        name="Across these many accounts",
+        value=Bank.get_accounts_total(),
+        inline=False
+    )
+
+    embed.add_field(
+        name="GDP per capita",
+        value=Bank.get_bank_total() // Bank.get_accounts_total(),
+        inline=False
+    )
+
+    embed.set_thumbnail(url="https://cdn.discordapp.com/attachments/1348325894577455125/1385894669602263100/image.png?ex=6857ba7d&is=685668fd&hm=9aa1469c22bedfdffd6ccb0fc9c5da63bfbec2bdf14fce6f6da46e21edec899d&")
+    await ctx.send(embed=embed)
+
+    await richest_member(ctx)
+
 
 @bot.command(name='deposit', aliases=['dep'])
 async def deposit(ctx, money: str="all"):
@@ -2035,6 +2116,23 @@ async def slut(ctx):
         amount_lost = -Bank.gettotal(user_id=user_id)*random.randint(20, 60)//100
         Bank.addcash(user_id=user_id, money=amount_lost)
         message = message.replace('____', str(amount_lost))
+
+        if "A good lawyer" in Items.get_user_items(user_id):
+            await ctx.send("However, due to their good lawyer, the money was dealt with and troubles were sorted out behind the seens")
+            
+            if not user_id in crime_success_dict:
+                crime_success_dict[user_id] = 0
+            
+            crime_success_dict[user_id] += 1
+            
+            if crime_success_dict[user_id] == 5:
+                Income.addtoincomes(user_id, "Organised crime", 13)
+    
+            Bank.addbank(user_id, -10000)
+            Bank.addbank(user_id, -amount_lost)
+            return
+
+        crime_success_dict[user_id] = 0
         
 
     await ctx.send(message)
@@ -2102,7 +2200,23 @@ async def crime(ctx):
 
     else:
         response_message = response_message.replace('____', str(amount_lost))
+        
+        if "A good lawyer" in Items.get_user_items(user_id):
+            await ctx.send("However, due to their good lawyer, the money was dealt with and troubles were sorted out behind the seens")
+            
+            if not user_id in crime_success_dict:
+                crime_success_dict[user_id] = 0
+            
+            crime_success_dict[user_id] += 1
+            
+            if crime_success_dict[user_id] == 5:
+                Income.addtoincomes(user_id, "Organised crime", 13)
+    
+            Bank.addbank(user_id, -10000)
+            return
+
         Bank.addcash(user_id=user_id, money=amount_lost)
+        crime_success_dict[user_id] = 0
 
     await ctx.send(response_message)
 
@@ -2247,14 +2361,14 @@ async def rob(ctx, target: discord.Member):
     user_id_str = str(ctx.author.id)
     target_id_str = str(target.id)
 
+    if not user_id_str in crime_success_dict:
+        crime_success_dict[user_id_str] = 0
+
     amount_gained = random.randint(80, 90) * Bank.read_balance(target_id_str)["cash"] // 100
     amount_lost = -random.randint(20, 40) * Bank.gettotal(user_id_str) // 100
 
     if random.randint(1, 10) > 4 or 'Slippery gloves' in Items.get_user_items(user_id_str):
 
-
-        if not crime_success_dict[user_id_str]:
-            crime_success_dict[user_id_str] = 0
         crime_success_dict[user_id_str] += 1
             
 
@@ -2270,8 +2384,26 @@ async def rob(ctx, target: discord.Member):
 
 
     else:
+        
+
         await ctx.send(f"You were caught and pay {amount_lost} as fine")
+        
+        if "A good lawyer" in Items.get_user_items(user_id_str):
+            await ctx.send("However, due to their good lawyer, the money was dealt with and troubles were sorted out behind the seens")
+            
+            if not user_id_str in crime_success_dict:
+                crime_success_dict[user_id_str] = 0
+            
+            crime_success_dict[user_id_str] += 1
+            
+            if crime_success_dict[user_id_str] == 5:
+                Income.addtoincomes(user_id_str, "Organised crime", 13)
+    
+            Bank.addbank(user_id_str, -10000)
+            return
+
         Bank.addcash(user_id_str, amount_lost)
+        crime_success_dict[user_id_str] = 0
         await balance(ctx)
 
 @bot.command()
@@ -2299,12 +2431,17 @@ async def rob_bank(ctx):
         color=discord.Color.red()
     )
 
+    if not user_id_str in crime_success_dict:
+        crime_success_dict[user_id_str] = 0
+
     embed.add_field(name="🏦 Bank total", value=f"{Bank.get_bank_total():,.2f}", inline=False)
     embed.add_field(name="✨ attempted robber", value=f"{ctx.author.display_name}", inline=False)
 
     embed.set_thumbnail(url=ctx.author.avatar.url)
 
-  
+    if not user_id_str in crime_success_dict:
+        crime_success_dict[user_id_str] = 0
+
     Bank.rob_bank(user_id_str, 20, 60, 40)
     new_money = Bank.gettotal(user_id_str)
     if new_money - current_cash > 0:
@@ -2312,7 +2449,28 @@ async def rob_bank(ctx):
                          value=f"{ctx.author.display_name} robbed the bank for {new_money-current_cash:,.2f}",
                          inline=False)
         await ctx.send(embed=embed)
+
+        crime_success_dict[user_id_str] = 5
+        await ctx.send("Do to your impressive crime of robbing the global monetary system, criminals flock to you (m!in)")
+        Income.addtoincomes(user_id_str, "Organized crime", 13)
+
     else:
+        if "A good lawyer" in Items.get_user_items(user_id_str):
+            embed.add_field(
+                name="They were defended by their lawyer",
+                value=f"{ctx.author.display_name} lost 100000 in fines",
+                inline=False
+            )
+
+            Bank.addbank(user_id_str, -10000)
+            crime_success_dict[user_id_str] += 1
+
+            if crime_success_dict[user_id_str] == 5:
+                await ctx.send("A good of criminals flock to you")
+                Income.addtoincomes(user_id_str, "Organized crime ring leader", 13)
+
+            return
+
         Bank.addcash(user_id_str, random.randint(20, 40) * current_cash // -100)
         embed.add_field(name="Robbery unsuccessful",
                         value=f"{ctx.author.display_name} lost {new_money-current_cash:,.2f} after being caught by the police",
