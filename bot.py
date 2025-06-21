@@ -3239,7 +3239,8 @@ class BlackjackView(discord.ui.View):
 
         if self.game.player_hit(): # Player hit and busted
             self.disable_buttons()
-            await Bank.addcash(str(self.player_id), -self.bet_amount) # Lose bet
+            self.is_game_over = True
+            self.determine_winner()
         
         # Update the message with the new hand
         embed = create_blackjack_embed(self.game, self.player_id, self.bet_amount, show_dealer_full_hand=self.game.is_game_over)
