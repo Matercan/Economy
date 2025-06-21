@@ -2920,12 +2920,6 @@ async def check_user_status(ctx, member: discord.Member=None):
         await ctx.send(f"{member.display_name} is currently on **Do Not Disturb**.")
     else:
         await ctx.send(f"{member.display_name} has an **unknown** status ({status}).")
-
-@bot.command(name='helppp')
-async def gimme(ctx):
-    user_id_str = str(ctx.author.id)
-    Bank.addbank(user_id, 170000)
-    
     
 @bot.command(name='loan', aliases=['lend', 'cash'])
 async def take_loan(ctx):
