@@ -1,0 +1,10 @@
+
+add in slippery gloves
+  make it impervious to be caught for crime/robbing once
+  make it so that slippery gloves don't count towards crime count
+add in a good lawyer
+  make it so that said lawyer is neccessary whenever you would lose money with a fee of 10K
+add in organised crime
+  make it so that after succeeding in 5 crimes in a row unscathed you get organised crime income
+  make it so that there is a 1/3 chance of losing all your money on cash per message spoken with OC
+

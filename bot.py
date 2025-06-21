@@ -137,11 +137,11 @@ async def on_ready():
     # Start recurring tasks
     bot.loop.create_task(check_guillotine_cooldown())
     bot.loop.create_task(checkbankrobery())
-    ping_collect_income.stop()
-    ping_collect_income.start()
-    # Logging guild and member info (for debugging/monitoring)
-    for guild in bot.guilds:
-        print(f"- {guild.name} (id: {guild.id}) with {guild.member_count} members")
+    if not ping_collect_income.is_running():
+        ping_collect_income.start()
+        print("DEBUG: ping_collect_income task started successfully (or was already running).")
+    else:
+        print("DEBUG: ping_collect_income task is already running. Skipping start.")       
 
     for guild in bot.guilds:
         print(f"- {guild.name} (id: {guild.id}) with {guild.member_count} members")
