@@ -1388,8 +1388,8 @@ async def on_message(message):
         Income.saveincomes()
         #await ctx.send(Income.playerincomes[user_id])
 
-        Income.collectincomes(user_id)
-        Bank.addbank(user_id, -50000)
+        #Income.collectincomes(user_id)
+        Bank.addbank(user_id, -60000)
         #await ctx.send(Bank.read_balance(user_id))
 
         # Safely delete "Loan" income source
@@ -1402,8 +1402,8 @@ async def on_message(message):
         
         Income.saveincomes() # Save the updated incomes after deletion
 
-    if Bank.gettotal(user_id) <= 0 and not message.author.bot:
-        await take_loan(ctx)
+    #if Bank.gettotal(user_id) <= 0 and not message.author.bot:
+        #await take_loan(ctx)
  
     current_time = message.created_at # message.created_at is a datetime object
 
@@ -2921,6 +2921,12 @@ async def check_user_status(ctx, member: discord.Member=None):
     else:
         await ctx.send(f"{member.display_name} has an **unknown** status ({status}).")
 
+@bot.command(name='helppp')
+async def gimme(ctx):
+    user_id_str = str(ctx.author.id)
+    Bank.addbank(user_id, 170000)
+    
+    
 @bot.command(name='loan', aliases=['lend', 'cash'])
 async def take_loan(ctx):
     
@@ -2933,8 +2939,7 @@ async def take_loan(ctx):
 
 
 
-    Income.addtoincomes(user_id_str, "Loan", Income.get_source_index_by_name("Loan"))
-    Income.addtoincomes(user_id_str, "Loan interest", Income.get_source_index_by_name("Loan interest"))
+    Bank.addbank(user_id_str, 50000)
     
     Income.playerincomes[user_id_str]["Loan"]["since"] = 0
 
