@@ -8,7 +8,19 @@ class Card:
         self.rank = rank
 
     def __str__(self) -> str:
-        return f"{self.rank} of {self.suit}"
+        """Returns a string representation of the card, e.g., 'Ace of Spades' or '10 of Hearts'."""
+        if self.rank == 'A':
+            rank_str = 'Ace'
+        elif self.rank == 'J':
+            rank_str = 'Jack'
+        elif self.rank == 'Q':
+            rank_str = 'Queen'
+        elif self.rank == 'K':
+            rank_str = 'King'
+        else:
+            rank_str = str(self.rank) # For 2-10
+
+        return f"{rank_str} of {self.suit}"
     
     def get_value(self):
         if self.rank in ['J', 'Q', 'K']:
@@ -56,7 +68,7 @@ class BlackjackGame:
         self.dealer_hand.append(self.deck.deal())
 
     def calculate_hand_value(self, hand):
-        value = sum(card.getvalue() for card in hand)
+        value = sum(card.get_value() for card in hand) 
         num_aces = sum(1 for card in hand if card.rank == 'A')
         
         while value > 21 and num_aces > 0:

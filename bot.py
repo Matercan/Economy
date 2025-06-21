@@ -111,6 +111,9 @@ async def on_ready():
     Items.create_item_sources() # Also ensures item sources are initialized/loaded
     print("Economy data loaded/initialized for all classes.")
 
+    # Syncs the bots I think
+    await bot.tree.sync()
+
     # --- Send Bot Online Ping (Conditional) ---
     status_channel = bot.get_channel(STATUS_CHANNEL_ID)
     if status_channel:
@@ -3104,16 +3107,18 @@ async def gamble_coinflip(ctx, *, money: str="all"):
         Bank.addcash(ctx.author.id, -money)
 
 def create_blackjack_embed(game: BlackjackGame, player_id: int, bet_amount: int, show_dealer_full_hand: bool = False):
-    embed=discord.Embed(
+    print("DEBUG: Inside create_blackjack_embed.") # DEBUG PRINT CB1
+    embed = discord.Embed(
         title="🃏 Blackjack Game",
-        color=discord.Color.green()
+        color=discord.Color.dark_green()
     )
 
-    player_hand_str = ",".join(str(card), for card in game.player_hand)
+    player_hand_str = ", ".join(str(card) for card in game.player_hand)
     player_score = game.calculate_hand_value(game.player_hand)
+    print(f"DEBUG: Embed Player Hand String: '{player_hand_str}', Score: {player_score}") # DEBUG PRINT CB2
 
     embed.add_field(
-        name=f"Your hand ({player_score})",
+        name=f"Your Hand ({player_score})",
         value=player_hand_str,
         inline=False
     )
@@ -3121,38 +3126,67 @@ def create_blackjack_embed(game: BlackjackGame, player_id: int, bet_amount: int,
     if show_dealer_full_hand:
         dealer_hand_str = ", ".join(str(card) for card in game.dealer_hand)
         dealer_score = game.calculate_hand_value(game.dealer_hand)
+        print(f"DEBUG: Embed Dealer Full Hand String: '{dealer_hand_str}', Score: {dealer_score}") # DEBUG PRINT CB3
         embed.add_field(
             name=f"Dealer's Hand ({dealer_score})",
             value=dealer_hand_str,
             inline=False
         )
     else:
-        # Show only dealer's first card
+        # Show only dealer's first card initially
+        dealer_hand_str = f"{game.dealer_hand[0]} and one hidden card" # This line was missing its assignment
+        print(f"DEBUG: Embed Dealer Partial Hand String: '{dealer_hand_str}'") # DEBUG PRINT CB4
         embed.add_field(
             name="Dealer's Hand",
-            value=f"{game.dealer_hand[0]} and one hidden card",
+            value=dealer_hand_str,
             inline=False
         )
+    
+    embed.add_field(name="Bet", value=f"${bet_amount:,}", inline=False)
 
     if game.is_game_over:
         embed.description = f"**Game Over!** {game.result_message}"
-        embed.color = discord.Color.red() if "busts" in game.result_message.lower() or "dealer wins" in game.result_message.lower() else discord.Color.green()
+        if "busts" in game.result_message.lower() or "dealer wins" in game.result_message.lower():
+            embed.color = discord.Color.red()
+        elif "Player wins" in game.result_message:
+            embed.color = discord.Color.green()
+        else: # Push
+            embed.color = discord.Color.blue()
     else:
         embed.description = "Choose your next move: Hit or Stand?"
 
-    embed.set_footer(text=f"Player: {player_id}") # Store player ID in footer for context
+    embed.set_footer(text=f"Player ID: {player_id}")
+    
+    # NEW DEBUG PRINT: Print the entire embed as a dictionary
+    print("DEBUG: Final Embed Dictionary:") # DEBUG PRINT CB5
+    print(embed.to_dict()) # This will show the raw data sent to Discord
+
     return embed
 
 class BlackjackView(discord.ui.View):
     def __init__(self, game: BlackjackGame, player_id: int, bet_amount: int):
         super().__init__(timeout=120) # Game times out after 2 minutes of inactivity
+        print("DEBUG: BlackjackView __init__ - super() called.")
         self.game = game
         self.player_id = player_id
         self.bet_amount = bet_amount
+        self.message = None
+        print("DEBUG: BlackjackView __init__ - Attributes assigned")
 
         # Check for immediate Blackjack after initial deal
-        player_score = self.game.calculate_hand_value(self.game.player_hand)
-        dealer_score = self.game.calculate_hand_value(self.game.dealer_hand)
+        try:
+            player_score = self.game.calculate_hand_value(self.game.player_hand)
+            dealer_score = self.game.calculate_hand_value(self.game.dealer_hand)
+        except Exception as e:
+            print(f"ERROR: Exception during score calculation in BlackjackView.__init__: {e}") # <-- PRINT THE ERROR
+            import traceback
+            traceback.print_exc() # <-- PRINT THE FULL TRACEBACK
+            self.game.is_game_over = True # Force game over to avoid further errors
+            self.game.result_message = f"An internal error occurred: {e}"
+            self.disable_buttons() # Disable buttons immediately
+            return # Exit init
+
+        print(f"DEBUG: Player score: {player_score}, Dealer score: {dealer_score}") 
 
         if player_score == 21:
             self.game.is_game_over = True
@@ -3164,6 +3198,9 @@ class BlackjackView(discord.ui.View):
             self.game.is_game_over = True
             self.game.result_message = "Dealer has Blackjack! Dealer wins."
 
+        print("DEBUG: Inside BlackjackView __init__ - END")
+
+
         if self.game.is_game_over:
             self.disable_buttons()
         
@@ -3171,6 +3208,7 @@ class BlackjackView(discord.ui.View):
         for item in self.children:
             if isinstance(item, discord.ui.Button):
                 item.disabled = True
+        print("DEBUG: Disabled buttons method - END")
     
     # Called when the view times out
     async def on_timeout(self):
@@ -3181,6 +3219,7 @@ class BlackjackView(discord.ui.View):
                 await self.message.edit(content="Your Blackjack game timed out.", view=self)
             except discord.HTTPException:
                 pass # Message might have been deleted
+        print("DEBUG: Timed out")
 
     # Store the message the view is attached to, useful for editing
     async def on_error(self, interaction: discord.Interaction, error: Exception, item: discord.ui.Item):
@@ -3190,6 +3229,7 @@ class BlackjackView(discord.ui.View):
 
     @discord.ui.button(label="Hit", style=discord.ButtonStyle.success)
     async def hit_button(self, interaction: discord.Interaction, button: discord.ui.Button):
+        print(f"Debug: Hit button clicked by {interaction.user.id}")
         # Ensure only the player who started the game can interact
         if interaction.user.id != self.player_id:
             await interaction.response.send_message("This isn't your game!", ephemeral=True)
@@ -3204,9 +3244,11 @@ class BlackjackView(discord.ui.View):
         # Update the message with the new hand
         embed = create_blackjack_embed(self.game, self.player_id, self.bet_amount, show_dealer_full_hand=self.game.is_game_over)
         await interaction.edit_original_response(embed=embed, view=self)
+        print("DEBUG: Hit button log - End")
 
     @discord.ui.button(label="Stand", style=discord.ButtonStyle.danger)
     async def stand_button(self, interaction: discord.Interaction, button: discord.ui.Button):
+        print(f"DEBUG: Stand button clicked by {interaction.user.id}")
         if interaction.user.id != self.player_id:
             await interaction.response.send_message("This isn't your game!", ephemeral=True)
             return
@@ -3220,13 +3262,72 @@ class BlackjackView(discord.ui.View):
 
         # Determine winner and adjust balance
         if "Player wins" in self.game.result_message:
-            await Bank.addcash(str(self.player_id), self.bet_amount) # Win bet
+            Bank.addcash(str(self.player_id), self.bet_amount) # Win bet
         elif "Dealer wins" in self.game.result_message:
-            await Bank.addcash(str(self.player_id), -self.bet_amount) # Lose bet
+            Bank.addcash(str(self.player_id), -self.bet_amount) # Lose bet
         # No change for push
 
         embed = create_blackjack_embed(self.game, self.player_id, self.bet_amount, show_dealer_full_hand=True)
         await interaction.edit_original_response(embed=embed, view=self) # Show full dealer hand
+        print(f"DEBUG: Stand button - End")
+
+@bot.command(name="blackjack", aliases=['bj'], help="Starts a game of Blackjack with your bet!")
+async def blackjack_command(ctx: commands.Context, bet: str = "all"): # Changed to ctx and removed app_commands.describe
+    """
+    Starts a new game of Blackjack.
+    """
+    player_id_str = str(ctx.author.id) # Use ctx.author.id for prefix commands
+    
+    try:
+        if bet == "all":
+            bet = Bank.read_balance(player_id_str)["cash"]
+    except:
+        await ctx.send("This isn't an integer, you can only bet whole numbers")
+        return
+
+    # 1. Input Validation
+    if bet <= 0:
+        await ctx.send("You must bet a positive amount!")
+        return
+    
+    # 2. Check Player's Balance
+    user_balance = Bank.read_balance(player_id_str) 
+    if user_balance["cash"] < bet:
+        await ctx.send(f"You don't have enough cash! Your current cash: ${user_balance['cash']:,}")
+        return
+
+    # Optional: Show typing indicator while preparing the game
+    await ctx.defer() # This shows the bot is 'typing'
+
+    # 3. Initialize Game
+    game = BlackjackGame()
+    game.deal_initial_hands()
+    
+    #await ctx.send("Blackjack initalised or something")
+    #await ctx.send(str(game.player_hand))
+    #await ctx.send(str(game.dealer_hand))
+
+    # 4. Create the Interactive View
+    view = BlackjackView(game, ctx.author.id, bet) # Pass ctx.author.id
+    
+    #await ctx.send("Blackjack view intialised or something")
+
+    # 5. Check for immediate game over conditions (e.g., Blackjack on deal)
+    if game.is_game_over:
+        view.disable_buttons() # Disable Hit/Stand if game is already decided
+    
+    # 6. Check for immediate game over conditions (e.g., Blackjack on deal)
+    embed = create_blackjack_embed(
+        game, 
+        ctx.author.id, # Pass ctx.uthor.id
+        bet, 
+        show_dealer_full_hand=game.is_game_over 
+    )
+
+    # 7. Send the initial message with buttons
+    # For prefix commands, ctx.send returns the Message object 
+    message = await ctx.send(embed=embed, view=view)
+    view.message = message # Store the Message object in the view for future edits by buttons
 
 
 @bot.command(name='remove-bank-account', aliases=['rm-b'])
