@@ -272,7 +272,7 @@ async def ping_collect_income():
                     print(f"ERROR: Could not retrieve valid source definition for income '{income_name_for_ping}' for user {member.display_name}. Skipping ping.")
             else:
                 print(f"DEBUG: {member.display_name} has the role but no income is ready yet.")
-                pass
+                
 
 # This decorator ensures the task waits until the bot is fully ready before starting
 @ping_collect_income.before_loop
@@ -657,61 +657,61 @@ async def send_economy_commands_embed(interaction: discord.Interaction):
     )
 
     help_embed.add_field(
-        name="!balance [member]",
+        name="m!balance [member]",
         value="Shows balance of yourself/another user",
         inline=False
     )
 
     help_embed.add_field(
-        name="!deposit/withdraw <amount>",
+        name="m!deposit/withdraw <amount>",
         value="Self explanatory",
         inline=False
     )
 
     help_embed.add_field(
-        name="!work",
+        name="m!work",
         value="Gives money based on your current net worth",
         inline=False
     )
 
     help_embed.add_field(
-        name="!give [user] <amount>",
+        name="m!give [user] <amount>",
         value="Gives user an amount of cash",
         inline=False
     )
 
     help_embed.add_field(
-        name="!collect",
+        name="m!collect",
         value="Collects your available income",
         inline=False
     )
 
     help_embed.add_field(
-        name="!incomes",
+        name="m!incomes",
         value="Displays all income sources and cooldowns",
         inline=False
     )
 
     help_embed.add_field(
-        name="!incomes",
+        name="m!incomes",
         value="Displays info about your specific income sources",
         inline=False
     )
 
     help_embed.add_field(
-        name="!richest-member",
+        name="m!richest-member",
         value="Displays the richest member this side of the economy",
         inline=False
     )
  
     help_embed.add_field(
-        name="!store",
+        name="m!store",
         value="Gets all the items within the store",
         inline=False
     )
 
     help_embed.add_field(
-        name="!loan",
+        name="m!loan",
         value="Takes out a 50000 loan for the user",
         inline=False
     )
@@ -725,43 +725,43 @@ async def send_violent_commands(interaction: discord.Interaction):
     )
 
     help_embed.add_field(
-        name="!stab [user]",
+        name="m!stab [user]",
         value="Stab another user, You can only stab once every hour and if you have a knife. Has a cooldown.", 
         inline=False
     )
 
     help_embed.add_field(
-        name="!use bomb",
+        name="m!use bomb",
         value="Use a bomb item. 1/10 chance to kill a random user and a 1/10 chance to kill yourself. Has a cooldown.",
         inline=False
     )
 
     help_embed.add_field(
-        name="!use brick", 
+        name="m!use brick", 
         value="Use a brick item, gives you the brick role. Now if you type !use brick or !brick you can time someone out for 10 minutes",
         inline=False
     )
 
     help_embed.add_field(
-        name="!kill [user]",
+        name="m!kill [user]",
         value="Kill a user with a 1/10 chance (1/5 if you have a knife). Has a cooldown.",
         inline=False
     )
 
     help_embed.add_field(
-        name="!killcount [user]",
+        name="m!killcount [user]",
         value="Check the targetted attack count of a user.",
         inline=False
     )
 
     help_embed.add_field(
-        name="!kill_leaderboard",
+        name="m!kill_leaderboard",
         value="Check the top 10 most prolific attackers.",
-        inline="False"
+        inline=False
     )
 
     help_embed.add_field(
-        name="!topkill_leaderboard",
+        name="m!topkill_leaderboard",
         value="Checks the top 10 killers across all servers with economy in it",
         inline=False
     )
@@ -770,7 +770,7 @@ async def send_violent_commands(interaction: discord.Interaction):
 
 
 @bot.command(name='commands', aliases=['help', 'economy'])
-async def commands(ctx):
+async def display_commands(ctx):
     """Display all available commands and their descriptions"""
     help_embed = discord.Embed(
         title="Bot Commands",
@@ -781,56 +781,56 @@ async def commands(ctx):
     
 
     help_embed.add_field(
-        name="!guillotine ",
+        name="m!guillotine ",
         value="Execute the richest and take their money to be divided among all members.",
         inline=False
     )
 
     help_embed.add_field(
-        name="!rob-bank",
+        name="m!rob-bank",
         value="Attempt to rob the bank. Has a 10% success rate and 24 hour cooldown. If successful, money is robbed from all people it can find.",
         inline=False
     )
 
     
     help_embed.add_field(
-        name="!toggle_spellcheck",
+        name="m!toggle_spellcheck",
         value="Toggle spellcheck functionality for yourself.",
         inline=False
     )
 
     help_embed.add_field(
-        name="!seven_d6",
+        name="m!seven_d6",
         value="Roll a 7d6 and see if you can nearly kill a Richter. Times someone out for 456 minutes if you roll a 35 or higher.",
         inline=False
     )
 
     help_embed.add_field(
-        name="!cooldowns",
+        name="m!cooldowns",
         value="Check the cooldowns of all commands.",
         inline=False
     )
 
     help_embed.add_field(
-        name="!addtodictionary",
+        name="m!addtodictionary",
         value="Add a word to the dictionary.",
         inline=False
     )
 
     help_embed.add_field(
-        name="!removetodictionary",
+        name="m!removetodictionary",
         value="Remove a word from the dictionary.",
         inline=False
     )
 
     help_embed.add_field(
-        name="!englishwords",
+        name="m!englishwords",
         value="Get a list of english words that start with a certain letter.",
         inline=False
     )
 
     help_embed.add_field(
-        name="!indictionary",
+        name="m!indictionary",
         value="Check if a word is in the dictionary.",
         inline=False
     )
@@ -1216,50 +1216,104 @@ async def a911(ctx):
         kill_counts[killer_id] = 0
     kill_counts[killer_id] += len([member for member in ctx.guild.members if not member.bot])
 
-@bot.command()
+@bot.command(name='cooldowns', aliases=['cd', 'cooldown'])
 async def cooldowns(ctx):
     """Check remaining cooldown time for all commands"""
-    cooldowns = load_cooldowns()
-    guild_id = str(ctx.guild.id)
-    user_id = str(ctx.author.id)
-    
-    if guild_id not in cooldowns:
-        await ctx.send("No commands are currently on cooldown.")
+    await ctx.send("Cooldowns for the server", view=CooldownsView())
+
+async def display_cooldowns(interaction: discord.Interaction): # Corrected type hint
+    """
+    Displays the cooldowns for bot commands (personal and server-wide).
+    This function is designed to be called from an interaction (like a button click).
+    """
+    embed = discord.Embed(
+        title="Command Cooldowns",
+        description="Here are the active cooldowns for bot commands:",
+        color=discord.Color.blue()
+    )
+
+    # --- Crucial: Handle interactions outside of a guild (e.g., DMs) ---
+    if not interaction.guild:
+        await interaction.response.send_message(
+            "This command for displaying cooldowns can only be used in a server!",
+            ephemeral=True # Makes the message visible only to the user who clicked
+        )
         return
-    
-    message = "**Your Command Cooldowns:**\n"
-    has_cooldowns = False
-    
-    # Check user-specific cooldowns
-    if 'users' in cooldowns[guild_id] and user_id in cooldowns[guild_id]['users']:
-        user_cooldowns = cooldowns[guild_id]['users'][user_id]
-        for command_name, last_used in user_cooldowns.items():
+
+    guild_id = str(interaction.guild.id)
+    user_id = str(interaction.user.id)
+
+    cooldowns = load_cooldowns() # Load the latest cooldown data
+
+    # Get guild-specific cooldowns or an empty dict if none exist for this guild
+    guild_cooldown_data = cooldowns.get(guild_id, {})
+    user_cooldowns_data = guild_cooldown_data.get('users', {}).get(user_id, {})
+
+    # --- Populate User-Specific Cooldowns ---
+    user_cooldowns_field_value = ""
+    for command_name, last_used in user_cooldowns_data.items():
+        time_passed = time.time() - last_used
+        cooldown_time = command_cooldowns.get(command_name, 86400) # Default to 24h if not specified
+
+        if time_passed < cooldown_time:
+            remaining = cooldown_time - time_passed
+            days = int(remaining // 86400)
+            hours = int((remaining % 86400) // 3600) # Corrected hours calculation
+            minutes = int((remaining % 3600) // 60)
+            seconds = int(remaining % 60) # Include seconds for precision
+            user_cooldowns_field_value += f"**`{command_name}`**: {days}d {hours}h {minutes}m {seconds}s\n"
+
+    if user_cooldowns_field_value:
+        embed.add_field(name="Your Personal Cooldowns", value=user_cooldowns_field_value, inline=False)
+    else:
+        embed.add_field(name="Your Personal Cooldowns", value="No active personal command cooldowns.", inline=False)
+
+    # --- Populate Guild-Wide Cooldowns ---
+    guild_wide_cooldowns_field_value = ""
+    for command_name, last_used in guild_cooldown_data.items():
+        if command_name != 'users': # Skip the 'users' sub-dictionary
             time_passed = time.time() - last_used
-            cooldown_time = command_cooldowns.get(command_name, 86400)  # Default to 24h if not specified
+            cooldown_time = command_cooldowns.get(command_name, 86400) # Default to 24h if not specified
+
             if time_passed < cooldown_time:
                 remaining = cooldown_time - time_passed
-                hours = int(remaining // 3600)
+                days = int(remaining // 86400)
+                hours = int((remaining % 86400) // 3600) # Corrected hours calculation
                 minutes = int((remaining % 3600) // 60)
-                message += f"`{command_name}`: {hours}h {minutes}m remaining\n"
-                has_cooldowns = True
+                seconds = int(remaining % 60) # Include seconds for precision
+                guild_wide_cooldowns_field_value += f"**`{command_name}`**: {days}d {hours}h {minutes}m {seconds}s\n"
     
-    # Check guild-wide cooldowns (like guillotine)
-    for command_name, last_used in cooldowns[guild_id].items():
-        if command_name != 'users':  # Skip the users dictionary
-            time_passed = time.time() - last_used
-            cooldown_time = command_cooldowns.get(command_name, 86400)  # Default to 24h if not specified
-            if time_passed < cooldown_time:
-                remaining = cooldown_time - time_passed
-                hours = int(remaining // 3600)
-                minutes = int((remaining % 3600) // 60)
-                message += f"`{command_name}` (guild-wide): {hours}h {minutes}m remaining\n"
-                has_cooldowns = True
-    
-    if not has_cooldowns:
-        await ctx.send("No commands are currently on cooldown.")
-        return
-        
-    await ctx.send(message)
+    if guild_wide_cooldowns_field_value:
+        embed.add_field(name="Server-Wide Cooldowns", value=guild_wide_cooldowns_field_value, inline=False)
+    else:
+        embed.add_field(name="Server-Wide Cooldowns", value="No active server-wide cooldowns.", inline=False)
+
+   
+    await interaction.response.edit_message(embed=embed)
+
+
+class CooldownsView(discord.ui.View):
+    def __init__(self):
+        super().__init__(timeout=100) # Timeout after 100 seconds of inactivity
+
+    @discord.ui.button(label="Command Cooldowns", style=discord.ButtonStyle.success)
+    async def command_cooldowns_button_callback(self, interaction: discord.Interaction, button: discord.ui.Button):
+        """
+        Callback for the Command Cooldowns button.
+        When clicked, it calls display_cooldowns to show command cooldowns.
+        """
+        # Call the standalone function
+        await display_cooldowns(interaction)
+
+    @discord.ui.button(label="Income Cooldowns", style=discord.ButtonStyle.danger)
+    async def income_cooldowns_button_callback(self, interaction: discord.Interaction, button: discord.ui.Button):
+        """
+        Callback for the Income Cooldown button.
+        When clicked, it calls display_incomes_interaction to show income cooldowns.
+        """
+       
+        await display_incomes_interaction(interaction)
+
 
 def load_spellcheck_state():
     try:
@@ -1773,7 +1827,7 @@ async def economy_stats_display(ctx):
 
     embed.add_field(
         name="Total tracked wealth (in the bank)",
-        value=Bank.get_bank_total(),
+        value=f"{Bank.get_bank_total():,.2f}",
         inline=False
     )
 
@@ -1785,7 +1839,7 @@ async def economy_stats_display(ctx):
 
     embed.add_field(
         name="GDP per capita",
-        value=Bank.get_bank_total() // Bank.get_accounts_total(),
+        value=f"{Bank.get_bank_total() // Bank.get_accounts_total():,.2f}",
         inline=False
     )
 
@@ -2016,13 +2070,92 @@ async def display_incomes(ctx):
     
     await ctx.send(embed=embed) # Send the completed embed
 
+async def display_incomes_interaction(interaction: discord.Interaction):
+    """
+    Displays the user's income sources and their status using an embed.
+    This function is designed to be called from an interaction (like a button click).
+    """
+    # --- Crucial: Get the correct user ID ---
+    user_id_str = str(interaction.user.id) # Correctly gets the numeric user ID as a string
 
-import discord
-from discord.ext import commands
-# Ensure your economy import is correct
-from economy import Bank, Income, Items 
+    # --- Handle interactions outside of a guild (e.g., DMs) if necessary ---
+    # Although income sources are usually guild-bound, this check is good practice.
+    if not interaction.guild:
+        await interaction.response.send_message(
+            "This command should be used in a server to display income sources.",
+            ephemeral=True # Makes the message visible only to the user who clicked
+        )
+        return
 
-# ... (your bot setup and other commands) ...
+    # Call the method to get the user's income status list
+    # Assuming Income.get_user_income_status correctly returns a list of dictionaries
+    user_income_status_list = Income.get_user_income_status(user_id=user_id_str)
+
+    embed = discord.Embed(
+        title=f"💰 Your Income Sources for {interaction.user.display_name}",
+        color=discord.Color.green()
+    )
+
+    if not user_income_status_list: # If the list is empty, user has no assigned incomes
+        embed.add_field(
+            name="No Incomes Found",
+            value="You don't have any income sources assigned yet. You might need to buy items that grant income!",
+            inline=False
+        )
+    else:
+        # Iterate through the list of income statuses and add fields to the embed
+        for inc_status in user_income_status_list:
+            # Use .get() for safer dictionary access in case keys are missing
+            name = inc_status.get("name", "Unknown Income")
+            status = inc_status.get("status", "Status Unavailable")
+            
+            field_value = ""
+            # Check if 'details_valid' is True (or present) before trying to access details
+            if inc_status.get("details_valid", False): 
+                is_interest = inc_status.get("is_interest", False)
+                value = inc_status.get("value", 0)
+                cooldown = inc_status.get("cooldown", 0) # This is the base cooldown in seconds
+                goes_to_bank = inc_status.get("goes_to_bank", False)
+
+                value_display = ""
+                if is_interest:
+                    # Format percentage with 2 decimal places
+                    value_display = f"**{value * 100:,.2f}%** interest on your {'bank' if goes_to_bank else 'cash'}"
+                else:
+                    # Format value with commas for readability
+                    value_display = f"**{value:,}** {'to bank' if goes_to_bank else 'to cash'}"
+                
+                # Calculate and format cooldown display (assuming cooldown is in seconds)
+                cooldown_days = int(cooldown // 86400)
+                cooldown_hours = int((cooldown % 86400) // 3600)
+                cooldown_minutes = int((cooldown % 3600) // 60)
+                cooldown_seconds = int(cooldown % 60) # Ensure integer for display
+
+                # Show current status and detailed info
+                field_value = (
+                    f"Status: `{status}`\n" # Displays if ready or cooldown remaining
+                    f"Value: {value_display}\n"
+                    f"Base Cooldown: {cooldown_days}d {cooldown_hours}h {cooldown_minutes}m {cooldown_seconds}s" # Base cooldown duration
+                )
+            else:
+                # For invalid or malformed sources, just show the error status and a hint
+                field_value = f"Status: `{status}`\n_Source details invalid or not found._"
+
+            embed.add_field(
+                name=f"📈 {name}",
+                value=field_value,
+                inline=False # Each income source gets its own line
+            )
+    
+    # --- Respond to the Interaction ---
+    # This edits the message the button was clicked on. It also serves as the initial response.
+    try:
+        await interaction.response.edit_message(embed=embed)
+    except discord.errors.NotFound:
+        # Fallback if the original message was deleted or timed out before editing
+        print(f"WARNING: Tried to edit a non-existent interaction message for user {interaction.user.id}. Sending as a new ephemeral followup.")
+        await interaction.followup.send(embed=embed, ephemeral=True) # Send as a new message, only visible to the user who clicked
+
 
 @bot.command(name='collect', aliases=['getincome', 'claim', 'inc', 'clm'])
 async def collect_income_command(ctx):
