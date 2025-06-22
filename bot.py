@@ -3216,19 +3216,17 @@ def create_blackjack_embed(game: BlackjackGame, player_id: int, bet_amount: int,
 class BlackjackView(discord.ui.View):
     def __init__(self, game: BlackjackGame, player_id: int, bet_amount: int):
         super().__init__(timeout=120) # Game times out after 2 minutes of inactivity
-        print("DEBUG: BlackjackView __init__ - super() called.")
         self.game = game
         self.player_id = player_id
         self.bet_amount = bet_amount
         self.message = None
-        print("DEBUG: BlackjackView __init__ - Attributes assigned")
 
         # Check for immediate Blackjack after initial deal
         try:
             player_score = self.game.calculate_hand_value(self.game.player_hand)
             dealer_score = self.game.calculate_hand_value(self.game.dealer_hand)
         except Exception as e:
-            print(f"ERROR: Exception during score calculation in BlackjackView.__init__: {e}") # <-- PRINT THE ERROR
+            print(f"ERROR: Exception during score calculation in BlackjackView.__init__: {e}")
             import traceback
             traceback.print_exc() # <-- PRINT THE FULL TRACEBACK
             self.game.is_game_over = True # Force game over to avoid further errors
@@ -3236,7 +3234,6 @@ class BlackjackView(discord.ui.View):
             self.disable_buttons() # Disable buttons immediately
             return # Exit init
 
-        print(f"DEBUG: Player score: {player_score}, Dealer score: {dealer_score}") 
 
         if player_score == 21:
             self.game.is_game_over = True
@@ -3248,7 +3245,6 @@ class BlackjackView(discord.ui.View):
             self.game.is_game_over = True
             self.game.result_message = "Dealer has Blackjack! Dealer wins."
 
-        print("DEBUG: Inside BlackjackView __init__ - END")
 
 
         if self.game.is_game_over:
@@ -3258,7 +3254,6 @@ class BlackjackView(discord.ui.View):
         for item in self.children:
             if isinstance(item, discord.ui.Button):
                 item.disabled = True
-        print("DEBUG: Disabled buttons method - END")
     
     # Called when the view times out
     async def on_timeout(self):
@@ -3279,7 +3274,6 @@ class BlackjackView(discord.ui.View):
 
     @discord.ui.button(label="Hit", style=discord.ButtonStyle.success)
     async def hit_button(self, interaction: discord.Interaction, button: discord.ui.Button):
-        print(f"Debug: Hit button clicked by {interaction.user.id}")
         # Ensure only the player who started the game can interact
         if interaction.user.id != self.player_id:
             await interaction.response.send_message("This isn't your game!", ephemeral=True)
@@ -3295,11 +3289,9 @@ class BlackjackView(discord.ui.View):
         # Update the message with the new hand
         embed = create_blackjack_embed(self.game, self.player_id, self.bet_amount, show_dealer_full_hand=self.game.is_game_over)
         await interaction.edit_original_response(embed=embed, view=self)
-        print("DEBUG: Hit button log - End")
 
     @discord.ui.button(label="Stand", style=discord.ButtonStyle.danger)
     async def stand_button(self, interaction: discord.Interaction, button: discord.ui.Button):
-        print(f"DEBUG: Stand button clicked by {interaction.user.id}")
         if interaction.user.id != self.player_id:
             await interaction.response.send_message("This isn't your game!", ephemeral=True)
             return
@@ -3320,7 +3312,6 @@ class BlackjackView(discord.ui.View):
 
         embed = create_blackjack_embed(self.game, self.player_id, self.bet_amount, show_dealer_full_hand=True)
         await interaction.edit_original_response(embed=embed, view=self) # Show full dealer hand
-        print(f"DEBUG: Stand button - End")
 
 @bot.command(name="blackjack", aliases=['bj'], help="Starts a game of Blackjack with your bet!")
 async def blackjack_command(ctx: commands.Context, bet: str = "all"): # Changed to ctx and removed app_commands.describe
@@ -3454,101 +3445,492 @@ async def card_flip_command(ctx, bet: str = "all"):
 
     await ctx.send(embed=embed)
     
+
 async def create_Roullette_embed(game: RoulletteGame):
+    """Creates an embed to display the Roulette game state."""
     print("DEBUG: Inside create_Roullette_embed.")
     embed = discord.Embed(
-        title = "🃏 Roullette",
+        title = "🎡 Roulette",
         color = discord.Color.dark_green()
     )
     
-    embed.add_field(
-        name="Ball",
-        value=f"Color: {game.get_color_number()[1]}, Number: {game.get_color_number()[0]}",
-        inline=False
-    )
+    # Display current spinning status or winning number
+    if game.is_game_over:
+        number, color = game.get_color_number()
+        embed.add_field(
+            name="Ball Landed On",
+            value=f"**{number}** ({color.capitalize()})", # Show the winning number and color
+            inline=False
+        )
+    else:
+        # During betting phase, display timer and general ball status
+        embed.add_field(
+            name="Ball",
+            value=f"Currently Spinning: {game.ball if game.ball != -1 else 'N/A'}",
+            inline=False
+        )
+        embed.add_field(name="Time Left to Bet", value=f"{game.timer} seconds", inline=True)
 
-    embed.add_field(
-        name=f"Players",
-        value=len(game.players),
-        inline=False
-    )
+    # Players and their bets
+    if game.players:
+        players_info = ""
+        for user_id, bet_data in game.players.items():
+            user = await bot.fetch_user(int(user_id)) # Fetch user to get display name
+            display_name = user.display_name if user else f"ID: {user_id}"
+            
+            betted_on_str = ", ".join([str(b) for b in bet_data.get("betted_on", [])])
+            if not betted_on_str:
+                betted_on_str = "No specific bet"
+
+            players_info += f"**{display_name}**: ${bet_data.get('bet_amount', 0.0):,.2f} on [{betted_on_str}]\n"
+        embed.add_field(
+            name=f"Players ({len(game.players)})",
+            value=players_info,
+            inline=False
+        )
+    else:
+        embed.add_field(name="Players", value="No players yet. Click 'Join Game' to bet!", inline=False)
+
 
     embed.add_field(
         name=f"Current Pot",
-        value=game.pot,
+        value=f"${game.pot:,.2f}", # Format pot with commas and 2 decimal places
         inline=False
     )
-
-    current_winners = []
-    for user_id in game.determine_winners():
-        try:
-            user = await bot.fetch_user(user_id)
-            if user:
-                current_winners.append(user.display_name)
-            else:
-                current_winners.append("Unknow users")
-        except discord.NotFound:
-            current_winners.append(f"User not found (ID: {user_id})")
-        except discord.HTTPException as e:
-            current_winners.append(f"Error: {e}")
-
-    embed.add_field(
-        name="💰Current winners",
-        value=current_winners,
-        inline=False
-    )
-
-    embed.add_field(
-        name="🏦Victory pot",
-        value=game.pot // len(game.determine_winners()),
-        inline=False
-    )
-   
-    if game.is_game_over:
-        embed.description = "**GAME OVER!** Congrats to the winners!" if len(game.determine_winners()) > 0 else "no winners :("
     
-    print("DEBUG: Final Embed Dictionairy:")
+    if game.is_game_over:
+        winners_info = game.determine_winners()
+        if winners_info:
+            winner_list_str = ""
+            total_winnings = 0.0
+            for user_id, winnings in winners_info.items():
+                user = await bot.fetch_user(int(user_id))
+                display_name = user.display_name if user else f"ID: {user_id}"
+                winner_list_str += f"**{display_name}**: ${winnings:,.2f}\n"
+                total_winnings += winnings
+            
+            embed.add_field(
+                name="💰 Winners!",
+                value=winner_list_str,
+                inline=False
+            )
+            embed.add_field(
+                name="Payouts",
+                value=f"Total: ${total_winnings:,.2f}",
+                inline=False
+            )
+            embed.description = "**GAME OVER!** Congrats to the winners!"
+            embed.color = discord.Color.green()
+        else:
+            embed.add_field(name="🚫 No Winners", value="The house wins!", inline=False)
+            embed.description = "No winners this round. Better luck next time!"
+            embed.color = discord.Color.red()
+    else:
+        embed.description = "Place your bets! The wheel is spinning soon."
+    
+    print("DEBUG: Final Embed Dictionary:")
     print(embed.to_dict())
 
     return embed
 
-class RoulletteView(discord.ui.View):
-    def __init__(self, game: RoulletteGame, player_id: int, bet_amount: int, betted: int):
-        super().__init__(timeout=120)
-        print("DEBUG: RoulleteView __init__ - super() called")
+class RouletteView(discord.ui.View):
+    def __init__(self, game: RoulletteGame, ctx: commands.Context):
+        print("DEBUG: Inside RouletteView __init__ - Step1: Calling super().__init__")
+        super().__init__(timeout=180) # Timeout for the entire game session
+
+        print("DEBUG: Inside RouletteView __init__ - Step 2: settping up attributes")
 
         self.game = game
-        game.players.append(player_id)
-        self.players = game.players
-        game.pot += bet_amount
-        self.pot = game.pot
-        game.betee.append(betted)
-        self.bettee = game.betee
-        self.message = None
-        self.timer = game.timer
-
-        print("DEBUG: __init__ - attributes assigned")
+        self.ctx = ctx # Store context for sending messages/fetching users
+        self.message = None # This will store the game's message
+        self.current_betting_player_id = None # Track which player is currently making a bet selection
+        self.current_bet_amount = 0.0 # Store the amount for the current player's bet being placed
         
+        self.send_embed_roullette_work_please(self, ctx=ctx, game=self.game) 
+
+        print("Commong bet button")
+        self.add_common_bet_buttons()
+        print("Bet menus")
+        self.add_number_select_menus()
+        print("Adding action buttons")
+        self.add_action_buttons()
+        
+        # Start the betting timer loop
+        print("Starting the game timer")
+        self.game_timer_task.start()
+        print("DEBUG: RouletteView initialized and game_timer_task started.")
+
+    async def send_embed_roullette_work_please(self, ctx: commands.Context, game: RoulletteGame):
+        await ctx.send(embed=create_Roullette_embed(game))
+
+    def add_common_bet_buttons(self):
+        print("DEBUG: Inside add_common_bet_buttons - Starting button additions.") # NEW DEBUG PRINT B1
+        
+        self.add_item(discord.ui.Button(label="Test", style=discord.ButtonStyle.primary, custom_id="test_button"))
+        print("DEBUG: Inside add_common_bet_buttons - Added Test button.") # NEW DEBUG PRINT B_TEST
+        
+        
+        
+        print("DEBUG: Inside add_common_bet_buttons - All buttons added successfully.") # NEW DEBUG PRINT B10
+
+    def add_number_select_menus(self):
+        # Select menu for numbers 0-12
+        options_0_12 = [discord.SelectOption(label=str(i), value=str(i)) for i in range(0, 13)]
+        self.add_item(discord.ui.Select(
+            placeholder="Bet on Numbers 0-12",
+            options=options_0_12,
+            custom_id="select_numbers_0_12",
+            row=1 # Puts this on the second row
+        ))
+
+        # Select menu for numbers 13-24
+        options_13_24 = [discord.SelectOption(label=str(i), value=str(i)) for i in range(13, 25)]
+        self.add_item(discord.ui.Select(
+            placeholder="Bet on Numbers 13-24",
+            options=options_13_24,
+            custom_id="select_numbers_13_24",
+            row=2 # Puts this on the third row
+        ))
+
+        # Select menu for numbers 25-36
+        options_25_36 = [discord.SelectOption(label=str(i), value=str(i)) for i in range(25, 37)]
+        self.add_item(discord.ui.Select(
+            placeholder="Bet on Numbers 25-36",
+            options=options_25_36,
+            custom_id="select_numbers_25_36",
+            row=3 # Puts this on the fourth row
+        ))
+
+    def add_action_buttons(self):
+        self.add_item(discord.ui.Button(label="Spin Wheel", style=discord.ButtonStyle.primary, custom_id="spin_wheel", row=4))
+        self.add_item(discord.ui.Button(label="Reset Game", style=discord.ButtonStyle.danger, custom_id="reset_game", row=4)) # For testing/admin
+        self.children[-1].disabled = True # Initially disable reset game button
+        
+        self.add_item(discord.ui.Button(label="Confirm Bet", style=discord.ButtonStyle.success, custom_id="confirm_bet", row=4, disabled=True)) # Disabled until a bet amount is set
+
+    # --- Timer Loop for Roulette Game ---
+    @tasks.loop(seconds=1)
+    async def game_timer_task(self):
         if self.game.is_game_over:
-            self.disable_buttons()
+            self.game_timer_task.stop() # Stop the timer if game is over
+            return
 
-    def disable_buttons(self):
+        self.game.timer -= 1
+        
+        # Update embed to show countdown
+        if self.message:
+            try:
+                # Update only the timer field if possible, or re-render full embed
+                updated_embed = await create_Roullette_embed(self.game)
+                await self.message.edit(embed=updated_embed, view=self) # Update message with remaining time
+            except discord.HTTPException as e:
+                print(f"ERROR: Could not update roulette timer message: {e}")
+                self.game_timer_task.stop() # Stop if message can't be edited
+
+        if self.game.timer <= 0:
+            print("DEBUG: Betting time is over. Spinning wheel.")
+            await self.spin_wheel_and_end_game() # Automatically spin when time is up
+            self.game_timer_task.stop() # Ensure the loop stops
+
+    @game_timer_task.before_loop
+    async def before_game_timer_task(self):
+        await self.ctx.bot.wait_until_ready() # Wait for bot to be ready
+        await asyncio.sleep(2) # Give a small buffer after bot is ready
+
+    def disable_all_components(self, is_game_over: bool = False):
+        """Disables all interactive components in the view."""
         for item in self.children:
-            if isinstance(item, discord.ui.Button):
-                item.disabled=True
-        print("DEBUG: Disabled buttons method") 
+            item.disabled = True
+            # For select menus, you might need to rebuild them if you want them truly "grayed out"
+            # For now, disabling is sufficient.
+        if self.message:
+            # If game is over, remove the view entirely after disabling.
+            # This is cleaner as users won't see inactive buttons.
+            try:
+                if is_game_over:
+                    asyncio.create_task(self.message.edit(view=None)) # Remove view entirely
+                else:
+                    asyncio.create_task(self.message.edit(view=self)) # Just update with disabled items
+            except discord.HTTPException:
+                pass # Message might have been deleted
 
-    async def on_timeout(self) -> None:
-        self.disable_buttons()
-        print("DEBUG: timed out")
+    async def spin_wheel_and_end_game(self):
+        """Handles the wheel spin, winner determination, and game end."""
+        self.disable_all_components(is_game_over=True) # Lock all bets, disable buttons
+        self.game.spin_wheel()
+        print(f"DEBUG: Wheel spun. Winning number: {self.game.winning_number}, Color: {self.game.winning_color}")
+
+        # Update embed to show final results
+        final_embed = await create_Roullette_embed(self.game)
+        
+        # Payout winners
+        winners_info = self.game.determine_winners()
+        if winners_info:
+            for user_id, winnings in winners_info.items():
+                await Bank.addcash(user_id, winnings)
+                # You might send a DM or a brief message to winners here
+            final_embed.description += f"\n\nPayouts have been processed."
+        else:
+            final_embed.description += "\n\nNo one won this round."
+        
+        if self.message:
+            await self.message.edit(embed=final_embed, view=None) # Final update and remove view
+        
+        self.game.is_game_over = True # Mark game as over
+        self.game_timer_task.stop() # Stop the timer in case it's still running
+        self.stop() # Stop the view itself
+
+    async def on_timeout(self):
+        print(f"DEBUG: RouletteView timed out for game {self.ctx.channel.id}.")
+        self.game_timer_task.stop() # Stop the timer task if view times out
+        if not self.game.is_game_over:
+            # If timed out before game over, spin the wheel and end
+            await self.spin_wheel_and_end_game()
+        self.disable_all_components(is_game_over=True)
+        # self.message.edit is handled by spin_wheel_and_end_game if not already.
+
+    async def interaction_check(self, interaction: discord.Interaction) -> bool:
+        """Only allow interactions from the channel where the game started."""
+        # For simplicity, let any user interact with betting buttons
+        # but only the game starter or specific roles can spin/reset
+        if self.game.is_game_over:
+            await interaction.response.send_message("This game is over!", ephemeral=True)
+            return False
+        
+        # Ensure interaction is in the same channel as the game message
+        if interaction.channel_id != self.ctx.channel.id:
+            await interaction.response.send_message("Please interact with the game in its original channel!", ephemeral=True)
+            return False
+        
+        return True # Allow all other interactions
 
 
+    # --- Betting Callbacks ---
+    async def process_bet_input(self, interaction: discord.Interaction, bet_type: str, bet_value: str = None):
+        """Helper to process a bet amount from a modal."""
+        user_id_str = str(interaction.user.id)
+        
+        try:
+            bet_amount = float(self.current_bet_amount) # Use the stored bet amount
+            if bet_amount <= 0:
+                await interaction.followup.send("Bet amount must be positive.", ephemeral=True)
+                return
+
+            user_balance = Bank.read_balance(user_id_str).get("cash", 0.0)
+            if user_balance < bet_amount:
+                await interaction.followup.send(f"You don't have ${bet_amount:,.2f} cash. Your balance: ${user_balance:,.2f}", ephemeral=True)
+                return
+            
+            # Deduct from user's balance immediately
+            await Bank.addcash(user_id_str, -bet_amount)
+
+            # Add to game's internal state
+            self.game.add_player_bet(user_id_str, bet_amount, bet_value if bet_value else bet_type) # bet_value is for numbers
+
+            await interaction.followup.send(f"✅ You bet ${bet_amount:,.2f} on {bet_value if bet_value else bet_type}!", ephemeral=True)
+            
+            # Update the game embed after a bet is placed
+            updated_embed = await create_Roullette_embed(self.game)
+            if self.message:
+                await self.message.edit(embed=updated_embed, view=self)
+
+        except ValueError:
+            await interaction.followup.send("Invalid bet amount. Please enter a number.", ephemeral=True)
+        except Exception as e:
+            print(f"ERROR processing bet: {e}")
+            await interaction.followup.send("An error occurred while processing your bet.", ephemeral=True)
+        finally:
+            self.current_betting_player_id = None # Clear current betting player
+            self.current_bet_amount = 0.0 # Clear bet amount
+
+    # --- Modal for Bet Amount ---
+    class BetAmountModal(discord.ui.Modal, title="Enter Your Bet Amount"):
+        def __init__(self, parent_view, bet_type: str, bet_value: str = None):
+            super().__init__()
+            self.parent_view = parent_view
+            self.bet_type = bet_type # e.g., "red", "even", "number"
+            self.bet_value = bet_value # The specific number if applicable
+
+            self.bet_input = discord.ui.TextInput(
+                label="Bet Amount",
+                placeholder="Enter a positive number (e.g., 100 or 50.50)",
+                required=True,
+                max_length=10 # Reasonable max length for bet
+            )
+            self.add_item(self.bet_input)
+
+        async def on_submit(self, interaction: discord.Interaction):
+            await interaction.response.defer(ephemeral=True) # Defer immediately
+            try:
+                self.parent_view.current_bet_amount = float(self.bet_input.value)
+                # Now, call the view's method to complete the bet
+                await self.parent_view.process_bet_input(interaction, self.bet_type, self.bet_value)
+            except ValueError:
+                await interaction.followup.send("Invalid bet amount. Please enter a valid number.", ephemeral=True)
+            except Exception as e:
+                print(f"ERROR in modal on_submit: {e}")
+                await interaction.followup.send("An error occurred with your bet. Please try again.", ephemeral=True)
+
+
+    # --- Button Callbacks for Common Bets ---
+    @discord.ui.button(custom_id="bet_red")
+    async def bet_red_callback(self, interaction: discord.Interaction, button: discord.ui.Button):
+        print("Inside red button setup")
+        self.current_betting_player_id = interaction.user.id
+        await interaction.response.send_modal(self.BetAmountModal(self, "red"))
+
+    @discord.ui.button(custom_id="bet_black")
+    async def bet_black_callback(self, interaction: discord.Interaction, button: discord.ui.Button):
+        self.current_betting_player_id = interaction.user.id
+        await interaction.response.send_modal(self.BetAmountModal(self, "black"))
+
+    @discord.ui.button(custom_id="bet_even")
+    async def bet_even_callback(self, interaction: discord.Interaction, button: discord.ui.Button):
+        self.current_betting_player_id = interaction.user.id
+        await interaction.response.send_modal(self.BetAmountModal(self, "even"))
+
+    @discord.ui.button(custom_id="bet_odd")
+    async def bet_odd_callback(self, interaction: discord.Interaction, button: discord.ui.Button):
+        self.current_betting_player_id = interaction.user.id
+        await interaction.response.send_modal(self.BetAmountModal(self, "odd"))
     
+    @discord.ui.button(custom_id="bet_0")
+    async def bet_zero_callback(self, interaction: discord.Interaction, button: discord.ui.Button):
+        self.current_betting_player_id = interaction.user.id
+        await interaction.response.send_modal(self.BetAmountModal(self, "number", "0")) # Betting on specific number 0
+
+    @discord.ui.button(custom_id="bet_1st12")
+    async def bet_1st12_callback(self, interaction: discord.Interaction, button: discord.ui.Button):
+        self.current_betting_player_id = interaction.user.id
+        await interaction.response.send_modal(self.BetAmountModal(self, "1st12"))
+
+    @discord.ui.button(custom_id="bet_2nd12")
+    async def bet_2nd12_callback(self, interaction: discord.Interaction, button: discord.ui.Button):
+        self.current_betting_player_id = interaction.user.id
+        await interaction.response.send_modal(self.BetAmountModal(self, "2nd12"))
+
+    @discord.ui.button(custom_id="bet_3rd12")
+    async def bet_3rd12_callback(self, interaction: discord.Interaction, button: discord.ui.Button):
+        self.current_betting_player_id = interaction.user.id
+        await interaction.response.send_modal(self.BetAmountModal(self, "3rd12"))
+
+    # --- Select Menu Callbacks for Numbers ---
+    @discord.ui.select(custom_id="select_numbers_0_12")
+    async def select_0_12_callback(self, interaction: discord.Interaction, select: discord.ui.Select):
+        selected_number = select.values[0] # Get the selected number as string
+        self.current_betting_player_id = interaction.user.id
+        await interaction.response.send_modal(self.BetAmountModal(self, "number", selected_number))
+
+    @discord.ui.select(custom_id="select_numbers_13_24")
+    async def select_13_24_callback(self, interaction: discord.Interaction, select: discord.ui.Select):
+        selected_number = select.values[0]
+        self.current_betting_player_id = interaction.user.id
+        await interaction.response.send_modal(self.BetAmountModal(self, "number", selected_number))
+
+    @discord.ui.select(custom_id="select_numbers_25_36")
+    async def select_25_36_callback(self, interaction: discord.Interaction, select: discord.ui.Select):
+        selected_number = select.values[0]
+        self.current_betting_player_id = interaction.user.id
+        await interaction.response.send_modal(self.BetAmountModal(self, "number", selected_number))
+
+
+    # --- Action Button Callbacks ---
+    @discord.ui.button(custom_id="spin_wheel")
+    async def spin_wheel_callback(self, interaction: discord.Interaction, button: discord.ui.Button):
+        # Only allow the person who initiated the game or an admin to spin
+        # Or you could let anyone spin once the timer is near zero
+        # For simplicity, let's say anyone can trigger spin when time is almost up
+        
+        # If the game is already over or spinning, ignore
+        if self.game.is_game_over or self.game.timer > 0: # Ensure bets are locked (timer is 0)
+            await interaction.response.send_message("Bets are not yet locked or game is already over!", ephemeral=True)
+            return
+
+        # Acknowledge the interaction first
+        await interaction.response.defer() 
+        await self.spin_wheel_and_end_game() # Call the method that handles spin and results
+
+    @discord.ui.button(custom_id="reset_game")
+    async def reset_game_callback(self, interaction: discord.Interaction, button: discord.ui.Button):
+        # This button is for testing/admin purposes
+        if interaction.user.id != self.ctx.author.id and not interaction.user.guild_permissions.administrator:
+            await interaction.response.send_message("Only the game initiator or an admin can reset!", ephemeral=True)
+            return
+        
+        await interaction.response.defer() # Acknowledge reset button click
+        
+        self.game_timer_task.stop() # Stop any active timer
+        self.game.reset_game()
+        self.disable_all_components(is_game_over=False) # Enable all components for new game
+        self.children[-1].disabled = False # Re-enable Confirm Bet button
+
+        # Re-add all components for a fresh view (important for re-enabling dropdowns)
+        self.clear_items()
+        self.add_common_bet_buttons()
+        self.add_number_select_menus()
+        self.add_action_buttons()
+        
+        # Start timer for new game
+        self.game_timer_task.start()
+
+        updated_embed = await create_Roullette_embed(self.game)
+        await self.message.edit(embed=updated_embed, view=self)
+        await interaction.followup.send("Game has been reset. Place your new bets!")
+
+active_roulette_games = {}
+
+@bot.command(name="roulette", help="Starts a new game of Roulette!")
+async def roulette_command(ctx: commands.Context):
+    print("DEBUG: roulette_command triggered.") # NEW DEBUG PRINT R1
+
+    if ctx.channel.id in active_roulette_games and not active_roulette_games[ctx.channel.id].is_game_over:
+        print(f"DEBUG: Active game found in channel {ctx.channel.id}.") # NEW DEBUG PRINT R2
+        await ctx.send("There's already an active roulette game in this channel! Please wait for it to finish or reset it.")
+        return
+
+    game_instance = RoulletteGame()
+    active_roulette_games[ctx.channel.id] = game_instance
+
+    print("DEBUG: Attempting to initialize RouletteView.") # NEW DEBUG PRINT R3
+    view = RouletteView(game=game_instance, ctx=ctx)
+    print("DEBUG: RouletteView initialized successfully (or tried to).") # NEW DEBUG PRINT R4
+
+    initial_embed = await create_Roullette_embed(game_instance)
+    
+    message = await ctx.send(embed=initial_embed, view=view)
+    view.message = message
+
+    print("DEBUG: Waiting for view to complete.") # NEW DEBUG PRINT R5
+    await view.wait()
+    
+    if ctx.channel.id in active_roulette_games:
+        del active_roulette_games[ctx.channel.id]
+    print(f"DEBUG: Roulette game in channel {ctx.channel.id} ended.") # NEW DEBUG PRINT R6
 
 @bot.command(name='remove-bank-account', aliases=['rm-b'])
 async def removeaccount(ctx):
     del Bank.bank_accounts[str(ctx.author.id)]
     Bank.save_balances()
+
+class TestView(discord.ui.View):
+    def __init__(self):
+        super().__init__()
+        print("DEBUG: TestView __init__ started.")
+        self.add_item(discord.ui.Button(label="Simple Button", style=discord.ButtonStyle.primary, custom_id="simple_test"))
+        print("DEBUG: TestView __init__ finished, button added.")
+
+    @discord.ui.button(custom_id="simple_test")
+    async def simple_button_callback(self, interaction: discord.Interaction, button: discord.ui.Button):
+        await interaction.response.send_message("Button clicked!", ephemeral=True)
+
+
+
+@bot.command(name="testbutton")
+async def test_button_command(ctx: commands.Context):
+    print("DEBUG: testbutton command triggered.")
+    view = TestView()
+    await ctx.send("Here is a test button:", view=view)
+    print("DEBUG: testbutton command finished sending message.")
 
 TOKEN = os.environ.get("BOT_TOKEN")
 
