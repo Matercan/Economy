@@ -8,6 +8,73 @@ class Card:
     def __init__(self, suit, rank) -> None:
         self.suit = suit
         self.rank = rank
+        
+        print(self.rank)
+        print(self.suit)
+
+        card_emojis = {
+            "hearts": {
+                "A": "🂱",
+                "2": "🂲",
+                "3": "🂳",
+                "4": "🂴",
+                "5": "🂵",
+                "6": "🂶",
+                "7": "🂷",
+                "8": "🂸",
+                "9": "🂹",
+                "10": "🂺",
+                "J": "🂻",
+                "Q": "🂼",
+                "K": "🂽"
+            },
+            "diamonds": {
+                "A": "🃁",
+                "2": "🃂",
+                "3": "🃃",
+                "4": "🃄",
+                "5": "🃅",
+                "6": "🃆",
+                "7": "🃇",
+                "8": "🃈",
+                "9": "🃉",
+                "10": "🃊",
+                "J": "🃋",
+                "Q": "🃍",
+                "K": "🃎"
+            },
+            "clubs": {
+                "A": "🃑",
+                "2": "🃒",
+                "3": "🃓",
+                "4": "🃔",
+                "5": "🃕",
+                "6": "🃖",
+                "7": "🃗",
+                "8": "🃘",
+                "9": "🃙",
+                "10":"🃚",
+                "J": "🃛",
+                "Q": "🃜",
+                "K": "🃝"
+            },
+            "spades": {
+                "A": "🃁",
+                "2": "🃂",
+                "3": "🃃",
+                "4": "🃄",
+                "5": "🃅",
+                "6": "🃆",
+                "7": "🃇",
+                "8": "🃈",
+                "9": "🃉",
+                "10": "🃊",
+                "J": "🃋",
+                "Q": "🃍",
+                "K": "🃎"
+            }
+        }
+        self.emoji = card_emojis[str(suit).lower()][str(rank)]
 
     def __str__(self , option) -> str:
         """Returns a string representation of the card, e.g., 'Ace of Spades' or '10 of Hearts'."""
@@ -89,6 +156,10 @@ class Card:
         else:
             return f"{rank_str} of {self.suit }" + self.card_emojis[self.suit][rank_str]
 
+<<<<<<< Updated upstream
+=======
+        return f"{rank_str} of {self.suit} {self.emoji}"
+>>>>>>> Stashed changes
     
     def get_value(self):
         if self.rank in ['J', 'Q', 'K']:
