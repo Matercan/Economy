@@ -2,12 +2,14 @@ import random
 
 from nltk.toolbox import TreeBuilder
 
+
+
 class Card:
     def __init__(self, suit, rank) -> None:
         self.suit = suit
         self.rank = rank
 
-    def __str__(self) -> str:
+    def __str__(self , option) -> str:
         """Returns a string representation of the card, e.g., 'Ace of Spades' or '10 of Hearts'."""
         if self.rank == 'A':
             rank_str = 'Ace'
@@ -19,8 +21,74 @@ class Card:
             rank_str = 'King'
         else:
             rank_str = str(self.rank) # For 2-10
+        
+        card_emojis = {
+            "hearts": {
+                "A": "🂱",
+                "2": "🂲",
+                "3": "🂳",
+                "4": "🂴",
+                "5": "🂵",
+                "6": "🂶",
+                "7": "🂷",
+                "8": "🂸",
+                "9": "🂹",
+                "10": "🂺",
+                "J": "🂻",
+                "Q": "🂼",
+                "K": "🂽"},
+            "diamonds": {
+                "A": "🃁",
+                "2": "🃂",
+                "3": "🃃",
+                "4": "🃄",
+                "5": "🃅",
+                "6": "🃆",
+                "7": "🃇",
+                "8": "🃈",
+                "9": "🃉",
+                "10": "🃊",
+                "J": "🃋",
+                "Q": "🃍",
+                "K": "🃎"},
+            "clubs": {
+                "A": "🃑",
+                "2": "🃒",
+                "3": "🃓",
+                "4": "🃔",
+                "5": "🃕",
+                "6": "🃖",
+                "7": "🃗",
+                "8": "🃘",
+                "9": "🃙",
+                "10": "🃚",
+                "J": "🃛",
+                "Q": "🃜",
+                "K": "🃝" },
+            "spades": {
+                "A": "🃁",
+                "2": "🃂",
+                "3": "🃃",
+                "4": "🃄",
+                "5": "🃅",
+                "6": "🃆",
+                "7": "🃇",
+                "8": "🃈",
+                "9": "🃉",
+                "10": "🃊",
+                "J": "🃋",
+                "Q": "🃍",
+                "K": "🃎"}
+            }
+        
 
-        return f"{rank_str} of {self.suit}"
+        if option == 'text':  
+            return f"{rank_str} of {self.suit }"
+        elif option == 'emoji':
+            return  self.card_emojis[self.suit][rank_str]
+        else:
+            return f"{rank_str} of {self.suit }" + self.card_emojis[self.suit][rank_str]
+
     
     def get_value(self):
         if self.rank in ['J', 'Q', 'K']:
