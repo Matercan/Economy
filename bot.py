@@ -1440,9 +1440,6 @@ async def on_message(message):
                 Bank.addcash(user_id, -amount_lost)
             break
 
-            
-
-
 
     for role in message.author.roles:
         if role.name == "Knife":
