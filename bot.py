@@ -25,6 +25,7 @@ english_words.add("faggot")
 english_words.add("boobies")
 english_words.add("boobs")
 english_words.add("bitch")
+english_words.add('mrrrp')
 
 english_words = sorted(english_words)
 
