@@ -1424,16 +1424,25 @@ async def on_message(message):
     print(Income.playerincomes.get(user_id))
     
     for source_name, income_details in Income.playerincomes.get(user_id, {}).items():
-        if income_details["index"] == Income.get_source_index_by_name("Organized crime") and Bank.read_balance(user_id)["cash"] > 10000:
+        if income_details["index"] == Income.get_source_index_by_name("Organized crime") and Bank.read_balance(user_id)["cash"] > 10000 and not message.content.startswith("m!"):
             await ctx.send(f"The cops have found out about your dirty cash and that you have {source_name}; quickly deposit your cash now!")
             if random.randint(1, 10) < 4:
                 # Calculate amount_lost as a percentage of cash, not as an absolute multiplier
                 amount_lost_percentage = random.randrange(60, 100) # This will be 60-99
                 user_cash = Bank.read_balance(user_id)["cash"]
                 amount_lost = int(user_cash * amount_lost_percentage / 100) # Calculate as percentage
+                
+                if "A good lawyer" in Items.get_user_items(user_id) and random.randrange(1, 10) > 7:
+                    amount_lost = 10000
+                    await ctx.send(f"Though because of {message.author}'s lawyer")
 
                 await ctx.send(f"They have also managed to take {amount_lost:,} cash from you!") # Added formatting and clarified what was taken
                 Bank.addcash(user_id, -amount_lost)
+            break
+
+            
+
+
 
     for role in message.author.roles:
         if role.name == "Knife":
