@@ -2310,6 +2310,7 @@ async def slut(ctx):
         message = message.replace('____', str(amount_lost))
 
         if "A good lawyer" in Items.get_user_items(user_id):
+            await ctx.send(message)
             await ctx.send("However, due to their good lawyer, the money was dealt with and troubles were sorted out behind the seens")
             
             if not user_id in crime_success_dict:
@@ -2533,7 +2534,25 @@ async def leaderboard(ctx):
         except (discord.NotFound, ValueError) as e:
             # This handles cases where user_id might be invalid or the member has left the guild
             print(f"Could not fetch member for user_id {user_id_str}: {e}") # Log the error
-            # Optionally add a field for skipped members or just continue
+
+            member = await bot.fetch_user(int(user_id_str))
+            name = member.name
+
+            # Determine medal emoji
+            if i == 1:
+                medal = "🥇"
+            elif i == 2:
+                medal = "🥈"
+            elif i == 3:
+                medal = "🥉"
+            else:
+                medal = "💎" # Using a different emoji for ranks 4-10
+
+            embed.add_field(
+                name=f"{medal} #{i} {name}",
+                value=f"Total: `{total_wealth:,.2f}` (Cash: `{cash:,.2f}`, Bank: `{bank:,.2f}`)",
+                inline=False
+            )
             continue 
     
     # --- FIX 4: Add await to ctx.send() ---
