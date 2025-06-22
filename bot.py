@@ -13,7 +13,7 @@ import time
 import asyncio
 import sys
 from economy import Bank, Income, Items
-from game_logic import Card, Deck, BlackjackGame, CardflipGame
+from game_logic import Card, Deck, BlackjackGame, CardflipGame, RoulletteGame
 from nltk.corpus import words
 import datetime
 
@@ -3381,6 +3381,8 @@ async def blackjack_command(ctx: commands.Context, bet: str = "all"): # Changed 
     message = await ctx.send(embed=embed, view=view)
     view.message = message # Store the Message object in the view for future edits by buttons
 
+
+
 @bot.command(name="cardflip", aliases=['cf', 'flip'])
 async def card_flip_command(ctx, bet: str = "all"):
     """
@@ -3451,7 +3453,96 @@ async def card_flip_command(ctx, bet: str = "all"):
 
     await ctx.send(embed=embed)
     
+async def create_Roullette_embed(game: RoulletteGame):
+    print("DEBUG: Inside create_Roullette_embed.")
+    embed = discord.Embed(
+        title = "🃏 Roullette",
+        color = discord.Color.dark_green()
+    )
+    
+    embed.add_field(
+        name="Ball",
+        value=f"Color: {game.get_color_number()[1]}, Number: {game.get_color_number()[0]}",
+        inline=False
+    )
 
+    embed.add_field(
+        name=f"Players",
+        value=len(game.players),
+        inline=False
+    )
+
+    embed.add_field(
+        name=f"Current Pot",
+        value=game.pot,
+        inline=False
+    )
+
+    current_winners = []
+    for user_id in game.determine_winners():
+        try:
+            user = await bot.fetch_user(user_id)
+            if user:
+                current_winners.append(user.display_name)
+            else:
+                current_winners.append("Unknow users")
+        except discord.NotFound:
+            current_winners.append(f"User not found (ID: {user_id})")
+        except discord.HTTPException as e:
+            current_winners.append(f"Error: {e}")
+
+    embed.add_field(
+        name="💰Current winners",
+        value=current_winners,
+        inline=False
+    )
+
+    embed.add_field(
+        name="🏦Victory pot",
+        value=game.pot // len(game.determine_winners()),
+        inline=False
+    )
+   
+    if game.is_game_over:
+        embed.description = "**GAME OVER!** Congrats to the winners!" if len(game.determine_winners()) > 0 else "no winners :("
+    
+    print("DEBUG: Final Embed Dictionairy:")
+    print(embed.to_dict())
+
+    return embed
+
+class RoulletteView(discord.ui.View):
+    def __init__(self, game: RoulletteGame, player_id: int, bet_amount: int, betted: int):
+        super().__init__(timeout=120)
+        print("DEBUG: RoulleteView __init__ - super() called")
+
+        self.game = game
+        game.players.append(player_id)
+        self.players = game.players
+        game.pot += bet_amount
+        self.pot = game.pot
+        game.betee.append(betted)
+        self.bettee = game.betee
+        self.message = None
+        self.timer = game.timer
+
+        print("DEBUG: __init__ - attributes assigned")
+        
+        if self.game.is_game_over:
+            self.disable_buttons()
+
+    def disable_buttons(self):
+        for item in self.children:
+            if isinstance(item, discord.ui.Button):
+                item.disabled=True
+        print("DEBUG: Disabled buttons method") 
+
+    async def on_timeout(self) -> None:
+        self.disable_buttons()
+        print("DEBUG: timed out")
+
+
+    
 
 @bot.command(name='remove-bank-account', aliases=['rm-b'])
 async def removeaccount(ctx):
