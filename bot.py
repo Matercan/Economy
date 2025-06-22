@@ -2626,9 +2626,9 @@ async def rob_bank(ctx):
                 await ctx.send("A good of criminals flock to you")
                 Income.addtoincomes(user_id_str, "Organized crime ring leader", 13)
 
-            return
+            
 
-        Bank.addcash(user_id_str, random.randint(20, 40) * current_cash // -100)
+        Bank.addcash(user_id_str, random.randint(20, 40) * current_cash // -100) if not "A good lawyer" in Items.get_user_items(user_id_str) else Bank.addcash(user_id_str, 1)
         embed.add_field(name="Robbery unsuccessful",
                         value=f"{ctx.author.display_name} lost {new_money-current_cash:,.2f} after being caught by the police",
                         inline=False)
