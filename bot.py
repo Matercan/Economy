@@ -410,10 +410,10 @@ async def end(ctx):
             await ctx.send("Mater is shooting the bot in the face, too long of a coding adevnture ig")
             await bot.close()
             return
-        elif ctx.author.display_name == "sulf":
-            await ctx.send("sulf murdered the bot")
-            await bot.close()
-            return
+    if ctx.author.display_name == "sulf":
+        await ctx.send("sulf murdered the bot")
+        await bot.close()
+        return
     await ctx.send("You don't have permission to use this command.")
     return
 
@@ -439,23 +439,20 @@ async def restart(ctx):
             os.execv(sys.executable, ['python'] + sys.argv)
             # Code after os.execv will not be reached in this process
             return # Ensure the command handler exits
-        elif ctx.author.display_name == "sulf":
-            is_restarting_for_disconnect = True # Set the flag to true for the *current* process's on_disconnect
-            
-            # --- IMPORTANT: Create the persistent flag file here ---
-            # This file signals the *new* process's on_ready to skip the online ping.
-            with open(RESTART_FLAG_FILE, 'w') as f:
-                f.write('restarting')
-            print(f"Created restart flag file: {RESTART_FLAG_FILE}")
-            # --- End IMPORTANT ---
-
-            await ctx.send("sulf is restarting the bot... Please wait a moment.")
-            await bot.close() # This will trigger on_disconnect (which will see is_restarting_for_disconnect=True)
-            
-            # This replaces the current process with a new one, effectively restarting the script
-            os.execv(sys.executable, ['python'] + sys.argv)
-            # Code after os.execv will not be reached in this process
-            return # Ensure the command handler exits
+    if ctx.author.display_name == "sulf":
+        is_restarting_for_disconnect = True # Set the flag to true for the *current* process's on_disconnect
+        # --- IMPORTANT: Create the persistent flag file here ---
+        # This file signals the *new* process's on_ready to skip the online ping.
+        with open(RESTART_FLAG_FILE, 'w') as f:
+            f.write('restarting')
+        print(f"Created restart flag file: {RESTART_FLAG_FILE}")
+        # --- End IMPORTANT ---
+        await ctx.send("sulf is restarting the bot... Please wait a moment.")
+        await bot.close() # This will trigger on_disconnect (which will see is_restarting_for_disconnect=True)
+        # This replaces the current process with a new one, effectively restarting the script
+        os.execv(sys.executable, ['python'] + sys.argv)
+        # Code after os.execv will not be reached in this process
+        return # Ensure the command handler exits
     await ctx.send("You don't have permission to use this command.")
 
 @bot.event
