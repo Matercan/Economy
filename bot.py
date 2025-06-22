@@ -166,7 +166,8 @@ async def check_guillotine_cooldown():
         for guild in bot.guilds:
             cooldowns = load_cooldowns()
             guild_id = str(guild.id)
-            
+            checked = False
+
             if guild_id in cooldowns and 'guillotine' in cooldowns[guild_id]:
                 last_used = cooldowns[guild_id]['guillotine']
                 cooldown_time = command_cooldowns.get('guillotine', 86400)
@@ -177,8 +178,8 @@ async def check_guillotine_cooldown():
                     if reminder_channel:
                         await reminder_channel.send("The richest person in the server *can* be guillotined!")
                         # Update the cooldown to prevent spam
-                        cooldowns[guild_id]['guillotine'] = time.time()
-                        save_cooldowns(cooldowns)
+                        # cooldowns[guild_id]['guillotine'] = time.time()
+                        # save_cooldowns(cooldowns)
         
         # Check every hour
         await asyncio.sleep(3600)
@@ -199,8 +200,8 @@ async def checkbankrobery():
                     if reminder_channel:
                         await reminder_channel.send("The bank is being robbed!")
                         # Update the cooldown to prevent spam
-                        cooldowns[guild_id]['rob_bank'] = time.time()
-                        save_cooldowns(cooldowns)
+                        # cooldowns[guild_id]['rob_bank'] = time.time()
+                        # save_cooldowns(cooldowns)
 
         await asyncio.sleep(3600)
 
