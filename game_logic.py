@@ -107,3 +107,50 @@ class BlackjackGame:
         else:
             self.results_message = "Dealer wins!"
 
+class CardflipGame:
+    def __init__(self) -> None:
+        self.deck = Deck()
+        self.deck.shuffle()
+        self.is_game_over = False
+        self.result_message = ""
+        self.player_card = self.deck.deal()
+        self.dealer_card = self.deck.deal()
+
+    def determine_winner(self):
+        player_value = 1
+        if self.player_card == 'A':
+            player_value = 14
+        elif self.player_card == 'K':
+            player_value = 13
+        elif self.player_card == 'Q':
+            player_value = 12
+        elif player_value == 'J':
+            player_value = 11
+        else:
+            player_value = Card.get_value(self.player_card)
+
+        dealer_value = 1
+        if self.dealer_card == 'A':
+            dealer_value = 14
+        elif self.dealer_card == 'K':
+            dealer_value = 13
+        elif self.dealer_card == 'Q':
+            dealer_value = 12
+        elif self.dealer_card == 'J':
+            dealer_value = 11
+        else:
+            dealer_value = Card.get_value(self.dealer_card)
+
+        print(dealer_value)
+        print(player_value)
+
+        if player_value > dealer_value:
+            self.result_message = "Player wins!"
+            return True
+        elif dealer_value > player_value:
+            self.result_message = "Dealer wins!"
+            return False
+        else:
+            self.result_message = "It's a push! You tie with the dealer."
+            return None
+        

@@ -13,7 +13,7 @@ import time
 import asyncio
 import sys
 from economy import Bank, Income, Items
-from game_logic import Card, Deck, BlackjackGame
+from game_logic import Card, Deck, BlackjackGame, CardflipGame
 from nltk.corpus import words
 import datetime
 
@@ -673,6 +673,35 @@ class CommandsView(discord.ui.View):
         When clicked, it sends the violent commands embed.
         """
         await send_violent_commands(interaction)
+
+    @discord.ui.button(label="Gambling Commands", style=discord.ButtonStyle.success, emoji="🃏")
+    async def Gambling_button_callback(self, interaction: discord.Interaction, button: discord.ui.Button):
+        """
+        Callback for the Gambling commands button.
+        When clicked it sends the gambling commands embed.
+        """
+        await send_gambling_commands_embed(interaction)
+
+async def send_gambling_commands_embed(interaction: discord.Interaction):
+    embed = discord.Embed(
+        title="The commands",
+        description="The list of commands relating to bets"
+    )
+
+    embed.add_field(
+        name="Blackjack <amount>",
+        value="Score more than the dealer or have the dealer bust to earn money \ntyping no amount will make you bet all of the cash you have on you so be careful",
+        inline=False
+    )
+    
+    embed.add_field(
+        name="cardflip <amount>",
+        value="Get a card with higher value than the dealer to win. \ntping no amount will make you bet all of the cash you have on you so be careful",
+        inline=False
+    )
+
+    await interaction.response.edit_message(embed=embed)
+
 
 async def send_economy_commands_embed(interaction: discord.Interaction):
     help_embed = discord.Embed(
@@ -3108,29 +3137,6 @@ async def take_loan(ctx):
  
     await ctx.send("Taken out loan of Value 50,000")
 
-@bot.command(name='coin-flip', aliases=['cf'])
-async def gamble_coinflip(ctx, *, money: str="all"):
-    win_lose = random.randint(0, 1)
-    
-    try:
-        money=float(money)
-    except ValueError:
-        if money == "all" or money=="all in":
-            money=Bank.read_balance(ctx.author.id)["cash"]
-        else:
-            ctx.send("Not a valid amount of money, please either dont type a money amount, type all or type a number")
-
-    await ctx.send(f"{ctx.author.display_name} put a bet of {money} into a coinflip")
-    await ctx.send("Let's see how what happens")
-    asyncio.timeout(3)
-    
-    if win_lose == 1:
-        await ctx.send(f"{ctx.author.display_name} won {money}")
-        Bank.addcash(ctx.author.id, money)
-    else:
-        await ctx.send(f"{ctx.author.display_name} lost {money}")
-        Bank.addcash(ctx.author.id, -money)
-
 def create_blackjack_embed(game: BlackjackGame, player_id: int, bet_amount: int, show_dealer_full_hand: bool = False):
     print("DEBUG: Inside create_blackjack_embed.") # DEBUG PRINT CB1
     embed = discord.Embed(
@@ -3307,6 +3313,8 @@ async def blackjack_command(ctx: commands.Context, bet: str = "all"): # Changed 
     try:
         if bet == "all":
             bet = Bank.read_balance(player_id_str)["cash"]
+        else:
+            bet = int(bet)
     except:
         await ctx.send("This isn't an integer, you can only bet whole numbers")
         return
@@ -3319,7 +3327,7 @@ async def blackjack_command(ctx: commands.Context, bet: str = "all"): # Changed 
     # 2. Check Player's Balance
     user_balance = Bank.read_balance(player_id_str) 
     if user_balance["cash"] < bet:
-        await ctx.send(f"You don't have enough cash! Your current cash: ${user_balance['cash']:,}")
+        await ctx.send(f"You don't have enough cash! Your current cash: ${user_balance['cash']:,.2f}")
         return
 
     # Optional: Show typing indicator while preparing the game
@@ -3354,6 +3362,77 @@ async def blackjack_command(ctx: commands.Context, bet: str = "all"): # Changed 
     # For prefix commands, ctx.send returns the Message object 
     message = await ctx.send(embed=embed, view=view)
     view.message = message # Store the Message object in the view for future edits by buttons
+
+@bot.command(name="cardflip", aliases=['cf', 'flip'])
+async def card_flip_command(ctx, bet: str = "all"):
+    """
+    Starts a new game of cardflip
+    """
+    player_id_str = str(ctx.author.id)
+
+    # Input validation
+    try:
+        if bet == "all":
+            bet = Bank.read_balance(player_id_str)["cash"]
+        else:
+            bet = int(bet)
+    except:
+        ctx.send("Please input a valid amount of cash")
+        return
+
+    if bet <= 0:
+        await ctx.send("Cash must be a positive amount")
+        return
+
+    # Check player's balance
+    user_balance = Bank.read_balance(player_id_str)
+    if user_balance["cash"] < bet:
+        await ctx.send(f"You don't have enough cash! Your current cash ${user_balance['cash']:,.2f}")
+        return
+
+    # Show bot as typing
+    await ctx.defer()
+
+    # Initalisazation of the game
+    game = CardflipGame()
+    
+    # Create the embed
+    embed = discord.Embed(
+        title="🃏 Cardflip game",
+        color=discord.Color.dark_green()
+    )
+
+    player_hand_str = str(game.player_card)
+    dealer_hand_str = str(game.dealer_card)
+
+    embed.add_field(name="Bet", value=f"${bet}", inline=False)
+    embed.add_field(name=f"Your hand", value=player_hand_str, inline=False)
+    await ctx.send(embed=embed)
+    await ctx.send("Revealing dealer's hand in 3 seconds")
+    
+    await asyncio.sleep(3)
+    
+    embed.add_field(name=f"Dealer's hand", value=dealer_hand_str, inline=False)
+    
+    print("DEBUG: we've goten here so far")
+    # Determine and display winner
+    try:
+        game.determine_winner()
+    except Exception as e:
+        print(f"Error: {e}")
+   
+    embed.description = f"**GAME OVER!** {game.result_message}"
+    if "player wins" in game.result_message.lower():
+        embed.color = discord.Color.green()
+        Bank.addcash(player_id_str, bet)
+    elif "dealer wins" in game.result_message.lower():
+        embed.color = discord.Color.red()
+        Bank.addcash(player_id_str, -bet)
+    else: # Push
+        embed.color = discord.Color.blue()
+
+    await ctx.send(embed=embed)
+    
 
 
 @bot.command(name='remove-bank-account', aliases=['rm-b'])
