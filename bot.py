@@ -315,7 +315,7 @@ async def hello(ctx):
 async def timeout(ctx, member: discord.Member, minutes: int, ping: bool=True):
     try:
         
-        if "Sheild" in Items.get_user_items(str(member.id)):
+        if "Shield" in Items.get_user_items(str(member.id)):
             await ctx.send(f"user {member.display_name} couldn't be timed out - they have a shield")
             if random.randint(1, 3) == 1:
                 await ctx.send(f"{member.mention} you're sheild has broken")
@@ -1451,7 +1451,7 @@ async def on_message(message):
     has_knife = False
     has_tin = False
  
-    print(Income.playerincomes.get(user_id))
+    #print(Income.playerincomes.get(user_id))
     
     for source_name, income_details in Income.playerincomes.get(user_id, {}).items():
         if income_details["index"] == Income.get_source_index_by_name("Organized crime") and Bank.read_balance(user_id)["cash"] > 10000 and not message.content.startswith("m!"):
@@ -1663,14 +1663,14 @@ async def on_message(message):
             #print("Added cash")
             Bank.addcash(user_id=user_id, money=random.randrange(10, 100)) 
 
-        print(old_message_val)
-        print(new_message_val)
+        #print(old_message_val)
+        #print(new_message_val)
 
     #print(user_last_message_timestamps)
     
     for item_index, item_name in enumerate(Items.get_user_items(str(message.author.id))):
         if message.content.lower() == "!" + item_name.lower():
-            await use_item(item_name)
+            await use_item(ctx, item_name)
     
     try:
         await bot.process_commands(message)
@@ -2874,7 +2874,7 @@ async def list_items(ctx):
             role_required = source_data[7]
 
             if is_collectable:
-                value_display = f"A collectable {name} "
+                value_display = "A hiddden item "
             else:
                 value_display = f"A(n) {name} "
             
@@ -2968,7 +2968,7 @@ async def buy_item(ctx, *, item: str):
         color=discord.Color.blue()
     )
 
-    Items.addtoitems(user_id_str, item_data[0])
+    Items.buyitem(user_id_str, index) 
  
     if item_data[5]:
         # Pass role_name as a keyword argument

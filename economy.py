@@ -6,14 +6,14 @@ import time
 class Bank:
 
     bank_accounts = {}
-    _DATA_FILE = os.path.join(os.path.dirname(__file__), "balance.json")
+    _DATA_FILE = os.path.join(os.path.dirname(__file__), "json_files/balance.json")
 
     @staticmethod
     def read_balance(user_id: str = None):
         if os.path.exists(Bank._DATA_FILE): # Use the absolute path
             with open(Bank._DATA_FILE, "r") as f:
                 try:
-                    Bank.bank_accounts = json.load(f)
+                   Bank.bank_accounts = json.load(f)
                 except json.JSONDecodeError:
                     print(f"Error reading {Bank._DATA_FILE}: File might be empty or corrupted. Initializing empty.")
                     Bank.bank_accounts = {}
@@ -221,28 +221,28 @@ class Income():
 
     @staticmethod
     def loadsources():
-        if os.path.exists("incomesources.json"):
-            with open("incomesources.json", "r") as f:
+        if os.path.exists("json_files/incomesources.json"):
+            with open("json_files/incomesources.json", "r") as f:
                 return json.load(f)
         else:
             raise FileNotFoundError("incomesources.json not found.")
 
     @staticmethod
     def savesources():
-        with open("incomesources.json", "w") as f:
+        with open("json_files/incomesources.json", "w") as f:
             json.dump(Income.income_sources, f, indent=2)
 
     @staticmethod
     def loadincomes():
-        if os.path.exists("playerincomes.json"):
-            with open("playerincomes.json", "r") as f:
+        if os.path.exists("json_files/playerincomes.json"):
+            with open("json_files/playerincomes.json", "r") as f:
                 return json.load(f)
         else:
             return {}
     
     @staticmethod
     def saveincomes():
-        with open("playerincomes.json", "w") as f:
+        with open("json_files/playerincomes.json", "w") as f:
             json.dump(Income.playerincomes, f, indent=2)
 
     @staticmethod
@@ -538,15 +538,15 @@ class Items:
 
     @staticmethod
     def load_item_sources():
-        if os.path.exists("itemsources.json"):
-            with open("itemsources.json", "r") as f:
+        if os.path.exists("json_files/itemsources.json"):
+            with open("json_files/itemsources.json", "r") as f:
                 return json.load(f)
         else:
             raise FileNotFoundError("itemsources.json not found.")
 
     @staticmethod
     def save_item_sources():
-        with open("itemsources.json", "w") as f:
+        with open("json_files/itemsources.json", "w") as f:
             json.dump(Items.item_sources, f, indent=2)
 
     @staticmethod
@@ -590,15 +590,15 @@ class Items:
 
     @staticmethod
     def load_player_inventory():
-        if os.path.exists("playerinventory.json"):
-            with open("playerinventory.json", "r") as f:
+        if os.path.exists("json_files/playerinventory.json"):
+            with open("json_files/playerinventory.json", "r") as f:
                 return json.load(f)
         else:
             return {}
     
     @staticmethod
     def save_player_inventory():
-        with open("playerinventory.json", "w") as f:
+        with open("json_files/playerinventory.json", "w") as f:
             json.dump(Items.player_inventory, f, indent=2)
 
     @staticmethod
@@ -654,6 +654,8 @@ class Items:
             item_data = Items.item_sources[index]
             item_name = item_data[0] # Item name is at index 0
             item_price = item_data[2] # Item price/value is at index 2
+            
+            print(f"Item price: {item_price}") 
 
             if Bank.read_balance(user_id=user_id)["cash"] >= item_price: # Use >= for sufficient funds
                 Items.addtoitems(user_id=user_id, item_name=item_name) # Pass the string name
@@ -712,7 +714,22 @@ class Items:
         Items.save_player_inventory()
         return True
         
+    @staticmethod
+    def generate_user_specific_item(user_id: str, item_index: int, value_effect):
+        item_name = ""
+        letters = ['a', 'b', 'c', 'd', 'e', 'f', 'g',
+                       'h', 'i', 'j', 'k', 'l', 'm', 'n',
+                       'o', 'p', 'q', 'r', 's', 't', 'u',
+                       'v', 'w', 'x', 'y', 'z']
 
+
+        for letter in letters:
+            item_name += letters[(random.randint(0, item_index) + random.randint(0, 26) % 26)]
+            if random.randint(1, 8) == 1:
+                break
+                            
+        Items.create_source(item_name, True, value_effect, f"{user_id}'s {Items.item_sources[item_index][0]}")
+        Items.addtoitems(user_id, item_name)
         
 
 
