@@ -866,13 +866,19 @@ class Offshore:
         keys = []
 
         for item in Items.get_user_items(user_id):
-            if Items.item_sources[item][1] == False:
+            #print(f"ITEM: {Items.get_user_items(user_id)[item]}")
+            index = Items.get_user_items(user_id)[item]
+            if Items.item_sources[index][1] == False:
+                print("Continuing")
                 continue
 
             for account in Offshore.balances:
-                if Items.item_sources[item][0] == account[0]:
+                #print(item)
+                #print(account[0])
+                if item == account[0]:
                     keys.append(account[0])
         
+        #print(f"KEYS: {keys}")
         return keys
 
     @staticmethod
@@ -882,5 +888,8 @@ class Offshore:
         for key in keys: accounts.append(Offshore.get_data_from_key(key))
         return accounts
 
-        
-
+Items.item_sources = Items.load_item_sources()
+Items.player_inventory = Items.load_player_inventory()
+Offshore.load_balances()
+print(f" USER 1234 KEYS: {Offshore.get_user_keys("1234")}")
+print(f" USER 1234 DATA {Offshore.get_accounts_from_keys(Offshore.get_user_keys("1234"))}")

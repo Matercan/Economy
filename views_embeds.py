@@ -684,6 +684,10 @@ class OffshoreView(discord.ui.View):
         # CORRECTED TYPO: cliked_custom_id -> clicked_custom_id
         clicked_custom_id = interaction.data["custom_id"]
         
+        if not clicked_custom_id in Items.get_user_items(str(interaction.user.id)):
+            await interaction.response.send_message("This is not your bank account to read", ephemeral=True)
+            return
+
         await interaction.response.send_message(f"You clicked a button fr fr {clicked_custom_id}", ephemeral=True, embed=OffshoreEmbed(Offshore.get_data_from_key(clicked_custom_id))) 
 
     async def on_timeout(self) -> None:

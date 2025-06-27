@@ -1758,11 +1758,61 @@ async def list_income_sources(ctx):
 async def offshore_bank_account_command(ctx):
     my_items = Offshore.get_accounts_from_keys(Offshore.get_user_keys(str(ctx.author)))
     print(Offshore.balances)
+
+    if my_items == []:
+        await ctx.send("Peasant, you have no offshore funds to display")
+        await balance(ctx)
+        return
+
     view = views_embeds.OffshoreView(accounts=my_items)
 
     await ctx.send("You're funds sir/ma'am", view=view)
     view.message = message
 
+@bot.command(name='owithdraw', aliases=['owith', 'owit'])
+async def offshore_bank_account_withdraw(ctx, amount: float, key: str = "1"):
+    
+    user_keys = Offshore.get_user_keys(str(ctx.author))
+
+    if key == "1":
+        await ctx.send("Please specify a key")
+        await offshore_bank_account_command(ctx)
+        return
+    if not key in user_keys:
+        await ctx.send("Key not in your offshore keys")
+        return
+
+    Offshore.withdraw(key, amount, str(ctx.author.id))
+    await ctx.send(f"Withdrew {amount} money")
+    await offshore_bank_account_command(ctx)
+
+@bot.command(name='odeposit', aliases=['odep'])
+async def offshore_bank_account_deposit(ctx, amount="all", key: str = "1"):
+    user_keys = Offshore.get_user_keys(str(ctx.author.id))
+    account_data = Offshore.get_accounts_from_keys(user_keys)
+
+    if key == "1":
+        await ctx.send("Please specify a key")
+        await offshore_bank_account_command(ctx)
+        return
+    if not key in user_keys:
+        await ctx.send("Key not in your offshore keys")
+        return
+    if amount == "all":
+        amount = Bank.read_balance(str(ctx.author.id))["bank"]
+    else:
+        try:
+            amount = float(amount)
+        except ValueError as e:
+            await ctx.send(f"{e} - specify an actual amount s'il vous plait")
+            return
+
+    Offshore.deposit(key, amount, str(ctx.author.id))
+    await ctx.send(f"Deposited {amount} money")
+    await offshore_bank_account_command(ctx)
+
+
+    
 
 
 @bot.command(name='incomes', aliases=['see-incomes', 'find-incomes', 'investments', 'in'])
