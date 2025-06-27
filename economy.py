@@ -749,9 +749,9 @@ class Offshore:
     def load_balances():
         if os.path.exists(Offshore.DATA_PATH):
             with open(Offshore.DATA_PATH, "r") as f:
-                return json.load(f)
+                Offshore.balances = json.load(f)
         else:
-            return []
+            Offshore.balances = []
 
     @staticmethod
     def save_balances():
@@ -776,7 +776,7 @@ class Offshore:
             return -1
         
         multiplier = 1 + account[1] / 100
-        return account[2] * pow(multiplier, time.time() - account[3] / 86400)
+        return account[2] * pow(multiplier, (time.time() - account[3]) // 86400)
 
     @staticmethod
     def generate_account(user_id: str, balance: float) -> str:
@@ -841,18 +841,46 @@ class Offshore:
             i += 1
 
         if len(balance[0]) < 4:
-            print("ErrorL malformed offshore bank account")
+            print("Error: malformed offshore bank account")
             print(balance)
             return
 
        
-        balance[0][2] -= amount
+        balance[0][2] += amount
         Bank.addbank(user_id, amount)
         Items.player_inventory[balance[0][0]] = balance[0][2]
         Offshore.update_account(balance[1]) 
 
-Offshore.balances = Offshore.load_balances()
-Offshore.generate_account("1234", 500)
-print(Offshore.balances)
-print(Items.player_inventory["1234"])
-print(Items.item_sources)
+    @staticmethod
+    def get_data_from_key(key: str):
+        balance = []
+
+        for account in Offshore.balances:
+            if account[0] == key:
+                balance = account
+
+        return balance
+
+    @staticmethod
+    def get_user_keys(user_id: str):
+        keys = []
+
+        for item in Items.get_user_items(user_id):
+            if Items.item_sources[item][1] == False:
+                continue
+
+            for account in Offshore.balances:
+                if Items.item_sources[item][0] == account[0]:
+                    keys.append(account[0])
+        
+        return keys
+
+    @staticmethod
+    def get_accounts_from_keys(keys: list):
+        accounts = []
+
+        for key in keys: accounts.append(Offshore.get_data_from_key(key))
+        return accounts
+
+        
+

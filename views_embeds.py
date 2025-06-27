@@ -1,8 +1,9 @@
+from aiohttp import TraceConnectionQueuedEndParams
 import discord
 
 
 from game_logic import BlackjackGame, RoulletteGame
-from economy import Income, Items, Bank
+from economy import Income, Items, Bank, Offshore
 import time, os, json
 
 class CommandsView(discord.ui.View):
@@ -614,3 +615,82 @@ class BlackjackView(discord.ui.View):
 
         embed = create_blackjack_embed(self.game, self.player_id, self.bet_amount, show_dealer_full_hand=True)
         await interaction.edit_original_response(embed=embed, view=self) # Show full dealer hand
+
+def OffshoreEmbed(account: list):
+    if len(account) < 4:
+        return discord.Embed(title="Malformed offshore bank account")
+
+    embed = discord.Embed(
+        title="Your decentralized assets🏖️",
+        description="Gotta love tax havens",
+        color=discord.Color.green()
+    )
+
+    timespan = time.time() - account[3]
+
+    account[2] = Offshore.calculate_balance(account)
+
+    days = f"{timespan % 86400:.0f}d " if timespan > 86400 else ""
+    hours = f"{timespan % 3600:.0f}h " if timespan % 3600 != 0 else ""
+    minutes = f"{timespan % 60:.0f}m " if timespan % 60 != 0 else ""
+
+    embed.add_field(
+        name="Information",
+        value=f"balance: {account[2]:,.0f} \ninterest: {account[1]:.1f} \nduration: {days + hours + minutes}",
+        inline=False
+    )
+
+    embed.set_footer(text=f"key: {account[0]}")
+
+    return embed
+
+class OffshoreView(discord.ui.View):
+    def __init__(self, accounts: list):
+        super().__init__(timeout=100)
+        self.message = None # This will be set by the command later
+
+        print("Initialized")
+        print(accounts)
+
+        i = 0
+        for account_data in accounts: 
+            button_label = f"Account {i+1}" 
+            
+            print(i)
+
+            if len(account_data) > 0: 
+                button_custom_id = account_data[0] 
+            else:
+                # Handle cases where account_data might be empty or malformed
+                print(f"WARNING: Malformed account data at index {i}: {account_data}")
+                continue # Skip this account
+
+            button_style = discord.ButtonStyle.primary
+            button_row = i // 5 # Discord allows 5 components per row (rows 0-4)
+
+            button = discord.ui.Button(
+                label=button_label,
+                style=button_style,
+                custom_id=button_custom_id,
+                row=button_row
+            )
+            
+            # Assign the callback method directly to the button
+            button.callback = self.handle_button_click
+            self.add_item(button)
+            i += 1
+
+    async def handle_button_click(self, interaction: discord.Interaction):
+        # CORRECTED TYPO: cliked_custom_id -> clicked_custom_id
+        clicked_custom_id = interaction.data["custom_id"]
+        
+        await interaction.response.send_message(f"You clicked a button fr fr {clicked_custom_id}", ephemeral=True, embed=OffshoreEmbed(Offshore.get_data_from_key(clicked_custom_id))) 
+
+    async def on_timeout(self) -> None:
+        for item in self.children:
+            item.disabled = True
+        if self.message:
+            # CORRECTED TYPO: Content -> content
+            await self.message.edit(content="Buttons Timed out.", view=self)
+
+     
