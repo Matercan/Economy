@@ -63,7 +63,7 @@ async def display_commands(ctx):
     
     view = CommandsView()
 
-    await ctx.send("commands", view=view)
+    await ctx.send("commands", view=view, ephemeral=True)
 
 
 if os.path.exists('kill_counts.json'):
@@ -1328,7 +1328,7 @@ async def on_message(message):
     if user_id not in Bank.bank_accounts and not ctx.author.bot:
         Bank.addcash(user_id=user_id, money=100) # Give 100 initial cash
         # Or Bank.bank_accounts[user_id_str] = {"bank": 0, "cash": 100} followed by Bank.save_balances()
-        await ctx.send(f"Welcome {ctx.author.mention}! Here's your starting cash!")
+        #await ctx.send(f"Welcome {ctx.author.mention}! Here's your starting cash!")
 
     if not ctx.author.bot and user_id in user_last_message_timestamps and len(user_last_message_timestamps[user_id]) >= 2:
         old_message_val = user_last_message_timestamps[user_id][0]
@@ -1349,6 +1349,9 @@ async def on_message(message):
         if message.content.lower() == "!" + item_name.lower():
             await use_item(ctx, item_name)
     
+    if message.content.startswith("m! "):
+        message.content = "m!" + message.content[3:]
+
     try:
         await bot.process_commands(message)
     except KeyError:
@@ -2442,6 +2445,8 @@ async def list_items(ctx):
     Displays information about all available items.
     Usage: !store
     """
+    
+    print("store")
 
     items = Items.load_item_sources()
 
@@ -2465,6 +2470,8 @@ async def list_items(ctx):
             role_added = source_data[5]
             role_removed = source_data[6]
             role_required = source_data[7]
+
+            print(f"Item: {name}")
 
             if is_collectable:
                 value_display = "A hiddden item "

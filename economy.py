@@ -1,3 +1,4 @@
+from math import log
 import os
 import json
 import random
@@ -724,96 +725,134 @@ class Items:
 
 
         for letter in letters:
-            item_name += letters[(random.randint(0, item_index) + random.randint(0, 26) % 26) - 1]
-            if random.randint(1, 8) == 1:
+            item_name += letters[((random.randint(0, item_index) + random.randint(0, 26)) % 26) - 1]
+            print(((random.randint(0, item_index) + random.randint(0, 26)) % 26) - 1)
+            if random.randint(0, random.randint(1, 8)) == 7:
                 break
                             
-        Items.create_source(item_name, True, value_effect, f"{user_id}'s Item")
+        Items.create_source(item_name, True, value_effect, f"{user_id}'s {Items.item_sources[item_index][0]}")
         Items.addtoitems(user_id, item_name)
         
 
-Items.generate_user_specific_item("1234", 3, "")
+class Offshore:
+    
+    DATA_PATH = "json_files/offshore.json"
+    balances = [] 
 
-# # --- Test Section ---
-# # Clean up previous data for consistent testing
-# print("--- Cleaning up previous data ---")
-# # for f in ["balance.json", "incomesources.json", "playerincomes.json", "itemsources.json", "playerinventory.json"]:
-# #     if os.path.exists(f):
-# #         os.remove(f)
-# #         print(f"Removed {f}")
+    # Balances will be stored as follows: [key (lets things interact with it), interest, startbalance, lastupdate]
+    # The amount of money in the balance will be calculated as a geometric series
+    # The amount of money will be calculated everytime we update the account whether it be by withdrawing or depositing
+    # The amount of interest will be calculated based on this formula: 1 + 9log_10(balance)days / 20 so that an account with 10K for 10 years will yield a 10% interest rate
+    # The interest can never reduce
 
-# # print("\n--- Initial Bank State ---")
-# Bank.addcash("5000", 1000) # Start with some cash for user 5000
-# # Bank.addbank("1234", 1000) # Start with some bank for user 1234
-# # print(Bank.read_balance("1234"))
-# # print(Bank.read_balance("5000"))
+    @staticmethod
+    def load_balances():
+        if os.path.exists(Offshore.DATA_PATH):
+            with open(Offshore.DATA_PATH, "r") as f:
+                return json.load(f)
+        else:
+            return []
 
-# # print("\n--- Income Source Setup ---")
-# # Income.create_sources()
-# Income.create_source("Mining", False, 50, 5, False) # Fixed income, cash, 5 sec cooldown
-# Income.create_source("Stocks", True, 0.01, 10, True) # 1% interest, bank, 10 sec cooldown
-# # Income.create_source("MagicIncome", False, 100, 7, False) # New income for Magic Orb
+    @staticmethod
+    def save_balances():
+        if os.path.exists(Offshore.DATA_PATH):
+            with open(Offshore.DATA_PATH, "w") as f:
+                json.dump(Offshore.balances, f, indent=2)
 
-# # print("\n--- Item Source Setup ---")
-# # Items.create_item_sources()
-# # # Note: 'value_or_effect' for Pickaxe is 500 (its price)
-# Items.create_source("Pickaxe", False, 500, "A tool for mining.", "Mining", "Miner", None, None) 
-# # Items.create_source("Magic Orb", True, "Grants wisdom", "A mysterious orb that glows.", "MagicIncome", None, None, None) 
-# Items.create_source("Normal Item", False, "No special effect", "Just a regular item.", None, None, None, None) # No associated income
+    @staticmethod
+    def calculate_interest(account: list) -> float:
+        if len(account) < 4:
+            print("ERROR: malformed offshore bank account")
+            print(account)
+            return -1
 
-# # print("\n--- Verify Income Sources ---")
-# # print(f"Mining index: {Income.get_source_index_by_name('Mining')}")
-# # print(f"Stocks index: {Income.get_source_index_by_name('Stocks')}")
-# # print(f"MagicIncome index: {Income.get_source_index_by_name('MagicIncome')}")
+        return 1 + (log(account[2], 10) * (time.time() - account[3] // 86400)) / 20 
 
-# # print("\n--- Verify Item Sources ---")
-# # # Check the full data including the associated income source name
-# # print(f"Pickaxe source data: {Items.item_sources[Items.get_item_source_index_by_name('Pickaxe')]}")
-# # print(f"Magic Orb source data: {Items.item_sources[Items.get_item_source_index_by_name('Magic Orb')]}")
-# # print(f"Normal Item source data: {Items.item_sources[Items.get_item_source_index_by_name('Normal Item')]}")
+    @staticmethod
+    def calculate_balance(account: list) -> float:
+        if len(account) < 4:
+            print("ERROR: malformed offshore bank account")
+            print(account)
+            return -1
+        
+        multiplier = 1 + account[1] / 100
+        return account[2] * pow(multiplier, time.time() - account[3] / 86400)
+
+    @staticmethod
+    def generate_account(user_id: str, balance: float) -> str:
+        
+        Items.generate_user_specific_item(user_id, Items.get_item_source_index_by_name("Offshore bank account"), balance)
+        balanceKey = Items.item_sources[len(Items.item_sources)-1][0]
+        interest = log(balance, 10) / 2
+
+        Offshore.balances.append([balanceKey, interest, balance, time.time()]) 
+        Offshore.save_balances()
+        
+        return balanceKey
+
+    @staticmethod
+    def update_account(index: int):
+        
+        account = Offshore.balances[index]
+        
+        if len(account) < 4:
+            print("Error: malformed offshore bank account")
+            print(account)
+            return
+
+        interest = Offshore.calculate_interest
+        
+        if account[1] <= interest: account[1] = interest
+        account[3] = time.time()
+        
+        Offshore.save_balances()
 
 
-# # print("\n--- Buying Items (and triggering associated incomes) ---")
-# # # Get the index of Pickaxe dynamically for buying
-# pickaxe_index = Items.get_item_source_index_by_name("Pickaxe")
-# if pickaxe_index != -1:
-#     Items.buyitem(user_id="5000", index=pickaxe_index) # User 5000 buys Pickaxe
-# else:
-#     print("Pickaxe not found, skipping buyitem test.")
+    @staticmethod
+    def withdraw(key: str, amount: float, user_id: str):
 
-# # Items.addtoitems("1234", "Magic Orb") # This should also add "MagicIncome" to user 1234
-# # Items.addtoitems("5000", "Normal Item") # This should only add the item, no income
+        balance = ([], 0)
+        i = 0
 
-# # print("\n--- Player Incomes (After Item Additions) ---")
-# # Income.playerincomes = Income.loadincomes() # Ensure it's loaded from file
-# # print(Income.playerincomes)
+        for account in Offshore.balances:
+            if account[0] == key:
+                balance = (account, i)
+            i += 1
 
-# # print("\n--- Player Inventory (After Additions) ---")
-# # Items.player_inventory = Items.load_player_inventory() # Ensure it's loaded from file
-# # print(Items.player_inventory)
+        if len(balance[0]) < 4:
+            print("Error malformed offshore bank account")
+            print(balance)
+            return
 
-# # print("\n--- Collecting Incomes ---")
-# # Income.collectincomes("5000") # Should collect from Mining
-# # Income.collectincomes("1234") # Should collect from MagicIncome
+       
+        balance[0][2] -= amount
+        Bank.addbank(user_id, amount)
+        Items.player_inventory[balance[0][0]] = balance[0][2]
+        Offshore.update_account(balance[1]) 
+        
+    @staticmethod
+    def deposit(key: str, amount: float, user_id: str):
+        balance = ([], 0)
+        i = 0
 
-# # print("\n--- Balances After Initial Collection Attempts ---")
-# # print(Bank.read_balance("1234"))
-# # print(Bank.read_balance("5000"))
+        for account in Offshore.balances:
+            if account[0] == key:
+                balance = (account, i)
+            i += 1
 
-# # # Wait for cooldown to pass for "Mining" (5 seconds) and "MagicIncome" (7 seconds)
-# # print("\n--- Waiting for cooldown on incomes (7 seconds) ---")
-# # time.sleep(7) 
+        if len(balance[0]) < 4:
+            print("ErrorL malformed offshore bank account")
+            print(balance)
+            return
 
-# # print("\n--- Collecting Incomes (After Cooldown) ---")
-# Income.collectincomes("5000") # Mining should now collect again
-# # Income.collectincomes("1234") # MagicIncome should now collect again
+       
+        balance[0][2] -= amount
+        Bank.addbank(user_id, amount)
+        Items.player_inventory[balance[0][0]] = balance[0][2]
+        Offshore.update_account(balance[1]) 
 
-# # print("\n--- Balances After Second Collection Attempts ---")
-# # print(Bank.read_balance("1234"))
-# # print(Bank.read_balance("5000"))
-
-# # print("\n--- Reading Player Items ---")
-# # print(f"User 5000's Pickaxe index: {Items.read_item_index('5000', 'Pickaxe')}")
-# # print(f"User 1234's Magic Orb index: {Items.read_item_index('1234', 'Magic Orb')}")
-# # print(f"User 5000's inventory: {Items.get_user_items('5000')}")
-# # print(f"User 1234's inventory: {Items.get_user_items('1234')}")
+Offshore.balances = Offshore.load_balances()
+Offshore.generate_account("1234", 500)
+print(Offshore.balances)
+print(Items.player_inventory["1234"])
+print(Items.item_sources)
