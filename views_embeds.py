@@ -1,6 +1,8 @@
 import discord
+
+
 from game_logic import BlackjackGame, RoulletteGame
-from economy import Income, Items
+from economy import Income, Items, Bank
 import time, os, json
 
 class CommandsView(discord.ui.View):
@@ -31,6 +33,14 @@ class CommandsView(discord.ui.View):
         When clicked it sends the gambling commands embed.
         """
         await send_gambling_commands_embed(interaction)
+
+    @discord.ui.button(label="General Commands", style=discord.ButtonStyle.grey, emoji="⚙️")
+    async def general_commands_callback(self, interaction: discord.Interaction, button: discord.ui.Button):
+        """
+        Callback for the General Commands button.
+        When clicked it sends the general commands embed.
+        """
+        await send_general_commands(interaction)
 
 
 async def send_gambling_commands_embed(interaction: discord.Interaction):
@@ -172,6 +182,73 @@ async def send_violent_commands(interaction: discord.Interaction):
 
     await interaction.response.edit_message(embed=help_embed)
 
+async def send_general_commands(interaction: discord.Interaction):
+    """Display all available commands and their descriptions"""
+    help_embed = discord.Embed(
+        title="Bot Commands",
+        description="Here are all the available commands:",
+        color=discord.Color.blue()
+    )
+
+    
+
+    help_embed.add_field(
+        name="m!guillotine ",
+        value="Execute the richest and take their money to be divided among all members.",
+        inline=False
+    )
+
+    help_embed.add_field(
+        name="m!rob-bank",
+        value="Attempt to rob the bank. Has a 10% success rate and 24 hour cooldown. If successful, money is robbed from all people it can find.",
+        inline=False
+    )
+
+    
+    help_embed.add_field(
+        name="m!toggle_spellcheck",
+        value="Toggle spellcheck functionality for yourself.",
+        inline=False
+    )
+
+    help_embed.add_field(
+        name="m!seven_d6",
+        value="Roll a 7d6 and see if you can nearly kill a Richter. Times someone out for 456 minutes if you roll a 35 or higher.",
+        inline=False
+    )
+
+    help_embed.add_field(
+        name="m!cooldowns",
+        value="Check the cooldowns of all commands.",
+        inline=False
+    )
+
+    help_embed.add_field(
+        name="m!addtodictionary",
+        value="Add a word to the dictionary.",
+        inline=False
+    )
+
+    help_embed.add_field(
+        name="m!removetodictionary",
+        value="Remove a word from the dictionary.",
+        inline=False
+    )
+
+    help_embed.add_field(
+        name="m!englishwords",
+        value="Get a list of english words that start with a certain letter.",
+        inline=False
+    )
+
+    help_embed.add_field(
+        name="m!indictionary",
+        value="Check if a word is in the dictionary.",
+        inline=False
+    )
+    
+    await interaction.response.edit_message(embed=help_embed)
+
 async def display_incomes_interaction(interaction: discord.Interaction):
     """
     Displays the user's income sources and their status using an embed.
@@ -252,13 +329,13 @@ async def display_incomes_interaction(interaction: discord.Interaction):
     # --- Respond to the Interaction ---
     # This edits the message the button was clicked on. It also serves as the initial response.
     try:
-        await interaction.response.edit_message(embed=embed)
+        await interaction.response.send_message(embed=embed, ephemeral=True)
     except discord.errors.NotFound:
         # Fallback if the original message was deleted or timed out before editing
         print(f"WARNING: Tried to edit a non-existent interaction message for user {interaction.user.id}. Sending as a new ephemeral followup.")
         await interaction.followup.send(embed=embed, ephemeral=True) # Send as a new message, only visible to the user who clicked
 
-async def display_cooldowns(interaction: discord.Interaction): # Corrected type hint
+async def display_cooldowns(interaction: discord.Interaction): 
     """
     Displays the cooldowns for bot commands (personal and server-wide).
     This function is designed to be called from an interaction (like a button click).
@@ -326,12 +403,13 @@ async def display_cooldowns(interaction: discord.Interaction): # Corrected type 
         embed.add_field(name="Server-Wide Cooldowns", value="No active server-wide cooldowns.", inline=False)
 
    
-    await interaction.response.edit_message(embed=embed)
+    await interaction.response.send_message(embed=embed, ephemeral=True)
 
 
 class CooldownsView(discord.ui.View):
     def __init__(self):
         super().__init__(timeout=100) # Timeout after 100 seconds of inactivity
+
 
     @discord.ui.button(label="Command Cooldowns", style=discord.ButtonStyle.success)
     async def command_cooldowns_button_callback(self, interaction: discord.Interaction, button: discord.ui.Button):
@@ -377,3 +455,162 @@ command_cooldowns = {
     'crime': 14400,        # 4 hours
     'rob': 14400           # 4 hours
 }
+
+def create_blackjack_embed(game: BlackjackGame, player_id: int, bet_amount: int, show_dealer_full_hand: bool = False):
+    print("DEBUG: Inside create_blackjack_embed.") # DEBUG PRINT CB1
+    embed = discord.Embed(
+        title="🃏 Blackjack Game",
+        color=discord.Color.dark_green()
+    )
+
+    player_hand_str = ", ".join(str(card) for card in game.player_hand)
+    player_score = game.calculate_hand_value(game.player_hand)
+    print(f"DEBUG: Embed Player Hand String: '{player_hand_str}', Score: {player_score}") # DEBUG PRINT CB2
+
+    embed.add_field(
+        name=f"Your Hand ({player_score})",
+        value=player_hand_str,
+        inline=False
+    )
+
+    if show_dealer_full_hand:
+        dealer_hand_str = ", ".join(str(card) for card in game.dealer_hand)
+        dealer_score = game.calculate_hand_value(game.dealer_hand)
+        print(f"DEBUG: Embed Dealer Full Hand String: '{dealer_hand_str}', Score: {dealer_score}") # DEBUG PRINT CB3
+        embed.add_field(
+            name=f"Dealer's Hand ({dealer_score})",
+            value=dealer_hand_str,
+            inline=False
+        )
+    else:
+        # Show only dealer's first card initially
+        dealer_hand_str = f"{game.dealer_hand[0]} and one hidden card" # This line was missing its assignment
+        print(f"DEBUG: Embed Dealer Partial Hand String: '{dealer_hand_str}'") # DEBUG PRINT CB4
+        embed.add_field(
+            name="Dealer's Hand",
+            value=dealer_hand_str,
+            inline=False
+        )
+    
+    embed.add_field(name="Bet", value=f"${bet_amount:,}", inline=False)
+
+    if game.is_game_over:
+        embed.description = f"**Game Over!** {game.result_message}"
+        if "busts" in game.result_message.lower() or "dealer wins" in game.result_message.lower():
+            embed.color = discord.Color.red()
+        elif "Player wins" in game.result_message:
+            embed.color = discord.Color.green()
+        else: # Push
+            embed.color = discord.Color.blue()
+    else:
+        embed.description = "Choose your next move: Hit or Stand?"
+
+    embed.set_footer(text=f"Player ID: {player_id}")
+    
+    # NEW DEBUG PRINT: Print the entire embed as a dictionary
+    print("DEBUG: Final Embed Dictionary:") # DEBUG PRINT CB5
+
+    return embed
+
+class BlackjackView(discord.ui.View):
+    def __init__(self, game: BlackjackGame, player_id: int, bet_amount: int):
+        super().__init__(timeout=120) # Game times out after 2 minutes of inactivity
+        self.game = game
+        self.player_id = player_id
+        self.bet_amount = bet_amount
+        self.message = None
+        
+        print("Attributes assigned")
+
+        # Check for immediate Blackjack after initial deal
+        try:
+            player_score = self.game.calculate_hand_value(self.game.player_hand)
+            dealer_score = self.game.calculate_hand_value(self.game.dealer_hand)
+        except Exception as e:
+            print(f"ERROR: Exception during score calculation in BlackjackView.__init__: {e}")
+            import traceback
+            traceback.print_exc() # <-- PRINT THE FULL TRACEBACK
+            self.game.is_game_over = True # Force game over to avoid further errors
+            self.game.result_message = f"An internal error occurred: {e}"
+            self.disable_buttons() # Disable buttons immediately
+            return # Exit init
+
+        print("Calculate score")
+
+        if player_score == 21:
+            self.game.is_game_over = True
+            if dealer_score == 21:
+                self.game.result_message = "Both have Blackjack! It's a push."
+            else:
+                self.game.result_message = "Blackjack! Player wins!"
+        elif dealer_score == 21:
+            self.game.is_game_over = True
+            self.game.result_message = "Dealer has Blackjack! Dealer wins."
+
+
+
+        if self.game.is_game_over:
+            self.disable_buttons()
+        
+    def disable_buttons(self):
+        for item in self.children:
+            if isinstance(item, discord.ui.Button):
+                item.disabled = True
+    
+    # Called when the view times out
+    async def on_timeout(self):
+        self.disable_buttons()
+        # Optionally, notify the user or edit the message
+        if self.message:
+            try:
+                await self.message.edit(content="Your Blackjack game timed out.", view=self)
+            except discord.HTTPException:
+                pass # Message might have been deleted
+        print("DEBUG: Timed out")
+
+    # Store the message the view is attached to, useful for editing
+    async def on_error(self, interaction: discord.Interaction, error: Exception, item: discord.ui.Item):
+        print(f"Error in BlackjackView: {error}")
+        await interaction.followup.send("An error occurred during your game.", ephemeral=True)
+
+
+    @discord.ui.button(label="Hit", style=discord.ButtonStyle.success)
+    async def hit_button(self, interaction: discord.Interaction, button: discord.ui.Button):
+        # Ensure only the player who started the game can interact
+        if interaction.user.id != self.player_id:
+            await interaction.response.send_message("This isn't your game!", ephemeral=True)
+            return
+        
+        await interaction.response.defer() # Acknowledge the button click
+
+        if self.game.player_hit(): # Player hit and busted
+            self.disable_buttons()
+            self.is_game_over = True
+            self.game.determine_winner()
+        
+        # Update the message with the new hand
+        embed = create_blackjack_embed(self.game, self.player_id, self.bet_amount, show_dealer_full_hand=self.game.is_game_over)
+        await interaction.edit_original_response(embed=embed, view=self)
+
+    @discord.ui.button(label="Stand", style=discord.ButtonStyle.danger)
+    async def stand_button(self, interaction: discord.Interaction, button: discord.ui.Button):
+        if interaction.user.id != self.player_id:
+            await interaction.response.send_message("This isn't your game!", ephemeral=True)
+            return
+        
+        await interaction.response.defer() # Acknowledge the button click
+
+        self.disable_buttons() # Disable buttons as player has stood
+
+        # Dealer's turn
+        self.game.dealer_play()
+
+        # Determine winner and adjust balance
+        if "Player wins" in self.game.result_message:
+            Bank.addcash(str(self.player_id), self.bet_amount) # Win bet
+        elif "Dealer wins" in self.game.result_message:
+            Bank.addcash(str(self.player_id), -self.bet_amount) # Lose bet
+        # No change for push
+
+        embed = create_blackjack_embed(self.game, self.player_id, self.bet_amount, show_dealer_full_hand=True)
+        await interaction.edit_original_response(embed=embed, view=self) # Show full dealer hand

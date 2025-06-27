@@ -724,14 +724,15 @@ class Items:
 
 
         for letter in letters:
-            item_name += letters[(random.randint(0, item_index) + random.randint(0, 26) % 26)]
+            item_name += letters[(random.randint(0, item_index) + random.randint(0, 26) % 26) - 1]
             if random.randint(1, 8) == 1:
                 break
                             
-        Items.create_source(item_name, True, value_effect, f"{user_id}'s {Items.item_sources[item_index][0]}")
+        Items.create_source(item_name, True, value_effect, f"{user_id}'s Item")
         Items.addtoitems(user_id, item_name)
         
 
+Items.generate_user_specific_item("1234", 3, "")
 
 # # --- Test Section ---
 # # Clean up previous data for consistent testing

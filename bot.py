@@ -59,72 +59,11 @@ print(f"Expected balance.json path: {os.path.join(os.path.dirname(__file__), 'ba
 @bot.command(name='commands', aliases=['help', 'economy'])
 async def display_commands(ctx):
     """Display all available commands and their descriptions"""
-    help_embed = discord.Embed(
-        title="Bot Commands",
-        description="Here are all the available commands:",
-        color=discord.Color.blue()
-    )
-
     
-
-    help_embed.add_field(
-        name="m!guillotine ",
-        value="Execute the richest and take their money to be divided among all members.",
-        inline=False
-    )
-
-    help_embed.add_field(
-        name="m!rob-bank",
-        value="Attempt to rob the bank. Has a 10% success rate and 24 hour cooldown. If successful, money is robbed from all people it can find.",
-        inline=False
-    )
-
-    
-    help_embed.add_field(
-        name="m!toggle_spellcheck",
-        value="Toggle spellcheck functionality for yourself.",
-        inline=False
-    )
-
-    help_embed.add_field(
-        name="m!seven_d6",
-        value="Roll a 7d6 and see if you can nearly kill a Richter. Times someone out for 456 minutes if you roll a 35 or higher.",
-        inline=False
-    )
-
-    help_embed.add_field(
-        name="m!cooldowns",
-        value="Check the cooldowns of all commands.",
-        inline=False
-    )
-
-    help_embed.add_field(
-        name="m!addtodictionary",
-        value="Add a word to the dictionary.",
-        inline=False
-    )
-
-    help_embed.add_field(
-        name="m!removetodictionary",
-        value="Remove a word from the dictionary.",
-        inline=False
-    )
-
-    help_embed.add_field(
-        name="m!englishwords",
-        value="Get a list of english words that start with a certain letter.",
-        inline=False
-    )
-
-    help_embed.add_field(
-        name="m!indictionary",
-        value="Check if a word is in the dictionary.",
-        inline=False
-    )
     
     view = CommandsView()
 
-    await ctx.send(embed=help_embed, view=view)
+    await ctx.send("commands", view=view)
 
 
 if os.path.exists('kill_counts.json'):
@@ -1104,7 +1043,7 @@ async def a911(ctx):
 @bot.command(name='cooldowns', aliases=['cd', 'cooldown'])
 async def cooldowns(ctx):
     """Check remaining cooldown time for all commands"""
-    await ctx.send("Cooldowns for the server", view=CooldownsView())
+    await ctx.send("Cooldowns for the server", view=CooldownsView(), ephemeral=True)
 
 
 def load_spellcheck_state():
@@ -2529,6 +2468,7 @@ async def list_items(ctx):
 
             if is_collectable:
                 value_display = "A hiddden item "
+                continue
             else:
                 value_display = f"A(n) {name} "
             
