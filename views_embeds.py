@@ -1,7 +1,5 @@
 from aiohttp import TraceConnectionQueuedEndParams
 import discord
-
-
 from game_logic import BlackjackGame, RoulletteGame
 from economy import Income, Items, Bank, Offshore
 import time, os, json
@@ -630,13 +628,13 @@ def OffshoreEmbed(account: list):
 
     account[2] = Offshore.calculate_balance(account)
 
-    days = f"{timespan % 86400:.0f}d " if timespan > 86400 else ""
-    hours = f"{timespan % 3600:.0f}h " if timespan % 3600 != 0 else ""
-    minutes = f"{timespan % 60:.0f}m " if timespan % 60 != 0 else ""
+    days = f"{(timespan % 86400) // 86400:.0f}d " if timespan > 86400 else ""
+    hours = f"{(timespan % 3600) // 3600:.0f}h " if (timespan % 3600) // 3600 != 0 else ""
+    minutes = f"{(timespan % 60) // 60:.0f}m " if (timespan % 60) // 60 != 0 else ""
 
     embed.add_field(
         name="Information",
-        value=f"balance: {account[2]:,.0f} \ninterest: {account[1]:.1f} \nduration: {days + hours + minutes}",
+        value=f"balance: {account[2]:,.0f} \ninterest: {account[1]:.1f}% per day \nduration: {days + hours + minutes}",
         inline=False
     )
 
@@ -680,15 +678,60 @@ class OffshoreView(discord.ui.View):
             self.add_item(button)
             i += 1
 
+        button = discord.ui.Button(
+            label="Bank account",
+            style=discord.ButtonStyle.secondary,
+            row = 0,
+            custom_id="Bank"
+        )
+        
+        button.callback = self.handle_bank_click
+        self.add_item(button)
+
     async def handle_button_click(self, interaction: discord.Interaction):
         # CORRECTED TYPO: cliked_custom_id -> clicked_custom_id
         clicked_custom_id = interaction.data["custom_id"]
-        
+
         if not clicked_custom_id in Items.get_user_items(str(interaction.user.id)):
             await interaction.response.send_message("This is not your bank account to read", ephemeral=True)
             return
+       
+        await interaction.response.send_message(clicked_custom_id, ephemeral=True, embed=OffshoreEmbed(Offshore.get_data_from_key(clicked_custom_id))) 
+    
+    async def handle_bank_click(self, interaction: discord.Interaction):
+        user_id = str(interaction.user.id)
+        cash = Bank.read_balance(user_id)["cash"]
+        bank = Bank.read_balance(user_id)["bank"]
+        
+        ranked_members = []
 
-        await interaction.response.send_message(f"You clicked a button fr fr {clicked_custom_id}", ephemeral=True, embed=OffshoreEmbed(Offshore.get_data_from_key(clicked_custom_id))) 
+        for user_id_str, data in Bank.read_balance().items():
+            ranked_members.append((Bank.gettotal(user_id_str), user_id_str))
+
+        ranked_members.sort(key=lambda x: x[0], reverse=True)
+        rank=-1
+        richens = len(ranked_members)
+
+        for i, (money, user_id_str) in enumerate(ranked_members):
+            if user_id_str == user_id:
+                rank = i + 1
+                break
+
+
+        embed = discord.Embed(
+            title=f"{interaction.user.display_name}'s Balance",
+            color=discord.Color.blue()
+        )
+        embed.add_field(name="💰 Cash", value=f"{cash:,.2f}", inline=False)
+        embed.add_field(name="🏦 Bank", value=f"{bank:,.2f}", inline=False)
+        
+        # Calculate and display total worth using your gettotal method
+        total_worth = Bank.gettotal(user_id)
+        embed.add_field(name="✨ Total Worth", value=f"{total_worth:,.2f}", inline=False)
+        embed.add_field(name="Rank", value=f"#{rank}", inline=False)
+
+        embed.set_thumbnail(url=interaction.user.avatar.url if interaction.user.avatar else None)
+        await interaction.response.send_message(ephemeral=False, embed=embed)
 
     async def on_timeout(self) -> None:
         for item in self.children:

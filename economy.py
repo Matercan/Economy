@@ -732,6 +732,8 @@ class Items:
                             
         Items.create_source(item_name, True, value_effect, f"{user_id}'s {Items.item_sources[item_index][0]}")
         Items.addtoitems(user_id, item_name)
+        Items.save_item_sources()
+        Items.save_player_inventory()
         
 
 class Offshore:
@@ -766,7 +768,18 @@ class Offshore:
             print(account)
             return -1
 
-        return 1 + (log(account[2], 10) * (time.time() - account[3] // 86400)) / 20 
+        days = (time.time() - account[3]) // 86400
+        print(days)
+        amount = account[2]
+        print(amount)
+        log_amount = log(amount, 10)
+        print(log_amount)
+        log_days = log(days, 10) + 1 if days > 0 else 1
+        print(log_days)
+        multiplier = 9 / 20
+
+        print(log_days * log_amount * multiplier)
+        return log_days * log_amount * multiplier
 
     @staticmethod
     def calculate_balance(account: list) -> float:
@@ -776,7 +789,7 @@ class Offshore:
             return -1
         
         multiplier = 1 + account[1] / 100
-        return account[2] * pow(multiplier, (time.time() - account[3]) // 86400)
+        return account[2] * pow(multiplier, (time.time() - account[3]) / 86400)
 
     @staticmethod
     def generate_account(user_id: str, balance: float) -> str:
@@ -787,25 +800,47 @@ class Offshore:
 
         Offshore.balances.append([balanceKey, interest, balance, time.time()]) 
         Offshore.save_balances()
-        
+        Items.save_player_inventory()
+        Items.save_item_sources()
         return balanceKey
 
     @staticmethod
     def update_account(index: int):
         
         account = Offshore.balances[index]
-        
+        print(f"Updating account: {account}")
+
         if len(account) < 4:
             print("Error: malformed offshore bank account")
             print(account)
             return
 
-        interest = Offshore.calculate_interest
+        interest = Offshore.calculate_interest(account)
         
         if account[1] <= interest: account[1] = interest
         account[3] = time.time()
         
+        Offshore.balances[index] = account
         Offshore.save_balances()
+    
+    @staticmethod
+    def get_index_from_key(key: str) -> int:
+        balance = ([], 0)
+
+        i = 0
+        for account in Offshore.balances:
+            if account[0] == key:
+                balance = (account, i)
+                break
+            i += 1
+        
+
+        if len(balance[0]) < 4:
+            print("Error: malformed offshore bank account")
+            print(balance)
+            return -1
+
+        return i
 
 
     @staticmethod
@@ -814,41 +849,55 @@ class Offshore:
         balance = ([], 0)
         i = 0
 
+        print(f"withdraw amount: {amount}")
+
         for account in Offshore.balances:
             if account[0] == key:
                 balance = (account, i)
+                break
             i += 1
+        
+        print(f"INDEX: {i}")
 
         if len(balance[0]) < 4:
             print("Error malformed offshore bank account")
             print(balance)
             return
 
-       
+        print(f"START BALANCE: {balance}")
         balance[0][2] -= amount
         Bank.addbank(user_id, amount)
         Items.player_inventory[balance[0][0]] = balance[0][2]
-        Offshore.update_account(balance[1]) 
+        Offshore.balances[i] = balance[0]
+        print(f"END BALANCE: {balance}")
+        Offshore.update_account(i)
+        Offshore.save_balances()
         
     @staticmethod
     def deposit(key: str, amount: float, user_id: str):
         balance = ([], 0)
         i = 0
+        
+        print(f"deposit  amount: {amount}")
 
         for account in Offshore.balances:
             if account[0] == key:
                 balance = (account, i)
+                break
             i += 1
+        
+        print(i)
 
         if len(balance[0]) < 4:
             print("Error: malformed offshore bank account")
             print(balance)
             return
 
-       
+        print(f"START BALANCE: {balance}") 
         balance[0][2] += amount
-        Bank.addbank(user_id, amount)
+        Bank.addbank(user_id, -amount)
         Items.player_inventory[balance[0][0]] = balance[0][2]
+        print(f"END BALANCE: {balance}")
         Offshore.update_account(balance[1]) 
 
     @staticmethod
@@ -871,7 +920,7 @@ class Offshore:
             if Items.item_sources[index][1] == False:
                 print("Continuing")
                 continue
-
+            
             for account in Offshore.balances:
                 #print(item)
                 #print(account[0])
@@ -888,8 +937,19 @@ class Offshore:
         for key in keys: accounts.append(Offshore.get_data_from_key(key))
         return accounts
 
+    @staticmethod
+    def update_accounts_from_keyes(keys: list):
+        for key in keys:
+            print(f"key updating: {key}")
+            Offshore.update_account(Offshore.get_index_from_key(key))
+
 Items.item_sources = Items.load_item_sources()
 Items.player_inventory = Items.load_player_inventory()
 Offshore.load_balances()
 print(f" USER 1234 KEYS: {Offshore.get_user_keys("1234")}")
-print(f" USER 1234 DATA {Offshore.get_accounts_from_keys(Offshore.get_user_keys("1234"))}")
+print(f" USER 1234 DATA: {Offshore.get_accounts_from_keys(Offshore.get_user_keys("1234"))}")
+print(f" USER 1234 INDEX of 'ig': {Offshore.get_index_from_key('ig')}")
+print(f" 'ig' balance: {Offshore.calculate_balance(Offshore.get_data_from_key('ig'))}")
+
+print(f" MATERCAN'S KEYS: {Offshore.get_user_keys("777170937682329601")}")
+print(f"CALCULATE INTEREST: {Offshore.calculate_interest(Offshore.get_data_from_key("ig"))}")

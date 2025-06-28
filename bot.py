@@ -1756,8 +1756,12 @@ async def list_income_sources(ctx):
 
 @bot.command(name='offshore', aliases=['management', 'funds'])
 async def offshore_bank_account_command(ctx):
-    my_items = Offshore.get_accounts_from_keys(Offshore.get_user_keys(str(ctx.author)))
-    print(Offshore.balances)
+
+    user_id = str(ctx.author.id)
+    my_keys = Offshore.get_user_keys(user_id)
+    print(f"KEYS: {my_keys}")
+    my_items = Offshore.get_accounts_from_keys(my_keys)
+    print(f"DATA: {my_items}")
 
     if my_items == []:
         await ctx.send("Peasant, you have no offshore funds to display")
@@ -1771,8 +1775,13 @@ async def offshore_bank_account_command(ctx):
 
 @bot.command(name='owithdraw', aliases=['owith', 'owit'])
 async def offshore_bank_account_withdraw(ctx, amount: float, key: str = "1"):
+    user_keys = Offshore.get_user_keys(str(ctx.author.id))
+    print(user_keys)
+    Offshore.update_accounts_from_keyes(user_keys)
     
-    user_keys = Offshore.get_user_keys(str(ctx.author))
+    print(user_keys)
+    
+    await ctx.message.delete()
 
     if key == "1":
         await ctx.send("Please specify a key")
@@ -1781,6 +1790,10 @@ async def offshore_bank_account_withdraw(ctx, amount: float, key: str = "1"):
     if not key in user_keys:
         await ctx.send("Key not in your offshore keys")
         return
+    if amount >= Offshore.get_data_from_key(key)[2]:
+        await ctx.send("You can't withdraw more money from you're offshore account than you have")
+        return
+
 
     Offshore.withdraw(key, amount, str(ctx.author.id))
     await ctx.send(f"Withdrew {amount} money")
@@ -1789,7 +1802,9 @@ async def offshore_bank_account_withdraw(ctx, amount: float, key: str = "1"):
 @bot.command(name='odeposit', aliases=['odep'])
 async def offshore_bank_account_deposit(ctx, amount="all", key: str = "1"):
     user_keys = Offshore.get_user_keys(str(ctx.author.id))
-    account_data = Offshore.get_accounts_from_keys(user_keys)
+    Offshore.update_accounts_from_keyes(user_keys)
+    
+    await ctx.message.delete()
 
     if key == "1":
         await ctx.send("Please specify a key")
@@ -1806,13 +1821,30 @@ async def offshore_bank_account_deposit(ctx, amount="all", key: str = "1"):
         except ValueError as e:
             await ctx.send(f"{e} - specify an actual amount s'il vous plait")
             return
+    if amount > Bank.read_balance(str(ctx.author.id))["bank"]:
+        await ctx.send("You can't deposit more money than you have in the bank")
+        return
+        
 
     Offshore.deposit(key, amount, str(ctx.author.id))
     await ctx.send(f"Deposited {amount} money")
     await offshore_bank_account_command(ctx)
 
+@bot.command(name='buy-offshore', aliases=['obuy', 'oacc'])
+async def purchase_offshore_bank_account(ctx):
+    """
+    Let's a user purchase an offshore bank account for a million
+    """
 
-    
+    user_id = str(ctx.author.id)
+
+    if Bank.gettotal(user_id) <= 1e6:
+        await ctx.send("You have not the money to purchase an offshore bank account")
+        return
+
+    Bank.addbank(user_id, -1e6)
+    await ctx.send(views_embeds.OffshoreEmbed(Offshore.get_data_from_key(Offshore.generate_account(user_id, 1e6))))
+     
 
 
 @bot.command(name='incomes', aliases=['see-incomes', 'find-incomes', 'investments', 'in'])
