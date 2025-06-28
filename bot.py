@@ -4,7 +4,7 @@ from discord.ext.commands import has_permissions
 from datetime import timedelta
 from discord.ext import commands, tasks
 from discord.utils import get
-from discord import app_commands
+from discord import DMChannel, app_commands
 import json
 import os
 import nltk
@@ -12,10 +12,13 @@ from fuzzywuzzy import fuzz
 import time
 import asyncio
 import sys
-from economy import Bank, Income, Items
+from economy import Bank, Income, Items, Offshore
 from game_logic import Card, Deck, BlackjackGame, CardflipGame, RoulletteGame
+from views_embeds import CommandsView, CooldownsView
 from nltk.corpus import words
 import datetime
+
+import views_embeds
 
 english_words = set(words.words())
 
@@ -55,7 +58,14 @@ print(f"Absolute path of economy.py: {os.path.abspath(__file__)}")
 print(f"Expected balance.json path: {os.path.join(os.path.dirname(__file__), 'balance.json')}")
 
 
+@bot.command(name='commands', aliases=['help', 'economy'])
+async def display_commands(ctx):
+    """Display all available commands and their descriptions"""
+    
+    
+    view = CommandsView()
 
+    await ctx.send("commands", view=view, ephemeral=True)
 
 
 if os.path.exists('kill_counts.json'):
@@ -110,6 +120,7 @@ async def on_ready():
     Income.create_sources() # Also ensures sources are initialized/loaded
     Items.load_player_inventory()
     Items.create_item_sources() # Also ensures item sources are initialized/loaded
+    Offshore.load_balances() # Sets the balnaces variable to the one from the json file
     print("Economy data loaded/initialized for all classes.")
 
     # Syncs the bots I think
@@ -315,7 +326,7 @@ async def hello(ctx):
 async def timeout(ctx, member: discord.Member, minutes: int, ping: bool=True):
     try:
         
-        if "Sheild" in Items.get_user_items(str(member.id)):
+        if "Shield" in Items.get_user_items(str(member.id)):
             await ctx.send(f"user {member.display_name} couldn't be timed out - they have a shield")
             if random.randint(1, 3) == 1:
                 await ctx.send(f"{member.mention} you're sheild has broken")
@@ -653,245 +664,7 @@ async def stab(ctx, member: discord.Member):
 
     await timeout(ctx, member, 10)
 
-# Define your View class (put this at the top level of your bot.py, not inside a command)
-class CommandsView(discord.ui.View):
-    def __init__(self):
-        super().__init__(timeout=180) # The view will expire after 3 minutes of inactivity
 
-    # This creates a button labeled "Economy Commands"
-    @discord.ui.button(label="Economy Commands", style=discord.ButtonStyle.success, emoji="💰")
-    async def economy_button_callback(self, interaction: discord.Interaction, button: discord.ui.Button):
-        """
-      Callback for the Economy Commands button.
-        When clicked, it sends the economy commands embed.
-        """
-        await send_economy_commands_embed(interaction)
-
-    @discord.ui.button(label="Violent Commands", style=discord.ButtonStyle.danger, emoji="🔪")
-    async def violent_button_callback(self, interaction: discord.Interaction, button: discord.ui.Button):
-        """
-        Callback for the Violent Commands button.
-        When clicked, it sends the violent commands embed.
-        """
-        await send_violent_commands(interaction)
-
-    @discord.ui.button(label="Gambling Commands", style=discord.ButtonStyle.success, emoji="🃏")
-    async def Gambling_button_callback(self, interaction: discord.Interaction, button: discord.ui.Button):
-        """
-        Callback for the Gambling commands button.
-        When clicked it sends the gambling commands embed.
-        """
-        await send_gambling_commands_embed(interaction)
-
-async def send_gambling_commands_embed(interaction: discord.Interaction):
-    embed = discord.Embed(
-        title="The commands",
-        description="The list of commands relating to bets"
-    )
-
-    embed.add_field(
-        name="Blackjack <amount>",
-        value="Score more than the dealer or have the dealer bust to earn money \ntyping no amount will make you bet all of the cash you have on you so be careful",
-        inline=False
-    )
-    
-    embed.add_field(
-        name="cardflip <amount>",
-        value="Get a card with higher value than the dealer to win. \ntping no amount will make you bet all of the cash you have on you so be careful",
-        inline=False
-    )
-
-    await interaction.response.edit_message(embed=embed)
-
-
-async def send_economy_commands_embed(interaction: discord.Interaction):
-    help_embed = discord.Embed(
-        title="The commands",
-        description="The list of all commands relating to the economy",
-    )
-
-    help_embed.add_field(
-        name="m!balance [member]",
-        value="Shows balance of yourself/another user",
-        inline=False
-    )
-
-    help_embed.add_field(
-        name="m!deposit/withdraw <amount>",
-        value="Self explanatory",
-        inline=False
-    )
-
-    help_embed.add_field(
-        name="m!work",
-        value="Gives money based on your current net worth",
-        inline=False
-    )
-
-    help_embed.add_field(
-        name="m!give [user] <amount>",
-        value="Gives user an amount of cash",
-        inline=False
-    )
-
-    help_embed.add_field(
-        name="m!collect",
-        value="Collects your available income",
-        inline=False
-    )
-
-    help_embed.add_field(
-        name="m!incomes",
-        value="Displays all income sources and cooldowns",
-        inline=False
-    )
-
-    help_embed.add_field(
-        name="m!incomes",
-        value="Displays info about your specific income sources",
-        inline=False
-    )
-
-    help_embed.add_field(
-        name="m!richest-member",
-        value="Displays the richest member this side of the economy",
-        inline=False
-    )
- 
-    help_embed.add_field(
-        name="m!store",
-        value="Gets all the items within the store",
-        inline=False
-    )
-
-    help_embed.add_field(
-        name="m!loan",
-        value="Takes out a 50000 loan for the user",
-        inline=False
-    )
-
-    await interaction.response.edit_message(embed=help_embed)
-
-async def send_violent_commands(interaction: discord.Interaction):
-    help_embed = discord.Embed(
-        title="Violent commands",
-        description="List of all commands that modify your kill_count (or display it)"
-    )
-
-    help_embed.add_field(
-        name="m!stab [user]",
-        value="Stab another user, You can only stab once every hour and if you have a knife. Has a cooldown.", 
-        inline=False
-    )
-
-    help_embed.add_field(
-        name="m!use bomb",
-        value="Use a bomb item. 1/10 chance to kill a random user and a 1/10 chance to kill yourself. Has a cooldown.",
-        inline=False
-    )
-
-    help_embed.add_field(
-        name="m!use brick", 
-        value="Use a brick item, gives you the brick role. Now if you type !use brick or !brick you can time someone out for 10 minutes",
-        inline=False
-    )
-
-    help_embed.add_field(
-        name="m!kill [user]",
-        value="Kill a user with a 1/10 chance (1/5 if you have a knife). Has a cooldown.",
-        inline=False
-    )
-
-    help_embed.add_field(
-        name="m!killcount [user]",
-        value="Check the targetted attack count of a user.",
-        inline=False
-    )
-
-    help_embed.add_field(
-        name="m!kill_leaderboard",
-        value="Check the top 10 most prolific attackers.",
-        inline=False
-    )
-
-    help_embed.add_field(
-        name="m!topkill_leaderboard",
-        value="Checks the top 10 killers across all servers with economy in it",
-        inline=False
-    )
-
-    await interaction.response.edit_message(embed=help_embed)
-
-
-@bot.command(name='commands', aliases=['help', 'economy'])
-async def display_commands(ctx):
-    """Display all available commands and their descriptions"""
-    help_embed = discord.Embed(
-        title="Bot Commands",
-        description="Here are all the available commands:",
-        color=discord.Color.blue()
-    )
-
-    
-
-    help_embed.add_field(
-        name="m!guillotine ",
-        value="Execute the richest and take their money to be divided among all members.",
-        inline=False
-    )
-
-    help_embed.add_field(
-        name="m!rob-bank",
-        value="Attempt to rob the bank. Has a 10% success rate and 24 hour cooldown. If successful, money is robbed from all people it can find.",
-        inline=False
-    )
-
-    
-    help_embed.add_field(
-        name="m!toggle_spellcheck",
-        value="Toggle spellcheck functionality for yourself.",
-        inline=False
-    )
-
-    help_embed.add_field(
-        name="m!seven_d6",
-        value="Roll a 7d6 and see if you can nearly kill a Richter. Times someone out for 456 minutes if you roll a 35 or higher.",
-        inline=False
-    )
-
-    help_embed.add_field(
-        name="m!cooldowns",
-        value="Check the cooldowns of all commands.",
-        inline=False
-    )
-
-    help_embed.add_field(
-        name="m!addtodictionary",
-        value="Add a word to the dictionary.",
-        inline=False
-    )
-
-    help_embed.add_field(
-        name="m!removetodictionary",
-        value="Remove a word from the dictionary.",
-        inline=False
-    )
-
-    help_embed.add_field(
-        name="m!englishwords",
-        value="Get a list of english words that start with a certain letter.",
-        inline=False
-    )
-
-    help_embed.add_field(
-        name="m!indictionary",
-        value="Check if a word is in the dictionary.",
-        inline=False
-    )
-    
-    view = CommandsView()
-
-    await ctx.send(embed=help_embed, view=view)
 
 @bot.command()
 async def kill_leaderboard(ctx):
@@ -1273,100 +1046,7 @@ async def a911(ctx):
 @bot.command(name='cooldowns', aliases=['cd', 'cooldown'])
 async def cooldowns(ctx):
     """Check remaining cooldown time for all commands"""
-    await ctx.send("Cooldowns for the server", view=CooldownsView())
-
-async def display_cooldowns(interaction: discord.Interaction): # Corrected type hint
-    """
-    Displays the cooldowns for bot commands (personal and server-wide).
-    This function is designed to be called from an interaction (like a button click).
-    """
-    embed = discord.Embed(
-        title="Command Cooldowns",
-        description="Here are the active cooldowns for bot commands:",
-        color=discord.Color.blue()
-    )
-
-    # --- Crucial: Handle interactions outside of a guild (e.g., DMs) ---
-    if not interaction.guild:
-        await interaction.response.send_message(
-            "This command for displaying cooldowns can only be used in a server!",
-            ephemeral=True # Makes the message visible only to the user who clicked
-        )
-        return
-
-    guild_id = str(interaction.guild.id)
-    user_id = str(interaction.user.id)
-
-    cooldowns = load_cooldowns() # Load the latest cooldown data
-
-    # Get guild-specific cooldowns or an empty dict if none exist for this guild
-    guild_cooldown_data = cooldowns.get(guild_id, {})
-    user_cooldowns_data = guild_cooldown_data.get('users', {}).get(user_id, {})
-
-    # --- Populate User-Specific Cooldowns ---
-    user_cooldowns_field_value = ""
-    for command_name, last_used in user_cooldowns_data.items():
-        time_passed = time.time() - last_used
-        cooldown_time = command_cooldowns.get(command_name, 86400) # Default to 24h if not specified
-
-        if time_passed < cooldown_time:
-            remaining = cooldown_time - time_passed
-            days = int(remaining // 86400)
-            hours = int((remaining % 86400) // 3600) # Corrected hours calculation
-            minutes = int((remaining % 3600) // 60)
-            seconds = int(remaining % 60) # Include seconds for precision
-            user_cooldowns_field_value += f"**`{command_name}`**: {days}d {hours}h {minutes}m {seconds}s\n"
-
-    if user_cooldowns_field_value:
-        embed.add_field(name="Your Personal Cooldowns", value=user_cooldowns_field_value, inline=False)
-    else:
-        embed.add_field(name="Your Personal Cooldowns", value="No active personal command cooldowns.", inline=False)
-
-    # --- Populate Guild-Wide Cooldowns ---
-    guild_wide_cooldowns_field_value = ""
-    for command_name, last_used in guild_cooldown_data.items():
-        if command_name != 'users': # Skip the 'users' sub-dictionary
-            time_passed = time.time() - last_used
-            cooldown_time = command_cooldowns.get(command_name, 86400) # Default to 24h if not specified
-
-            if time_passed < cooldown_time:
-                remaining = cooldown_time - time_passed
-                days = int(remaining // 86400)
-                hours = int((remaining % 86400) // 3600) # Corrected hours calculation
-                minutes = int((remaining % 3600) // 60)
-                seconds = int(remaining % 60) # Include seconds for precision
-                guild_wide_cooldowns_field_value += f"**`{command_name}`**: {days}d {hours}h {minutes}m {seconds}s\n"
-    
-    if guild_wide_cooldowns_field_value:
-        embed.add_field(name="Server-Wide Cooldowns", value=guild_wide_cooldowns_field_value, inline=False)
-    else:
-        embed.add_field(name="Server-Wide Cooldowns", value="No active server-wide cooldowns.", inline=False)
-
-   
-    await interaction.response.edit_message(embed=embed)
-
-
-class CooldownsView(discord.ui.View):
-    def __init__(self):
-        super().__init__(timeout=100) # Timeout after 100 seconds of inactivity
-
-    @discord.ui.button(label="Command Cooldowns", style=discord.ButtonStyle.success)
-    async def command_cooldowns_button_callback(self, interaction: discord.Interaction, button: discord.ui.Button):
-        """
-        Callback for the Command Cooldowns button.
-        When clicked, it calls display_cooldowns to show command cooldowns.
-        """
-        # Call the standalone function
-        await display_cooldowns(interaction)
-
-    @discord.ui.button(label="Income Cooldowns", style=discord.ButtonStyle.danger)
-    async def income_cooldowns_button_callback(self, interaction: discord.Interaction, button: discord.ui.Button):
-        """
-        Callback for the Income Cooldown button.
-        When clicked, it calls display_incomes_interaction to show income cooldowns.
-        """
-       
-        await display_incomes_interaction(interaction)
+    await ctx.send("Cooldowns for the server", view=CooldownsView(), ephemeral=True)
 
 
 def load_spellcheck_state():
@@ -1424,6 +1104,10 @@ async def on_message(message):
     user_id = str(message.author.id)
 
     ctx = await bot.get_context(message)
+    
+    if isinstance(ctx.channel, discord.DMChannel):
+        await ctx.send("THE BOT DOESN'T ACCEPT DMS!!!!!")
+        return 
 
     if not can_load_sources and not message.author.bot:
         await ctx.send("I'm not willing to let all data be wiped.")
@@ -1451,7 +1135,7 @@ async def on_message(message):
     has_knife = False
     has_tin = False
  
-    print(Income.playerincomes.get(user_id))
+    #print(Income.playerincomes.get(user_id))
     
     for source_name, income_details in Income.playerincomes.get(user_id, {}).items():
         if income_details["index"] == Income.get_source_index_by_name("Organized crime") and Bank.read_balance(user_id)["cash"] > 10000 and not message.content.startswith("m!"):
@@ -1651,7 +1335,7 @@ async def on_message(message):
     if user_id not in Bank.bank_accounts and not ctx.author.bot:
         Bank.addcash(user_id=user_id, money=100) # Give 100 initial cash
         # Or Bank.bank_accounts[user_id_str] = {"bank": 0, "cash": 100} followed by Bank.save_balances()
-        await ctx.send(f"Welcome {ctx.author.mention}! Here's your starting cash!")
+        #await ctx.send(f"Welcome {ctx.author.mention}! Here's your starting cash!")
 
     if not ctx.author.bot and user_id in user_last_message_timestamps and len(user_last_message_timestamps[user_id]) >= 2:
         old_message_val = user_last_message_timestamps[user_id][0]
@@ -1663,15 +1347,18 @@ async def on_message(message):
             #print("Added cash")
             Bank.addcash(user_id=user_id, money=random.randrange(10, 100)) 
 
-        print(old_message_val)
-        print(new_message_val)
+        #print(old_message_val)
+        #print(new_message_val)
 
     #print(user_last_message_timestamps)
     
     for item_index, item_name in enumerate(Items.get_user_items(str(message.author.id))):
         if message.content.lower() == "!" + item_name.lower():
-            await use_item(item_name)
+            await use_item(ctx, item_name)
     
+    if message.content.startswith("m! "):
+        message.content = "m!" + message.content[3:]
+
     try:
         await bot.process_commands(message)
     except KeyError:
@@ -2067,6 +1754,99 @@ async def list_income_sources(ctx):
     
     await ctx.send(embed=embed)
 
+@bot.command(name='offshore', aliases=['management', 'funds'])
+async def offshore_bank_account_command(ctx):
+
+    user_id = str(ctx.author.id)
+    my_keys = Offshore.get_user_keys(user_id)
+    print(f"KEYS: {my_keys}")
+    my_items = Offshore.get_accounts_from_keys(my_keys)
+    print(f"DATA: {my_items}")
+
+    if my_items == []:
+        await ctx.send("Peasant, you have no offshore funds to display")
+        await balance(ctx)
+        return
+
+    view = views_embeds.OffshoreView(accounts=my_items)
+
+    await ctx.send("You're funds sir/ma'am", view=view)
+    view.message = message
+
+@bot.command(name='owithdraw', aliases=['owith', 'owit'])
+async def offshore_bank_account_withdraw(ctx, amount: float, key: str = "1"):
+    user_keys = Offshore.get_user_keys(str(ctx.author.id))
+    print(user_keys)
+    Offshore.update_accounts_from_keyes(user_keys)
+    
+    print(user_keys)
+    
+    await ctx.message.delete()
+
+    if key == "1":
+        await ctx.send("Please specify a key")
+        await offshore_bank_account_command(ctx)
+        return
+    if not key in user_keys:
+        await ctx.send("Key not in your offshore keys")
+        return
+    if amount >= Offshore.get_data_from_key(key)[2]:
+        await ctx.send("You can't withdraw more money from you're offshore account than you have")
+        return
+
+
+    Offshore.withdraw(key, amount, str(ctx.author.id))
+    await ctx.send(f"Withdrew {amount} money")
+    await offshore_bank_account_command(ctx)
+
+@bot.command(name='odeposit', aliases=['odep'])
+async def offshore_bank_account_deposit(ctx, amount="all", key: str = "1"):
+    user_keys = Offshore.get_user_keys(str(ctx.author.id))
+    Offshore.update_accounts_from_keyes(user_keys)
+    
+    await ctx.message.delete()
+
+    if key == "1":
+        await ctx.send("Please specify a key")
+        await offshore_bank_account_command(ctx)
+        return
+    if not key in user_keys:
+        await ctx.send("Key not in your offshore keys")
+        return
+    if amount == "all":
+        amount = Bank.read_balance(str(ctx.author.id))["bank"]
+    else:
+        try:
+            amount = float(amount)
+        except ValueError as e:
+            await ctx.send(f"{e} - specify an actual amount s'il vous plait")
+            return
+    if amount > Bank.read_balance(str(ctx.author.id))["bank"]:
+        await ctx.send("You can't deposit more money than you have in the bank")
+        return
+        
+
+    Offshore.deposit(key, amount, str(ctx.author.id))
+    await ctx.send(f"Deposited {amount} money")
+    await offshore_bank_account_command(ctx)
+
+@bot.command(name='buy-offshore', aliases=['obuy', 'oacc'])
+async def purchase_offshore_bank_account(ctx):
+    """
+    Let's a user purchase an offshore bank account for a million
+    """
+
+    user_id = str(ctx.author.id)
+
+    if Bank.gettotal(user_id) <= 1e6:
+        await ctx.send("You have not the money to purchase an offshore bank account")
+        return
+
+    Bank.addbank(user_id, -1e6)
+    await ctx.send(views_embeds.OffshoreEmbed(Offshore.get_data_from_key(Offshore.generate_account(user_id, 1e6))))
+     
+
+
 @bot.command(name='incomes', aliases=['see-incomes', 'find-incomes', 'investments', 'in'])
 async def display_incomes(ctx):
     """
@@ -2130,91 +1910,7 @@ async def display_incomes(ctx):
     
     await ctx.send(embed=embed) # Send the completed embed
 
-async def display_incomes_interaction(interaction: discord.Interaction):
-    """
-    Displays the user's income sources and their status using an embed.
-    This function is designed to be called from an interaction (like a button click).
-    """
-    # --- Crucial: Get the correct user ID ---
-    user_id_str = str(interaction.user.id) # Correctly gets the numeric user ID as a string
 
-    # --- Handle interactions outside of a guild (e.g., DMs) if necessary ---
-    # Although income sources are usually guild-bound, this check is good practice.
-    if not interaction.guild:
-        await interaction.response.send_message(
-            "This command should be used in a server to display income sources.",
-            ephemeral=True # Makes the message visible only to the user who clicked
-        )
-        return
-
-    # Call the method to get the user's income status list
-    # Assuming Income.get_user_income_status correctly returns a list of dictionaries
-    user_income_status_list = Income.get_user_income_status(user_id=user_id_str)
-
-    embed = discord.Embed(
-        title=f"💰 Your Income Sources for {interaction.user.display_name}",
-        color=discord.Color.green()
-    )
-
-    if not user_income_status_list: # If the list is empty, user has no assigned incomes
-        embed.add_field(
-            name="No Incomes Found",
-            value="You don't have any income sources assigned yet. You might need to buy items that grant income!",
-            inline=False
-        )
-    else:
-        # Iterate through the list of income statuses and add fields to the embed
-        for inc_status in user_income_status_list:
-            # Use .get() for safer dictionary access in case keys are missing
-            name = inc_status.get("name", "Unknown Income")
-            status = inc_status.get("status", "Status Unavailable")
-            
-            field_value = ""
-            # Check if 'details_valid' is True (or present) before trying to access details
-            if inc_status.get("details_valid", False): 
-                is_interest = inc_status.get("is_interest", False)
-                value = inc_status.get("value", 0)
-                cooldown = inc_status.get("cooldown", 0) # This is the base cooldown in seconds
-                goes_to_bank = inc_status.get("goes_to_bank", False)
-
-                value_display = ""
-                if is_interest:
-                    # Format percentage with 2 decimal places
-                    value_display = f"**{value * 100:,.2f}%** interest on your {'bank' if goes_to_bank else 'cash'}"
-                else:
-                    # Format value with commas for readability
-                    value_display = f"**{value:,}** {'to bank' if goes_to_bank else 'to cash'}"
-                
-                # Calculate and format cooldown display (assuming cooldown is in seconds)
-                cooldown_days = int(cooldown // 86400)
-                cooldown_hours = int((cooldown % 86400) // 3600)
-                cooldown_minutes = int((cooldown % 3600) // 60)
-                cooldown_seconds = int(cooldown % 60) # Ensure integer for display
-
-                # Show current status and detailed info
-                field_value = (
-                    f"Status: `{status}`\n" # Displays if ready or cooldown remaining
-                    f"Value: {value_display}\n"
-                    f"Base Cooldown: {cooldown_days}d {cooldown_hours}h {cooldown_minutes}m {cooldown_seconds}s" # Base cooldown duration
-                )
-            else:
-                # For invalid or malformed sources, just show the error status and a hint
-                field_value = f"Status: `{status}`\n_Source details invalid or not found._"
-
-            embed.add_field(
-                name=f"📈 {name}",
-                value=field_value,
-                inline=False # Each income source gets its own line
-            )
-    
-    # --- Respond to the Interaction ---
-    # This edits the message the button was clicked on. It also serves as the initial response.
-    try:
-        await interaction.response.edit_message(embed=embed)
-    except discord.errors.NotFound:
-        # Fallback if the original message was deleted or timed out before editing
-        print(f"WARNING: Tried to edit a non-existent interaction message for user {interaction.user.id}. Sending as a new ephemeral followup.")
-        await interaction.followup.send(embed=embed, ephemeral=True) # Send as a new message, only visible to the user who clicked
 
 
 @bot.command(name='collect', aliases=['getincome', 'claim', 'inc', 'clm'])
@@ -2849,6 +2545,8 @@ async def list_items(ctx):
     Displays information about all available items.
     Usage: !store
     """
+    
+    print("store")
 
     items = Items.load_item_sources()
 
@@ -2873,8 +2571,11 @@ async def list_items(ctx):
             role_removed = source_data[6]
             role_required = source_data[7]
 
+            print(f"Item: {name}")
+
             if is_collectable:
-                value_display = f"A collectable {name} "
+                value_display = "A hiddden item "
+                continue
             else:
                 value_display = f"A(n) {name} "
             
@@ -2968,7 +2669,7 @@ async def buy_item(ctx, *, item: str):
         color=discord.Color.blue()
     )
 
-    Items.addtoitems(user_id_str, item_data[0])
+    Items.buyitem(user_id_str, index) 
  
     if item_data[5]:
         # Pass role_name as a keyword argument
@@ -3446,494 +3147,13 @@ async def card_flip_command(ctx, bet: str = "all"):
     await ctx.send(embed=embed)
     
 
-async def create_Roullette_embed(game: RoulletteGame):
-    """Creates an embed to display the Roulette game state."""
-    print("DEBUG: Inside create_Roullette_embed.")
-    embed = discord.Embed(
-        title = "🎡 Roulette",
-        color = discord.Color.dark_green()
-    )
-    
-    # Display current spinning status or winning number
-    if game.is_game_over:
-        number, color = game.get_color_number()
-        embed.add_field(
-            name="Ball Landed On",
-            value=f"**{number}** ({color.capitalize()})", # Show the winning number and color
-            inline=False
-        )
-    else:
-        # During betting phase, display timer and general ball status
-        embed.add_field(
-            name="Ball",
-            value=f"Currently Spinning: {game.ball if game.ball != -1 else 'N/A'}",
-            inline=False
-        )
-        embed.add_field(name="Time Left to Bet", value=f"{game.timer} seconds", inline=True)
-
-    # Players and their bets
-    if game.players:
-        players_info = ""
-        for user_id, bet_data in game.players.items():
-            user = await bot.fetch_user(int(user_id)) # Fetch user to get display name
-            display_name = user.display_name if user else f"ID: {user_id}"
-            
-            betted_on_str = ", ".join([str(b) for b in bet_data.get("betted_on", [])])
-            if not betted_on_str:
-                betted_on_str = "No specific bet"
-
-            players_info += f"**{display_name}**: ${bet_data.get('bet_amount', 0.0):,.2f} on [{betted_on_str}]\n"
-        embed.add_field(
-            name=f"Players ({len(game.players)})",
-            value=players_info,
-            inline=False
-        )
-    else:
-        embed.add_field(name="Players", value="No players yet. Click 'Join Game' to bet!", inline=False)
-
-
-    embed.add_field(
-        name=f"Current Pot",
-        value=f"${game.pot:,.2f}", # Format pot with commas and 2 decimal places
-        inline=False
-    )
-    
-    if game.is_game_over:
-        winners_info = game.determine_winners()
-        if winners_info:
-            winner_list_str = ""
-            total_winnings = 0.0
-            for user_id, winnings in winners_info.items():
-                user = await bot.fetch_user(int(user_id))
-                display_name = user.display_name if user else f"ID: {user_id}"
-                winner_list_str += f"**{display_name}**: ${winnings:,.2f}\n"
-                total_winnings += winnings
-            
-            embed.add_field(
-                name="💰 Winners!",
-                value=winner_list_str,
-                inline=False
-            )
-            embed.add_field(
-                name="Payouts",
-                value=f"Total: ${total_winnings:,.2f}",
-                inline=False
-            )
-            embed.description = "**GAME OVER!** Congrats to the winners!"
-            embed.color = discord.Color.green()
-        else:
-            embed.add_field(name="🚫 No Winners", value="The house wins!", inline=False)
-            embed.description = "No winners this round. Better luck next time!"
-            embed.color = discord.Color.red()
-    else:
-        embed.description = "Place your bets! The wheel is spinning soon."
-    
-    print("DEBUG: Final Embed Dictionary:")
-    print(embed.to_dict())
-
-    return embed
-
-class RouletteView(discord.ui.View):
-    def __init__(self, game: RoulletteGame, ctx: commands.Context):
-        print("DEBUG: Inside RouletteView __init__ - Step1: Calling super().__init__")
-        super().__init__(timeout=180) # Timeout for the entire game session
-
-        print("DEBUG: Inside RouletteView __init__ - Step 2: settping up attributes")
-
-        self.game = game
-        self.ctx = ctx # Store context for sending messages/fetching users
-        self.message = None # This will store the game's message
-        self.current_betting_player_id = None # Track which player is currently making a bet selection
-        self.current_bet_amount = 0.0 # Store the amount for the current player's bet being placed
-        
-        self.send_embed_roullette_work_please(self, ctx=ctx, game=self.game) 
-
-        print("Commong bet button")
-        self.add_common_bet_buttons()
-        print("Bet menus")
-        self.add_number_select_menus()
-        print("Adding action buttons")
-        self.add_action_buttons()
-        
-        # Start the betting timer loop
-        print("Starting the game timer")
-        self.game_timer_task.start()
-        print("DEBUG: RouletteView initialized and game_timer_task started.")
-
-    async def send_embed_roullette_work_please(self, ctx: commands.Context, game: RoulletteGame):
-        await ctx.send(embed=create_Roullette_embed(game))
-
-    def add_common_bet_buttons(self):
-        print("DEBUG: Inside add_common_bet_buttons - Starting button additions.") # NEW DEBUG PRINT B1
-        
-        self.add_item(discord.ui.Button(label="Test", style=discord.ButtonStyle.primary, custom_id="test_button"))
-        print("DEBUG: Inside add_common_bet_buttons - Added Test button.") # NEW DEBUG PRINT B_TEST
-        
-        
-        
-        print("DEBUG: Inside add_common_bet_buttons - All buttons added successfully.") # NEW DEBUG PRINT B10
-
-    def add_number_select_menus(self):
-        # Select menu for numbers 0-12
-        options_0_12 = [discord.SelectOption(label=str(i), value=str(i)) for i in range(0, 13)]
-        self.add_item(discord.ui.Select(
-            placeholder="Bet on Numbers 0-12",
-            options=options_0_12,
-            custom_id="select_numbers_0_12",
-            row=1 # Puts this on the second row
-        ))
-
-        # Select menu for numbers 13-24
-        options_13_24 = [discord.SelectOption(label=str(i), value=str(i)) for i in range(13, 25)]
-        self.add_item(discord.ui.Select(
-            placeholder="Bet on Numbers 13-24",
-            options=options_13_24,
-            custom_id="select_numbers_13_24",
-            row=2 # Puts this on the third row
-        ))
-
-        # Select menu for numbers 25-36
-        options_25_36 = [discord.SelectOption(label=str(i), value=str(i)) for i in range(25, 37)]
-        self.add_item(discord.ui.Select(
-            placeholder="Bet on Numbers 25-36",
-            options=options_25_36,
-            custom_id="select_numbers_25_36",
-            row=3 # Puts this on the fourth row
-        ))
-
-    def add_action_buttons(self):
-        self.add_item(discord.ui.Button(label="Spin Wheel", style=discord.ButtonStyle.primary, custom_id="spin_wheel", row=4))
-        self.add_item(discord.ui.Button(label="Reset Game", style=discord.ButtonStyle.danger, custom_id="reset_game", row=4)) # For testing/admin
-        self.children[-1].disabled = True # Initially disable reset game button
-        
-        self.add_item(discord.ui.Button(label="Confirm Bet", style=discord.ButtonStyle.success, custom_id="confirm_bet", row=4, disabled=True)) # Disabled until a bet amount is set
-
-    # --- Timer Loop for Roulette Game ---
-    @tasks.loop(seconds=1)
-    async def game_timer_task(self):
-        if self.game.is_game_over:
-            self.game_timer_task.stop() # Stop the timer if game is over
-            return
-
-        self.game.timer -= 1
-        
-        # Update embed to show countdown
-        if self.message:
-            try:
-                # Update only the timer field if possible, or re-render full embed
-                updated_embed = await create_Roullette_embed(self.game)
-                await self.message.edit(embed=updated_embed, view=self) # Update message with remaining time
-            except discord.HTTPException as e:
-                print(f"ERROR: Could not update roulette timer message: {e}")
-                self.game_timer_task.stop() # Stop if message can't be edited
-
-        if self.game.timer <= 0:
-            print("DEBUG: Betting time is over. Spinning wheel.")
-            await self.spin_wheel_and_end_game() # Automatically spin when time is up
-            self.game_timer_task.stop() # Ensure the loop stops
-
-    @game_timer_task.before_loop
-    async def before_game_timer_task(self):
-        await self.ctx.bot.wait_until_ready() # Wait for bot to be ready
-        await asyncio.sleep(2) # Give a small buffer after bot is ready
-
-    def disable_all_components(self, is_game_over: bool = False):
-        """Disables all interactive components in the view."""
-        for item in self.children:
-            item.disabled = True
-            # For select menus, you might need to rebuild them if you want them truly "grayed out"
-            # For now, disabling is sufficient.
-        if self.message:
-            # If game is over, remove the view entirely after disabling.
-            # This is cleaner as users won't see inactive buttons.
-            try:
-                if is_game_over:
-                    asyncio.create_task(self.message.edit(view=None)) # Remove view entirely
-                else:
-                    asyncio.create_task(self.message.edit(view=self)) # Just update with disabled items
-            except discord.HTTPException:
-                pass # Message might have been deleted
-
-    async def spin_wheel_and_end_game(self):
-        """Handles the wheel spin, winner determination, and game end."""
-        self.disable_all_components(is_game_over=True) # Lock all bets, disable buttons
-        self.game.spin_wheel()
-        print(f"DEBUG: Wheel spun. Winning number: {self.game.winning_number}, Color: {self.game.winning_color}")
-
-        # Update embed to show final results
-        final_embed = await create_Roullette_embed(self.game)
-        
-        # Payout winners
-        winners_info = self.game.determine_winners()
-        if winners_info:
-            for user_id, winnings in winners_info.items():
-                await Bank.addcash(user_id, winnings)
-                # You might send a DM or a brief message to winners here
-            final_embed.description += f"\n\nPayouts have been processed."
-        else:
-            final_embed.description += "\n\nNo one won this round."
-        
-        if self.message:
-            await self.message.edit(embed=final_embed, view=None) # Final update and remove view
-        
-        self.game.is_game_over = True # Mark game as over
-        self.game_timer_task.stop() # Stop the timer in case it's still running
-        self.stop() # Stop the view itself
-
-    async def on_timeout(self):
-        print(f"DEBUG: RouletteView timed out for game {self.ctx.channel.id}.")
-        self.game_timer_task.stop() # Stop the timer task if view times out
-        if not self.game.is_game_over:
-            # If timed out before game over, spin the wheel and end
-            await self.spin_wheel_and_end_game()
-        self.disable_all_components(is_game_over=True)
-        # self.message.edit is handled by spin_wheel_and_end_game if not already.
-
-    async def interaction_check(self, interaction: discord.Interaction) -> bool:
-        """Only allow interactions from the channel where the game started."""
-        # For simplicity, let any user interact with betting buttons
-        # but only the game starter or specific roles can spin/reset
-        if self.game.is_game_over:
-            await interaction.response.send_message("This game is over!", ephemeral=True)
-            return False
-        
-        # Ensure interaction is in the same channel as the game message
-        if interaction.channel_id != self.ctx.channel.id:
-            await interaction.response.send_message("Please interact with the game in its original channel!", ephemeral=True)
-            return False
-        
-        return True # Allow all other interactions
-
-
-    # --- Betting Callbacks ---
-    async def process_bet_input(self, interaction: discord.Interaction, bet_type: str, bet_value: str = None):
-        """Helper to process a bet amount from a modal."""
-        user_id_str = str(interaction.user.id)
-        
-        try:
-            bet_amount = float(self.current_bet_amount) # Use the stored bet amount
-            if bet_amount <= 0:
-                await interaction.followup.send("Bet amount must be positive.", ephemeral=True)
-                return
-
-            user_balance = Bank.read_balance(user_id_str).get("cash", 0.0)
-            if user_balance < bet_amount:
-                await interaction.followup.send(f"You don't have ${bet_amount:,.2f} cash. Your balance: ${user_balance:,.2f}", ephemeral=True)
-                return
-            
-            # Deduct from user's balance immediately
-            await Bank.addcash(user_id_str, -bet_amount)
-
-            # Add to game's internal state
-            self.game.add_player_bet(user_id_str, bet_amount, bet_value if bet_value else bet_type) # bet_value is for numbers
-
-            await interaction.followup.send(f"✅ You bet ${bet_amount:,.2f} on {bet_value if bet_value else bet_type}!", ephemeral=True)
-            
-            # Update the game embed after a bet is placed
-            updated_embed = await create_Roullette_embed(self.game)
-            if self.message:
-                await self.message.edit(embed=updated_embed, view=self)
-
-        except ValueError:
-            await interaction.followup.send("Invalid bet amount. Please enter a number.", ephemeral=True)
-        except Exception as e:
-            print(f"ERROR processing bet: {e}")
-            await interaction.followup.send("An error occurred while processing your bet.", ephemeral=True)
-        finally:
-            self.current_betting_player_id = None # Clear current betting player
-            self.current_bet_amount = 0.0 # Clear bet amount
-
-    # --- Modal for Bet Amount ---
-    class BetAmountModal(discord.ui.Modal, title="Enter Your Bet Amount"):
-        def __init__(self, parent_view, bet_type: str, bet_value: str = None):
-            super().__init__()
-            self.parent_view = parent_view
-            self.bet_type = bet_type # e.g., "red", "even", "number"
-            self.bet_value = bet_value # The specific number if applicable
-
-            self.bet_input = discord.ui.TextInput(
-                label="Bet Amount",
-                placeholder="Enter a positive number (e.g., 100 or 50.50)",
-                required=True,
-                max_length=10 # Reasonable max length for bet
-            )
-            self.add_item(self.bet_input)
-
-        async def on_submit(self, interaction: discord.Interaction):
-            await interaction.response.defer(ephemeral=True) # Defer immediately
-            try:
-                self.parent_view.current_bet_amount = float(self.bet_input.value)
-                # Now, call the view's method to complete the bet
-                await self.parent_view.process_bet_input(interaction, self.bet_type, self.bet_value)
-            except ValueError:
-                await interaction.followup.send("Invalid bet amount. Please enter a valid number.", ephemeral=True)
-            except Exception as e:
-                print(f"ERROR in modal on_submit: {e}")
-                await interaction.followup.send("An error occurred with your bet. Please try again.", ephemeral=True)
-
-
-    # --- Button Callbacks for Common Bets ---
-    @discord.ui.button(custom_id="bet_red")
-    async def bet_red_callback(self, interaction: discord.Interaction, button: discord.ui.Button):
-        print("Inside red button setup")
-        self.current_betting_player_id = interaction.user.id
-        await interaction.response.send_modal(self.BetAmountModal(self, "red"))
-
-    @discord.ui.button(custom_id="bet_black")
-    async def bet_black_callback(self, interaction: discord.Interaction, button: discord.ui.Button):
-        self.current_betting_player_id = interaction.user.id
-        await interaction.response.send_modal(self.BetAmountModal(self, "black"))
-
-    @discord.ui.button(custom_id="bet_even")
-    async def bet_even_callback(self, interaction: discord.Interaction, button: discord.ui.Button):
-        self.current_betting_player_id = interaction.user.id
-        await interaction.response.send_modal(self.BetAmountModal(self, "even"))
-
-    @discord.ui.button(custom_id="bet_odd")
-    async def bet_odd_callback(self, interaction: discord.Interaction, button: discord.ui.Button):
-        self.current_betting_player_id = interaction.user.id
-        await interaction.response.send_modal(self.BetAmountModal(self, "odd"))
-    
-    @discord.ui.button(custom_id="bet_0")
-    async def bet_zero_callback(self, interaction: discord.Interaction, button: discord.ui.Button):
-        self.current_betting_player_id = interaction.user.id
-        await interaction.response.send_modal(self.BetAmountModal(self, "number", "0")) # Betting on specific number 0
-
-    @discord.ui.button(custom_id="bet_1st12")
-    async def bet_1st12_callback(self, interaction: discord.Interaction, button: discord.ui.Button):
-        self.current_betting_player_id = interaction.user.id
-        await interaction.response.send_modal(self.BetAmountModal(self, "1st12"))
-
-    @discord.ui.button(custom_id="bet_2nd12")
-    async def bet_2nd12_callback(self, interaction: discord.Interaction, button: discord.ui.Button):
-        self.current_betting_player_id = interaction.user.id
-        await interaction.response.send_modal(self.BetAmountModal(self, "2nd12"))
-
-    @discord.ui.button(custom_id="bet_3rd12")
-    async def bet_3rd12_callback(self, interaction: discord.Interaction, button: discord.ui.Button):
-        self.current_betting_player_id = interaction.user.id
-        await interaction.response.send_modal(self.BetAmountModal(self, "3rd12"))
-
-    # --- Select Menu Callbacks for Numbers ---
-    @discord.ui.select(custom_id="select_numbers_0_12")
-    async def select_0_12_callback(self, interaction: discord.Interaction, select: discord.ui.Select):
-        selected_number = select.values[0] # Get the selected number as string
-        self.current_betting_player_id = interaction.user.id
-        await interaction.response.send_modal(self.BetAmountModal(self, "number", selected_number))
-
-    @discord.ui.select(custom_id="select_numbers_13_24")
-    async def select_13_24_callback(self, interaction: discord.Interaction, select: discord.ui.Select):
-        selected_number = select.values[0]
-        self.current_betting_player_id = interaction.user.id
-        await interaction.response.send_modal(self.BetAmountModal(self, "number", selected_number))
-
-    @discord.ui.select(custom_id="select_numbers_25_36")
-    async def select_25_36_callback(self, interaction: discord.Interaction, select: discord.ui.Select):
-        selected_number = select.values[0]
-        self.current_betting_player_id = interaction.user.id
-        await interaction.response.send_modal(self.BetAmountModal(self, "number", selected_number))
-
-
-    # --- Action Button Callbacks ---
-    @discord.ui.button(custom_id="spin_wheel")
-    async def spin_wheel_callback(self, interaction: discord.Interaction, button: discord.ui.Button):
-        # Only allow the person who initiated the game or an admin to spin
-        # Or you could let anyone spin once the timer is near zero
-        # For simplicity, let's say anyone can trigger spin when time is almost up
-        
-        # If the game is already over or spinning, ignore
-        if self.game.is_game_over or self.game.timer > 0: # Ensure bets are locked (timer is 0)
-            await interaction.response.send_message("Bets are not yet locked or game is already over!", ephemeral=True)
-            return
-
-        # Acknowledge the interaction first
-        await interaction.response.defer() 
-        await self.spin_wheel_and_end_game() # Call the method that handles spin and results
-
-    @discord.ui.button(custom_id="reset_game")
-    async def reset_game_callback(self, interaction: discord.Interaction, button: discord.ui.Button):
-        # This button is for testing/admin purposes
-        if interaction.user.id != self.ctx.author.id and not interaction.user.guild_permissions.administrator:
-            await interaction.response.send_message("Only the game initiator or an admin can reset!", ephemeral=True)
-            return
-        
-        await interaction.response.defer() # Acknowledge reset button click
-        
-        self.game_timer_task.stop() # Stop any active timer
-        self.game.reset_game()
-        self.disable_all_components(is_game_over=False) # Enable all components for new game
-        self.children[-1].disabled = False # Re-enable Confirm Bet button
-
-        # Re-add all components for a fresh view (important for re-enabling dropdowns)
-        self.clear_items()
-        self.add_common_bet_buttons()
-        self.add_number_select_menus()
-        self.add_action_buttons()
-        
-        # Start timer for new game
-        self.game_timer_task.start()
-
-        updated_embed = await create_Roullette_embed(self.game)
-        await self.message.edit(embed=updated_embed, view=self)
-        await interaction.followup.send("Game has been reset. Place your new bets!")
-
-active_roulette_games = {}
-
-@bot.command(name="roulette", help="Starts a new game of Roulette!")
-async def roulette_command(ctx: commands.Context):
-    print("DEBUG: roulette_command triggered.") # NEW DEBUG PRINT R1
-
-    if ctx.channel.id in active_roulette_games and not active_roulette_games[ctx.channel.id].is_game_over:
-        print(f"DEBUG: Active game found in channel {ctx.channel.id}.") # NEW DEBUG PRINT R2
-        await ctx.send("There's already an active roulette game in this channel! Please wait for it to finish or reset it.")
-        return
-
-    game_instance = RoulletteGame()
-    active_roulette_games[ctx.channel.id] = game_instance
-
-    print("DEBUG: Attempting to initialize RouletteView.") # NEW DEBUG PRINT R3
-    view = RouletteView(game=game_instance, ctx=ctx)
-    print("DEBUG: RouletteView initialized successfully (or tried to).") # NEW DEBUG PRINT R4
-
-    initial_embed = await create_Roullette_embed(game_instance)
-    
-    message = await ctx.send(embed=initial_embed, view=view)
-    view.message = message
-
-    print("DEBUG: Waiting for view to complete.") # NEW DEBUG PRINT R5
-    await view.wait()
-    
-    if ctx.channel.id in active_roulette_games:
-        del active_roulette_games[ctx.channel.id]
-    print(f"DEBUG: Roulette game in channel {ctx.channel.id} ended.") # NEW DEBUG PRINT R6
-
 @bot.command(name='remove-bank-account', aliases=['rm-b'])
 async def removeaccount(ctx):
     del Bank.bank_accounts[str(ctx.author.id)]
     Bank.save_balances()
 
-class TestView(discord.ui.View):
-    def __init__(self):
-        super().__init__()
-        print("DEBUG: TestView __init__ started.")
-        self.add_item(discord.ui.Button(label="Simple Button", style=discord.ButtonStyle.primary, custom_id="simple_test"))
-        print("DEBUG: TestView __init__ finished, button added.")
-
-    @discord.ui.button(custom_id="simple_test")
-    async def simple_button_callback(self, interaction: discord.Interaction, button: discord.ui.Button):
-        await interaction.response.send_message("Button clicked!", ephemeral=True)
-
-
-
-@bot.command(name="testbutton")
-async def test_button_command(ctx: commands.Context):
-    print("DEBUG: testbutton command triggered.")
-    view = TestView()
-    await ctx.send("Here is a test button:", view=view)
-    print("DEBUG: testbutton command finished sending message.")
 
 TOKEN = os.environ.get("BOT_TOKEN")
-
 
 if TOKEN is None:
     print("Error: BOT_TOKEN environment variable not set.")

@@ -8,9 +8,6 @@ class Card:
     def __init__(self, suit, rank) -> None:
         self.suit = suit
         self.rank = rank
-        
-        print(self.rank)
-        print(self.suit)
 
         card_emojis = {
             "hearts": {

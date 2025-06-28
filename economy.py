@@ -1,3 +1,4 @@
+from math import log
 import os
 import json
 import random
@@ -6,14 +7,14 @@ import time
 class Bank:
 
     bank_accounts = {}
-    _DATA_FILE = os.path.join(os.path.dirname(__file__), "balance.json")
+    _DATA_FILE = os.path.join(os.path.dirname(__file__), "json_files/balance.json")
 
     @staticmethod
     def read_balance(user_id: str = None):
         if os.path.exists(Bank._DATA_FILE): # Use the absolute path
             with open(Bank._DATA_FILE, "r") as f:
                 try:
-                    Bank.bank_accounts = json.load(f)
+                   Bank.bank_accounts = json.load(f)
                 except json.JSONDecodeError:
                     print(f"Error reading {Bank._DATA_FILE}: File might be empty or corrupted. Initializing empty.")
                     Bank.bank_accounts = {}
@@ -221,28 +222,28 @@ class Income():
 
     @staticmethod
     def loadsources():
-        if os.path.exists("incomesources.json"):
-            with open("incomesources.json", "r") as f:
+        if os.path.exists("json_files/incomesources.json"):
+            with open("json_files/incomesources.json", "r") as f:
                 return json.load(f)
         else:
             raise FileNotFoundError("incomesources.json not found.")
 
     @staticmethod
     def savesources():
-        with open("incomesources.json", "w") as f:
+        with open("json_files/incomesources.json", "w") as f:
             json.dump(Income.income_sources, f, indent=2)
 
     @staticmethod
     def loadincomes():
-        if os.path.exists("playerincomes.json"):
-            with open("playerincomes.json", "r") as f:
+        if os.path.exists("json_files/playerincomes.json"):
+            with open("json_files/playerincomes.json", "r") as f:
                 return json.load(f)
         else:
             return {}
     
     @staticmethod
     def saveincomes():
-        with open("playerincomes.json", "w") as f:
+        with open("json_files/playerincomes.json", "w") as f:
             json.dump(Income.playerincomes, f, indent=2)
 
     @staticmethod
@@ -538,15 +539,15 @@ class Items:
 
     @staticmethod
     def load_item_sources():
-        if os.path.exists("itemsources.json"):
-            with open("itemsources.json", "r") as f:
+        if os.path.exists("json_files/itemsources.json"):
+            with open("json_files/itemsources.json", "r") as f:
                 return json.load(f)
         else:
             raise FileNotFoundError("itemsources.json not found.")
 
     @staticmethod
     def save_item_sources():
-        with open("itemsources.json", "w") as f:
+        with open("json_files/itemsources.json", "w") as f:
             json.dump(Items.item_sources, f, indent=2)
 
     @staticmethod
@@ -590,15 +591,15 @@ class Items:
 
     @staticmethod
     def load_player_inventory():
-        if os.path.exists("playerinventory.json"):
-            with open("playerinventory.json", "r") as f:
+        if os.path.exists("json_files/playerinventory.json"):
+            with open("json_files/playerinventory.json", "r") as f:
                 return json.load(f)
         else:
             return {}
     
     @staticmethod
     def save_player_inventory():
-        with open("playerinventory.json", "w") as f:
+        with open("json_files/playerinventory.json", "w") as f:
             json.dump(Items.player_inventory, f, indent=2)
 
     @staticmethod
@@ -654,6 +655,8 @@ class Items:
             item_data = Items.item_sources[index]
             item_name = item_data[0] # Item name is at index 0
             item_price = item_data[2] # Item price/value is at index 2
+            
+            print(f"Item price: {item_price}") 
 
             if Bank.read_balance(user_id=user_id)["cash"] >= item_price: # Use >= for sufficient funds
                 Items.addtoitems(user_id=user_id, item_name=item_name) # Pass the string name
@@ -712,90 +715,241 @@ class Items:
         Items.save_player_inventory()
         return True
         
+    @staticmethod
+    def generate_user_specific_item(user_id: str, item_index: int, value_effect):
+        item_name = ""
+        letters = ['a', 'b', 'c', 'd', 'e', 'f', 'g',
+                       'h', 'i', 'j', 'k', 'l', 'm', 'n',
+                       'o', 'p', 'q', 'r', 's', 't', 'u',
+                       'v', 'w', 'x', 'y', 'z']
 
+
+        for letter in letters:
+            item_name += letters[((random.randint(0, item_index) + random.randint(0, 26)) % 26) - 1]
+            print(((random.randint(0, item_index) + random.randint(0, 26)) % 26) - 1)
+            if random.randint(0, random.randint(1, 8)) == 7:
+                break
+                            
+        Items.create_source(item_name, True, value_effect, f"{user_id}'s {Items.item_sources[item_index][0]}")
+        Items.addtoitems(user_id, item_name)
+        Items.save_item_sources()
+        Items.save_player_inventory()
         
 
+class Offshore:
+    
+    DATA_PATH = "json_files/offshore.json"
+    balances = [] 
 
-# # --- Test Section ---
-# # Clean up previous data for consistent testing
-# print("--- Cleaning up previous data ---")
-# # for f in ["balance.json", "incomesources.json", "playerincomes.json", "itemsources.json", "playerinventory.json"]:
-# #     if os.path.exists(f):
-# #         os.remove(f)
-# #         print(f"Removed {f}")
+    # Balances will be stored as follows: [key (lets things interact with it), interest, startbalance, lastupdate]
+    # The amount of money in the balance will be calculated as a geometric series
+    # The amount of money will be calculated everytime we update the account whether it be by withdrawing or depositing
+    # The amount of interest will be calculated based on this formula: 1 + 9log_10(balance)days / 20 so that an account with 10K for 10 years will yield a 10% interest rate
+    # The interest can never reduce
 
-# # print("\n--- Initial Bank State ---")
-# Bank.addcash("5000", 1000) # Start with some cash for user 5000
-# # Bank.addbank("1234", 1000) # Start with some bank for user 1234
-# # print(Bank.read_balance("1234"))
-# # print(Bank.read_balance("5000"))
+    @staticmethod
+    def load_balances():
+        if os.path.exists(Offshore.DATA_PATH):
+            with open(Offshore.DATA_PATH, "r") as f:
+                Offshore.balances = json.load(f)
+        else:
+            Offshore.balances = []
 
-# # print("\n--- Income Source Setup ---")
-# # Income.create_sources()
-# Income.create_source("Mining", False, 50, 5, False) # Fixed income, cash, 5 sec cooldown
-# Income.create_source("Stocks", True, 0.01, 10, True) # 1% interest, bank, 10 sec cooldown
-# # Income.create_source("MagicIncome", False, 100, 7, False) # New income for Magic Orb
+    @staticmethod
+    def save_balances():
+        if os.path.exists(Offshore.DATA_PATH):
+            with open(Offshore.DATA_PATH, "w") as f:
+                json.dump(Offshore.balances, f, indent=2)
 
-# # print("\n--- Item Source Setup ---")
-# # Items.create_item_sources()
-# # # Note: 'value_or_effect' for Pickaxe is 500 (its price)
-# Items.create_source("Pickaxe", False, 500, "A tool for mining.", "Mining", "Miner", None, None) 
-# # Items.create_source("Magic Orb", True, "Grants wisdom", "A mysterious orb that glows.", "MagicIncome", None, None, None) 
-# Items.create_source("Normal Item", False, "No special effect", "Just a regular item.", None, None, None, None) # No associated income
+    @staticmethod
+    def calculate_interest(account: list) -> float:
+        if len(account) < 4:
+            print("ERROR: malformed offshore bank account")
+            print(account)
+            return -1
 
-# # print("\n--- Verify Income Sources ---")
-# # print(f"Mining index: {Income.get_source_index_by_name('Mining')}")
-# # print(f"Stocks index: {Income.get_source_index_by_name('Stocks')}")
-# # print(f"MagicIncome index: {Income.get_source_index_by_name('MagicIncome')}")
+        days = (time.time() - account[3]) // 86400
+        print(days)
+        amount = account[2]
+        print(amount)
+        log_amount = log(amount, 10)
+        print(log_amount)
+        log_days = log(days, 10) + 1 if days > 0 else 1
+        print(log_days)
+        multiplier = 9 / 20
 
-# # print("\n--- Verify Item Sources ---")
-# # # Check the full data including the associated income source name
-# # print(f"Pickaxe source data: {Items.item_sources[Items.get_item_source_index_by_name('Pickaxe')]}")
-# # print(f"Magic Orb source data: {Items.item_sources[Items.get_item_source_index_by_name('Magic Orb')]}")
-# # print(f"Normal Item source data: {Items.item_sources[Items.get_item_source_index_by_name('Normal Item')]}")
+        print(log_days * log_amount * multiplier)
+        return log_days * log_amount * multiplier
+
+    @staticmethod
+    def calculate_balance(account: list) -> float:
+        if len(account) < 4:
+            print("ERROR: malformed offshore bank account")
+            print(account)
+            return -1
+        
+        multiplier = 1 + account[1] / 100
+        return account[2] * pow(multiplier, (time.time() - account[3]) / 86400)
+
+    @staticmethod
+    def generate_account(user_id: str, balance: float) -> str:
+        
+        Items.generate_user_specific_item(user_id, Items.get_item_source_index_by_name("Offshore bank account"), balance)
+        balanceKey = Items.item_sources[len(Items.item_sources)-1][0]
+        interest = log(balance, 10) / 2
+
+        Offshore.balances.append([balanceKey, interest, balance, time.time()]) 
+        Offshore.save_balances()
+        Items.save_player_inventory()
+        Items.save_item_sources()
+        return balanceKey
+
+    @staticmethod
+    def update_account(index: int):
+        
+        account = Offshore.balances[index]
+        print(f"Updating account: {account}")
+
+        if len(account) < 4:
+            print("Error: malformed offshore bank account")
+            print(account)
+            return
+
+        interest = Offshore.calculate_interest(account)
+        
+        if account[1] <= interest: account[1] = interest
+        account[3] = time.time()
+        
+        Offshore.balances[index] = account
+        Offshore.save_balances()
+    
+    @staticmethod
+    def get_index_from_key(key: str) -> int:
+        balance = ([], 0)
+
+        i = 0
+        for account in Offshore.balances:
+            if account[0] == key:
+                balance = (account, i)
+                break
+            i += 1
+        
+
+        if len(balance[0]) < 4:
+            print("Error: malformed offshore bank account")
+            print(balance)
+            return -1
+
+        return i
 
 
-# # print("\n--- Buying Items (and triggering associated incomes) ---")
-# # # Get the index of Pickaxe dynamically for buying
-# pickaxe_index = Items.get_item_source_index_by_name("Pickaxe")
-# if pickaxe_index != -1:
-#     Items.buyitem(user_id="5000", index=pickaxe_index) # User 5000 buys Pickaxe
-# else:
-#     print("Pickaxe not found, skipping buyitem test.")
+    @staticmethod
+    def withdraw(key: str, amount: float, user_id: str):
 
-# # Items.addtoitems("1234", "Magic Orb") # This should also add "MagicIncome" to user 1234
-# # Items.addtoitems("5000", "Normal Item") # This should only add the item, no income
+        balance = ([], 0)
+        i = 0
 
-# # print("\n--- Player Incomes (After Item Additions) ---")
-# # Income.playerincomes = Income.loadincomes() # Ensure it's loaded from file
-# # print(Income.playerincomes)
+        print(f"withdraw amount: {amount}")
 
-# # print("\n--- Player Inventory (After Additions) ---")
-# # Items.player_inventory = Items.load_player_inventory() # Ensure it's loaded from file
-# # print(Items.player_inventory)
+        for account in Offshore.balances:
+            if account[0] == key:
+                balance = (account, i)
+                break
+            i += 1
+        
+        print(f"INDEX: {i}")
 
-# # print("\n--- Collecting Incomes ---")
-# # Income.collectincomes("5000") # Should collect from Mining
-# # Income.collectincomes("1234") # Should collect from MagicIncome
+        if len(balance[0]) < 4:
+            print("Error malformed offshore bank account")
+            print(balance)
+            return
 
-# # print("\n--- Balances After Initial Collection Attempts ---")
-# # print(Bank.read_balance("1234"))
-# # print(Bank.read_balance("5000"))
+        print(f"START BALANCE: {balance}")
+        balance[0][2] -= amount
+        Bank.addbank(user_id, amount)
+        Items.player_inventory[balance[0][0]] = balance[0][2]
+        Offshore.balances[i] = balance[0]
+        print(f"END BALANCE: {balance}")
+        Offshore.update_account(i)
+        Offshore.save_balances()
+        
+    @staticmethod
+    def deposit(key: str, amount: float, user_id: str):
+        balance = ([], 0)
+        i = 0
+        
+        print(f"deposit  amount: {amount}")
 
-# # # Wait for cooldown to pass for "Mining" (5 seconds) and "MagicIncome" (7 seconds)
-# # print("\n--- Waiting for cooldown on incomes (7 seconds) ---")
-# # time.sleep(7) 
+        for account in Offshore.balances:
+            if account[0] == key:
+                balance = (account, i)
+                break
+            i += 1
+        
+        print(i)
 
-# # print("\n--- Collecting Incomes (After Cooldown) ---")
-# Income.collectincomes("5000") # Mining should now collect again
-# # Income.collectincomes("1234") # MagicIncome should now collect again
+        if len(balance[0]) < 4:
+            print("Error: malformed offshore bank account")
+            print(balance)
+            return
 
-# # print("\n--- Balances After Second Collection Attempts ---")
-# # print(Bank.read_balance("1234"))
-# # print(Bank.read_balance("5000"))
+        print(f"START BALANCE: {balance}") 
+        balance[0][2] += amount
+        Bank.addbank(user_id, -amount)
+        Items.player_inventory[balance[0][0]] = balance[0][2]
+        print(f"END BALANCE: {balance}")
+        Offshore.update_account(balance[1]) 
 
-# # print("\n--- Reading Player Items ---")
-# # print(f"User 5000's Pickaxe index: {Items.read_item_index('5000', 'Pickaxe')}")
-# # print(f"User 1234's Magic Orb index: {Items.read_item_index('1234', 'Magic Orb')}")
-# # print(f"User 5000's inventory: {Items.get_user_items('5000')}")
-# # print(f"User 1234's inventory: {Items.get_user_items('1234')}")
+    @staticmethod
+    def get_data_from_key(key: str):
+        balance = []
+
+        for account in Offshore.balances:
+            if account[0] == key:
+                balance = account
+
+        return balance
+
+    @staticmethod
+    def get_user_keys(user_id: str):
+        keys = []
+
+        for item in Items.get_user_items(user_id):
+            #print(f"ITEM: {Items.get_user_items(user_id)[item]}")
+            index = Items.get_user_items(user_id)[item]
+            if Items.item_sources[index][1] == False:
+                print("Continuing")
+                continue
+            
+            for account in Offshore.balances:
+                #print(item)
+                #print(account[0])
+                if item == account[0]:
+                    keys.append(account[0])
+        
+        #print(f"KEYS: {keys}")
+        return keys
+
+    @staticmethod
+    def get_accounts_from_keys(keys: list):
+        accounts = []
+
+        for key in keys: accounts.append(Offshore.get_data_from_key(key))
+        return accounts
+
+    @staticmethod
+    def update_accounts_from_keyes(keys: list):
+        for key in keys:
+            print(f"key updating: {key}")
+            Offshore.update_account(Offshore.get_index_from_key(key))
+
+Items.item_sources = Items.load_item_sources()
+Items.player_inventory = Items.load_player_inventory()
+Offshore.load_balances()
+print(f" USER 1234 KEYS: {Offshore.get_user_keys("1234")}")
+print(f" USER 1234 DATA: {Offshore.get_accounts_from_keys(Offshore.get_user_keys("1234"))}")
+print(f" USER 1234 INDEX of 'ig': {Offshore.get_index_from_key('ig')}")
+print(f" 'ig' balance: {Offshore.calculate_balance(Offshore.get_data_from_key('ig'))}")
+
+print(f" MATERCAN'S KEYS: {Offshore.get_user_keys("777170937682329601")}")
+print(f"CALCULATE INTEREST: {Offshore.calculate_interest(Offshore.get_data_from_key("ig"))}")
