@@ -3,8 +3,6 @@ import discord
 from discord.ext.commands import has_permissions
 from datetime import timedelta
 from discord.ext import commands, tasks
-from discord.utils import get
-from discord import DMChannel, app_commands
 import json
 import os
 import nltk
@@ -13,8 +11,8 @@ import time
 import asyncio
 import sys
 from economy import Bank, Income, Items, Offshore
-from game_logic import Card, Deck, BlackjackGame, CardflipGame, RoulletteGame
-from views_embeds import CommandsView, CooldownsView
+from game_logic import BlackjackGame, CardflipGame, HackingGame 
+from views_embeds import CommandsView, CooldownsView, HackingGameView
 from nltk.corpus import words
 import datetime
 
@@ -32,8 +30,8 @@ english_words.add('mrrrp')
 
 english_words = sorted(english_words)
 
-is_restarting_for_disconnect = False 
-RESTART_FLAG_FILE = "_restarting_flag.tmp" 
+is_restarting_for_disconnect = False
+RESTART_FLAG_FILE = "_restarting_flag.tmp"
 
 can_load_sources = False
 
@@ -42,10 +40,10 @@ user_last_message_timestamps = {}
 
 intents = discord.Intents.all()
 intents.message_content = True
-intents.members = True 
+intents.members = True
 
 bot = commands.Bot(command_prefix='m!', intents=intents)
-bot.remove_command('help') 
+bot.remove_command('help')
 
 # It's good practice to define these at the top or in a config.py
 ONLINE_ROLE_ID = 1383129931541643295 # Role to ping when bot comes online
@@ -61,7 +59,6 @@ print(f"Expected balance.json path: {os.path.join(os.path.dirname(__file__), 'ba
 @bot.command(name='commands', aliases=['help', 'economy'])
 async def display_commands(ctx):
     """Display all available commands and their descriptions"""
-    
     
     view = CommandsView()
 
@@ -178,7 +175,6 @@ async def check_guillotine_cooldown():
         for guild in bot.guilds:
             cooldowns = load_cooldowns()
             guild_id = str(guild.id)
-            checked = False
 
             if guild_id in cooldowns and 'guillotine' in cooldowns[guild_id]:
                 last_used = cooldowns[guild_id]['guillotine']
@@ -518,7 +514,7 @@ async def kill(ctx, member: discord.Member):
     kill_counts[killer_id] += 1
     save_kill_counts()
 
-    if not member in ctx.guild.members:
+    if member not in ctx.guild.members:
         await ctx.send("Member not found. Please try again.")
         return
     
@@ -533,7 +529,7 @@ async def kill(ctx, member: discord.Member):
         else:
             await ctx.send(f"{member.mention} survived... this time.")
         if not any(role.name == "Knife" for role in ctx.author.roles):
-            await ctx.send(f"Unfortunately you don't have a bomb.")
+            await ctx.send("Unfortunately you don't have a bomb.")
         else:
             if random.randint(1, 10) == 1:
                 await member.timeout(duration, reason=f"Killed by {ctx.author}")
@@ -652,8 +648,8 @@ async def stab(ctx, member: discord.Member):
 
     await ctx.send(f"{member.mention}, you've been stabbed!")
     
-    if not "Knife" in Items.get_user_items(str(ctx.author.id)):
-        await ctx.send(f"Unfortunately you don't have a knife.")
+    if "Knife" not in Items.get_user_items(str(ctx.author.id)):
+        await ctx.send("Unfortunately you don't have a knife.")
         return
 
     killer_id = str(ctx.author.id)
@@ -957,7 +953,7 @@ async def removecooldown(ctx, command: str, member: discord.Member):
         if role.name == "mater":
             ishemater = True
     
-    if ishemater == False:
+    if not ishemater:
         await ctx.send("You're not matercan")
         return
 
@@ -1135,7 +1131,7 @@ async def on_message(message):
     has_knife = False
     has_tin = False
  
-    #print(Income.playerincomes.get(user_id))
+    # print(Income.playerincomes.get(user_id))
     
     for source_name, income_details in Income.playerincomes.get(user_id, {}).items():
         if income_details["index"] == Income.get_source_index_by_name("Organized crime") and Bank.read_balance(user_id)["cash"] > 10000 and not message.content.startswith("m!"):
@@ -1184,11 +1180,11 @@ async def on_message(message):
         await ctx.send("Congrats, you paid off your loan")
         Income.playerincomes[user_id]["Loan interest"]["since"] = 0
         Income.saveincomes()
-        #await ctx.send(Income.playerincomes[user_id])
+        # await ctx.send(Income.playerincomes[user_id])
 
-        #Income.collectincomes(user_id)
+        # Income.collectincomes(user_id)
         Bank.addbank(user_id, -60000)
-        #await ctx.send(Bank.read_balance(user_id))
+        # await ctx.send(Bank.read_balance(user_id))
 
         # Safely delete "Loan" income source
         # .pop() with a second argument (like None) will remove the key if it exists,
@@ -1200,8 +1196,8 @@ async def on_message(message):
         
         Income.saveincomes() # Save the updated incomes after deletion
 
-    #if Bank.gettotal(user_id) <= 0 and not message.author.bot:
-        #await take_loan(ctx)
+    # if Bank.gettotal(user_id) <= 0 and not message.author.bot:
+        # await take_loan(ctx)
  
     current_time = message.created_at # message.created_at is a datetime object
 
@@ -1291,7 +1287,7 @@ async def on_message(message):
             else:
                 await ctx.send("You lose!")
                 Bank.addbank(user_id, -random.randrange(1000, 10000))
-                houseometer [member.name] = 0
+                houseometer[member.name] = 0
                 with open('house.json', 'w') as f:
                     json.dump(houseometer, f)
 
@@ -1315,13 +1311,13 @@ async def on_message(message):
             timeoutcount += 1
          
     if timeoutcount > 1:
-            if not ctx.author.bot or user_id == "503720029456695306":
-                # await timeout(ctx, ctx.author, timeoutcount)
-                #await ctx.send("No spamming")
-                pass
+        if ctx.author.bot or user_id != "503720029456695306":
+            # await timeout(ctx, ctx.author, timeoutcount)
+            # await ctx.send("No spamming")
+            pass
 
-    #if timeoutcount == 5: 
-        #await timeout(ctx, user_id, 60)
+    if timeoutcount == 5: 
+        await timeout(ctx, user_id, 60)
 
     message_log[user_id].append(content)
 
@@ -1335,22 +1331,22 @@ async def on_message(message):
     if user_id not in Bank.bank_accounts and not ctx.author.bot:
         Bank.addcash(user_id=user_id, money=100) # Give 100 initial cash
         # Or Bank.bank_accounts[user_id_str] = {"bank": 0, "cash": 100} followed by Bank.save_balances()
-        #await ctx.send(f"Welcome {ctx.author.mention}! Here's your starting cash!")
+        # await ctx.send(f"Welcome {ctx.author.mention}! Here's your starting cash!")
 
     if not ctx.author.bot and user_id in user_last_message_timestamps and len(user_last_message_timestamps[user_id]) >= 2:
         old_message_val = user_last_message_timestamps[user_id][0]
         new_message_val = user_last_message_timestamps[user_id][1]
         time_difference = new_message_val - old_message_val
-        #print(time_difference)
-        #print(f"DEBUG: Types in comparison: old_message_val={type(old_message_val)}, new_message_val={type(new_message_val)}")
+        # print(time_difference)
+        # print(f"DEBUG: Types in comparison: old_message_val={type(old_message_val)}, new_message_val={type(new_message_val)}")
         if time_difference >= datetime.timedelta(seconds=5):
-            #print("Added cash")
+            # print("Added cash")
             Bank.addcash(user_id=user_id, money=random.randrange(10, 100)) 
 
-        #print(old_message_val)
-        #print(new_message_val)
+        # print(old_message_val)
+        # print(new_message_val)
 
-    #print(user_last_message_timestamps)
+    # print(user_last_message_timestamps)
     
     for item_index, item_name in enumerate(Items.get_user_items(str(message.author.id))):
         if message.content.lower() == "!" + item_name.lower():
@@ -1359,17 +1355,8 @@ async def on_message(message):
     if message.content.startswith("m! "):
         message.content = "m!" + message.content[3:]
 
-    try:
-        await bot.process_commands(message)
-    except KeyError:
-        await ctx.send("Incorrect inputs")
-    except ValueError:
-        await ctx.send("Incorrect inputs try again")
-    except:
-        await ctx.send("Something unexpected happend - Most likely command not found")
-        await commands(ctx)
-
-
+    await bot.process_commands(message)
+    
 @bot.command()
 async def typeinallservers(ctx, message: str):
     
@@ -1380,7 +1367,7 @@ async def typeinallservers(ctx, message: str):
                 print(guild.name)
                 if guild.name == "The Official Chesecat Server":
                     print("no n on on on o o no not this server")
-                    #continue
+                    # continue
 
                 anncouncements = discord.utils.get(guild.text_channels, name="anncounements")
                 if not anncouncements:
@@ -1408,7 +1395,7 @@ async def typeinallservers(ctx, message: str):
                         print(f"No permission to send messages in {guild.name}#{anncouncements.name}")
                         for channel in guild.text_channels:
                             if channel.name == "✨-𝔤𝔢𝔫𝔢𝔯𝔞𝔩-✨":
-                                #await channel.send("Make an channel named 'Announcements' goddamnit or everytime my owner says something")
+                                # await channel.send("Make an channel named 'Announcements' goddamnit or everytime my owner says something")
                                 await channel.send("The bot owner has some words for ye:")
                                 await channel.send(message)
             return
@@ -1521,7 +1508,7 @@ async def get_user_rank(ctx, member: discord.Member = None):
 @bot.command(name='balance', aliases=['bal', 'money'])
 async def balance(ctx, member: discord.Member = None):
 
-    if member == None:
+    if member is None:
         target_member = ctx.author
     else:
         target_member = member
@@ -1536,7 +1523,7 @@ async def balance(ctx, member: discord.Member = None):
         ranked_members.append((Bank.gettotal(user_id_str), user_id_str))
 
     ranked_members.sort(key=lambda x: x[0], reverse=True)
-    rank=-1
+    rank = -1
     richens = len(ranked_members)
 
     for i, (money, user_id_str) in enumerate(ranked_members):
@@ -1556,7 +1543,7 @@ async def balance(ctx, member: discord.Member = None):
     # Calculate and display total worth using your gettotal method
     total_worth = Bank.gettotal(user_id)
     embed.add_field(name="✨ Total Worth", value=f"{total_worth:,.2f}", inline=False)
-    embed.add_field(name="Rank", value=f"#{rank}", inline=False)
+    embed.add_field(name="Rank", value=f"#{rank} of {richens}", inline=False)
 
     embed.set_thumbnail(url=target_member.avatar.url if target_member.avatar else None)
     embed.set_footer(text=f"Requested by {ctx.author.display_name}", icon_url=ctx.author.avatar.url if ctx.author.avatar else None)
@@ -1604,7 +1591,7 @@ async def deposit(ctx, money: str="all"):
         money = Bank.read_balance(user_id=user_id)["cash"]
     try:
         money = float(money)
-    except (ValueError) as e:
+    except (ValueError):
         await ctx.send("Invalid cash amount, either type all or a number")
         return
     
@@ -1652,7 +1639,7 @@ async def withdraw(ctx, money: str="all"):
         money = Bank.read_balance(user_id=user_id)["bank"]
     try:
         money = float(money)
-    except (ValueError) as e:
+    except (ValueError):
         await ctx.send("Invalid cash mount, either type all or a number")
         return
 
@@ -1737,7 +1724,7 @@ async def list_income_sources(ctx):
                 value_display = f"**{value}** {'to bank' if goes_to_bank else 'to cash'}."
             
             cooldown_days = int(cooldown // 86400)
-            cooldown_hours = int((cooldown % 86400)// 3600)
+            cooldown_hours = int((cooldown % 86400) // 3600)
             cooldown_minutes = int((cooldown % 3600) // 60)
             cooldown_seconds = (cooldown % 60) 
             
@@ -1771,23 +1758,22 @@ async def offshore_bank_account_command(ctx):
     view = views_embeds.OffshoreView(accounts=my_items)
 
     await ctx.send("You're funds sir/ma'am", view=view)
-    view.message = message
+    view.message = ctx.message
+
 
 @bot.command(name='owithdraw', aliases=['owith', 'owit'])
 async def offshore_bank_account_withdraw(ctx, amount: float, key: str = "1"):
     user_keys = Offshore.get_user_keys(str(ctx.author.id))
     print(user_keys)
     Offshore.update_accounts_from_keyes(user_keys)
-    
     print(user_keys)
-    
     await ctx.message.delete()
 
     if key == "1":
         await ctx.send("Please specify a key")
         await offshore_bank_account_command(ctx)
         return
-    if not key in user_keys:
+    if key not in user_keys:
         await ctx.send("Key not in your offshore keys")
         return
     if amount >= Offshore.get_data_from_key(key)[2]:
@@ -1798,6 +1784,16 @@ async def offshore_bank_account_withdraw(ctx, amount: float, key: str = "1"):
     Offshore.withdraw(key, amount, str(ctx.author.id))
     await ctx.send(f"Withdrew {amount} money")
     await offshore_bank_account_command(ctx)
+
+
+@bot.command(name='oclear')
+async def duplicate_account_buskers(ctx, key: str):
+    account_data = Offshore.get_data_from_key(key)
+    
+    Offshore.generate_account(ctx.author.id, account_data[2])
+    
+    del Offshore.balances[Offshore.get_index_from_key(key)]
+    Offshore.save_balances()
 
 @bot.command(name='odeposit', aliases=['odep'])
 async def offshore_bank_account_deposit(ctx, amount="all", key: str = "1"):
@@ -1810,7 +1806,7 @@ async def offshore_bank_account_deposit(ctx, amount="all", key: str = "1"):
         await ctx.send("Please specify a key")
         await offshore_bank_account_command(ctx)
         return
-    if not key in user_keys:
+    if key not in user_keys:
         await ctx.send("Key not in your offshore keys")
         return
     if amount == "all":
@@ -1828,6 +1824,15 @@ async def offshore_bank_account_deposit(ctx, amount="all", key: str = "1"):
 
     Offshore.deposit(key, amount, str(ctx.author.id))
     await ctx.send(f"Deposited {amount} money")
+    await offshore_bank_account_command(ctx)
+
+@bot.command(name='oupdate', aliases=['oup'])
+async def update_offshore_accounts(ctx):
+    user_id = str(ctx.author.id)
+
+    keys = Offshore.get_user_keys(user_id)
+    Offshore.update_accounts_from_keyes(keys)
+
     await offshore_bank_account_command(ctx)
 
 @bot.command(name='buy-offshore', aliases=['obuy', 'oacc'])
@@ -1887,7 +1892,7 @@ async def display_incomes(ctx):
                 value_display = f"**{value}** {'to bank' if goes_to_bank else 'to cash'}"
             
             cooldown_days = int(cooldown // 86400)
-            cooldown_hours = int((cooldown % 86400)// 3600)
+            cooldown_hours = int((cooldown % 86400) // 3600)
             cooldown_minutes = int((cooldown % 3600) // 60)
             cooldown_seconds = (cooldown % 60) 
 
@@ -1986,6 +1991,7 @@ Slut_respondes = [
     "Your attempt to start a 'furry fashion advice' TikTok account flopped harder than a pancake. You lost ____ on props and frankly, your reputation."
 ]
 
+
 @bot.command(name='slut')
 async def slut(ctx):
     cooldown_msg = check_cooldown(ctx, 'slut')
@@ -1996,13 +2002,13 @@ async def slut(ctx):
     user_id = str(ctx.author.id)
     amount_gained = random.randint(100, 1000)
     
-    message = Slut_respondes[random.randint(0, len(Slut_respondes)-1)]
+    message = Slut_respondes[random.randint(0, len(Slut_respondes) - 1)]
 
     if 'gain' in message:
         Bank.addcash(user_id=user_id, money=amount_gained)
         message = message.replace('____', str(amount_gained))
     else:
-        amount_lost = -Bank.gettotal(user_id=user_id)*random.randint(20, 60)//100
+        amount_lost = -Bank.gettotal(user_id=user_id) * random.randint(20, 60) // 100
         Bank.addcash(user_id=user_id, money=amount_lost)
         message = message.replace('____', str(amount_lost))
 
@@ -2010,7 +2016,7 @@ async def slut(ctx):
             await ctx.send(message)
             await ctx.send("However, due to their good lawyer, the money was dealt with and troubles were sorted out behind the seens")
             
-            if not user_id in crime_success_dict:
+            if user_id not in crime_success_dict:
                 crime_success_dict[user_id] = 0
             
             crime_success_dict[user_id] += 1
@@ -2027,7 +2033,7 @@ async def slut(ctx):
 
     await ctx.send(message)
 
-crime_responses=[
+crime_responses = [
     "You skillfully repossessed a femboy's prized collection of oversized hoodies and managed to gain ____ by selling them as 'vintage couture'!",
     "After a daring midnight raid on a local chicken coop (don't ask why), you made off with enough golden eggs to gain ____. Those foxes taught you well!",
     "Your elaborate scheme to 'borrow' all the squeaky toys from a furry daycare paid off! You expertly fenced them for a clean gain of ____. No one suspected the floofy mastermind.",
@@ -2046,6 +2052,7 @@ crime_responses=[
 ]
 
 crime_success_dict = {}
+
 
 @bot.command(name='crime')
 async def crime(ctx):
@@ -2066,10 +2073,10 @@ async def crime(ctx):
     amount_lost = -user_total * random.randint(20, 40) // 100
     amount_lost = int(amount_lost)
 
-    if not user_id in crime_success_dict:
+    if user_id not in crime_success_dict:
         crime_success_dict[user_id] = 0
 
-    response_message = crime_responses[random.randint(0, len(crime_responses)-1)]
+    response_message = crime_responses[random.randint(0, len(crime_responses) - 1)]
     if 'gain' in response_message or 'Slippery gloves' in Items.get_user_items(user_id):
         if 'gain' in response_message:
             
@@ -2094,7 +2101,7 @@ async def crime(ctx):
         if "A good lawyer" in Items.get_user_items(user_id):
             await ctx.send("However, due to their good lawyer, the money was dealt with and troubles were sorted out behind the seens")
             
-            if not user_id in crime_success_dict:
+            if user_id not in crime_success_dict:
                 crime_success_dict[user_id] = 0
             
             crime_success_dict[user_id] += 1
@@ -2121,13 +2128,14 @@ work_responses = [
     "Your new gig: migrating a femboy's entire productivity workflow from VS Code to Neovim on their Arch Linux setup. It was a harrowing, caffeine-fueled journey, but you successfully completed the task and earned enough to pay off your technical debt."
 ]
 
+
 @bot.command(name='work')
 async def work(ctx):
     """
     Allows a user to work and earn money based on their current total worth.
     Usage: !work
     """
-    
+
     cooldown_msg = check_cooldown(ctx, 'work')
     if cooldown_msg:
         await ctx.send(cooldown_msg)
@@ -2159,7 +2167,7 @@ async def work(ctx):
         earned_amount = random.uniform(mini_earnings, maxi_earnings)
         earned_amount = int(earned_amount) # Convert to an integer for currency
 
-        message = work_responses[random.randint(1, len(work_responses)-1)] + f"You gain {earned_amount}"
+        message = work_responses[random.randint(1, len(work_responses) - 1)] + f"You gain {earned_amount}"
     # Add the earned cash to the user's balance
     Bank.addcash(user_id=user_id_str, money=earned_amount) # Corrected parameter name to user_id
 
@@ -2269,7 +2277,7 @@ async def rob(ctx, target: discord.Member):
     user_id_str = str(ctx.author.id)
     target_id_str = str(target.id)
 
-    if not user_id_str in crime_success_dict:
+    if user_id_str not in crime_success_dict:
         crime_success_dict[user_id_str] = 0
 
     amount_gained = random.randint(80, 90) * Bank.read_balance(target_id_str)["cash"] // 100
@@ -2299,7 +2307,7 @@ async def rob(ctx, target: discord.Member):
         if "A good lawyer" in Items.get_user_items(user_id_str):
             await ctx.send("However, due to their good lawyer, the money was dealt with and troubles were sorted out behind the seens")
             
-            if not user_id_str in crime_success_dict:
+            if user_id_str not in crime_success_dict:
                 crime_success_dict[user_id_str] = 0
             
             crime_success_dict[user_id_str] += 1
@@ -2339,7 +2347,7 @@ async def rob_bank(ctx):
         color=discord.Color.red()
     )
 
-    if not user_id_str in crime_success_dict:
+    if user_id_str not in crime_success_dict:
         crime_success_dict[user_id_str] = 0
 
     embed.add_field(name="🏦 Bank total", value=f"{Bank.get_bank_total():,.2f}", inline=False)
@@ -2347,14 +2355,14 @@ async def rob_bank(ctx):
 
     embed.set_thumbnail(url=ctx.author.avatar.url)
 
-    if not user_id_str in crime_success_dict:
+    if user_id_str not in crime_success_dict:
         crime_success_dict[user_id_str] = 0
 
     Bank.rob_bank(user_id_str, 20, 60, 40)
     new_money = Bank.gettotal(user_id_str)
     if new_money - current_cash > 0:
         embed.add_field(name="Robbery successful",
-                         value=f"{ctx.author.display_name} robbed the bank for {new_money-current_cash:,.2f}",
+                         value=f"{ctx.author.display_name} robbed the bank for {new_money - current_cash:,.2f}",
                          inline=False)
         await ctx.send(embed=embed)
 
@@ -2379,9 +2387,9 @@ async def rob_bank(ctx):
 
             
 
-        Bank.addcash(user_id_str, random.randint(20, 40) * current_cash // -100) if not "A good lawyer" in Items.get_user_items(user_id_str) else Bank.addcash(user_id_str, 1)
+        Bank.addcash(user_id_str, random.randint(20, 40) * current_cash // -100) if "A good lawyer" not in Items.get_user_items(user_id_str) else Bank.addcash(user_id_str, 1)
         embed.add_field(name="Robbery unsuccessful",
-                        value=f"{ctx.author.display_name} lost {new_money-current_cash:,.2f} after being caught by the police",
+                        value=f"{ctx.author.display_name} lost {new_money - current_cash:,.2f} after being caught by the police",
                         inline=False)
         await ctx.send(embed=embed)
     
@@ -2529,7 +2537,7 @@ async def guillotine(ctx):
     money_gained_by_saviour = saviour_total_wealth_after - saviour_total_wealth_before
 
     embed.add_field(
-        name=f"💰 Your personal gain from the revolution:",
+        name="💰 Your personal gain from the revolution:",
         value=f"You gained `{money_gained_by_saviour:,.2f}`!",
         inline=False
     )
@@ -2606,7 +2614,7 @@ async def list_items(ctx):
             cash_emoji = ['💸', '🏦', '💰', '💶', '💵']
 
             embed.add_field(
-                name=f"{name} " + cash_emoji[random.randint(0, len(cash_emoji)-1)],
+                name=f"{name} " + cash_emoji[random.randint(0, len(cash_emoji) - 1)],
                 value=value_display,
                 inline=False
             )
@@ -2644,7 +2652,7 @@ async def buy_item(ctx, *, item: str):
 
     try:
         cost = float(item_data[2])
-    except ValueError as e:
+    except ValueError:
         await ctx.send("This item cannot be acquired from the store - I don't actually know why it's in there")
         return
 
@@ -2702,21 +2710,21 @@ async def display_inventory(ctx):
     for item, i in enumerate(inventory_data):
         item_data = Items.item_sources[Items.get_item_source_index_by_name(i)]
         embed.add_field(name=item_data[0],
-                        value=item_data[3] + " " + item_emoji[random.randint(0, len(item_emoji)-1)],
+                        value=item_data[3] + " " + item_emoji[random.randint(0, len(item_emoji) - 1)],
                         inline=False)
 
     field_emoji = []
     for field in embed.fields:
         print(field)
-        emoji = field.__getattribute__("value")[len(field.__getattribute__("value"))-1]
+        emoji = field.__getattribute__("value")[len(field.__getattribute__("value")) - 1]
         print(emoji)
         field_emoji.append(emoji)
 
     for i in range(len(field_emoji)):
         if len(field_emoji) < 2: break
-        if field_emoji[i-1] == field_emoji[i] and field_emoji[i-1] == field_emoji[i-2]: pass
-            #await ctx.send("Congrats you got 3 emojis in a row \n gain 5000")
-            #Bank.addcash(user_id_str, 5000)
+        if field_emoji[i - 1] == field_emoji[i] and field_emoji[i - 1] == field_emoji[i - 2]: pass
+        # await ctx.send("Congrats you got 3 emojis in a row \n gain 5000")
+        # Bank.addcash(user_id_str, 5000)
 
     embed.set_thumbnail(url='https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcTYjkNcpGalEIy9SRBVj8IO8YjAxOgtnR8uAg&s')
 
@@ -2852,7 +2860,7 @@ async def take_loan(ctx):
 
     Income.saveincomes()
 
-    #await ctx.send(Income.collectincomes(user_id_str))
+    # await ctx.send(Income.collectincomes(user_id_str))
     
  
     await ctx.send("Taken out loan of Value 50,000")
@@ -3026,7 +3034,7 @@ async def blackjack_command(ctx: commands.Context, bet: str = "all"): # Changed 
             bet = Bank.read_balance(player_id_str)["cash"]
         else:
             bet = int(bet)
-    except:
+    except ValueError:
         await ctx.send("This isn't an integer, you can only bet whole numbers")
         return
 
@@ -3048,14 +3056,14 @@ async def blackjack_command(ctx: commands.Context, bet: str = "all"): # Changed 
     game = BlackjackGame()
     game.deal_initial_hands()
     
-    #await ctx.send("Blackjack initalised or something")
-    #await ctx.send(str(game.player_hand))
-    #await ctx.send(str(game.dealer_hand))
+    # await ctx.send("Blackjack initalised or something")
+    # await ctx.send(str(game.player_hand))
+    # await ctx.send(str(game.dealer_hand))
 
     # 4. Create the Interactive View
     view = BlackjackView(game, ctx.author.id, bet) # Pass ctx.author.id
     
-    #await ctx.send("Blackjack view intialised or something")
+    # await ctx.send("Blackjack view intialised or something")
 
     # 5. Check for immediate game over conditions (e.g., Blackjack on deal)
     if game.is_game_over:
@@ -3089,7 +3097,7 @@ async def card_flip_command(ctx, bet: str = "all"):
             bet = Bank.read_balance(player_id_str)["cash"]
         else:
             bet = int(bet)
-    except:
+    except ValueError:
         ctx.send("Please input a valid amount of cash")
         return
 
@@ -3119,13 +3127,13 @@ async def card_flip_command(ctx, bet: str = "all"):
     dealer_hand_str = str(game.dealer_card)
 
     embed.add_field(name="Bet", value=f"${bet}", inline=False)
-    embed.add_field(name=f"Your hand", value=player_hand_str, inline=False)
+    embed.add_field(name="Your hand", value=player_hand_str, inline=False)
     await ctx.send(embed=embed)
     await ctx.send("Revealing dealer's hand in 3 seconds")
     
     await asyncio.sleep(3)
     
-    embed.add_field(name=f"Dealer's hand", value=dealer_hand_str, inline=False)
+    embed.add_field(name="Dealer's hand", value=dealer_hand_str, inline=False)
     
     print("DEBUG: we've goten here so far")
     # Determine and display winner
@@ -3146,6 +3154,30 @@ async def card_flip_command(ctx, bet: str = "all"):
 
     await ctx.send(embed=embed)
     
+@bot.command(name='hackr', aliases=['hk'])
+async def hacker_command(ctx):
+    game = HackingGame(6, 200)
+    embed = views_embeds.create_hacking_embed(game)
+    view = HackingGameView(ctx.author.id, True, game) 
+    await ctx.send("If you win this one, you gain a key to an offshore bank account", embed=embed, view=view) 
+
+@bot.command(name='predictor', aliases=['pd'])
+async def predictor_command(ctx, bet="all"):
+
+    if bet == "all":
+        bet = Bank.read_balance(str(ctx.author.id))["cash"]
+    else:
+        try:
+            bet = float(bet)
+        except ValueError:
+            await ctx.send("Invalid bet sucker")
+            return
+
+    game = HackingGame(12, 200)
+    print(game) 
+    embed = views_embeds.create_hacking_embed(game=game)
+    view = HackingGameView(ctx.author.id, False, game, bet=bet)
+    await ctx.send(f"If you win this one you get {bet}", embed=embed, view=view)
 
 @bot.command(name='remove-bank-account', aliases=['rm-b'])
 async def removeaccount(ctx):

@@ -1,9 +1,5 @@
 import random
 
-from nltk.toolbox import TreeBuilder
-
-
-
 class Card:
     def __init__(self, suit, rank) -> None:
         self.suit = suit
@@ -50,7 +46,7 @@ class Card:
                 "7": "🃗",
                 "8": "🃘",
                 "9": "🃙",
-                "10":"🃚",
+                "10": "🃚",
                 "J": "🃛",
                 "Q": "🃜",
                 "K": "🃝"
@@ -99,7 +95,7 @@ class Card:
 
 class Deck:
     def __init__(self):
-        self.cards=[]
+        self.cards = []
         self.build()
 
     def build(self):
@@ -229,16 +225,16 @@ class RoulletteGame:
         self.is_game_over = False
         self.ball = -1
         self.winning_number = -1
-        self._wheel_numbers =  [
+        self._wheel_numbers = [
             0, 32, 15, 19,
-           4, 21, 2, 25,
-           17, 34, 6, 27,
-           13, 36, 11, 30,
-           8, 23, 10, 5, 
-           24, 16, 33, 1,
-           20, 14, 31, 9,
-           22, 18, 29, 7,
-           28, 12, 35, 3, 26]
+            4, 21, 2, 25,
+            17, 34, 6, 27,
+            13, 36, 11, 30,
+            8, 23, 10, 5, 
+            24, 16, 33, 1,
+            20, 14, 31, 9,
+            22, 18, 29, 7,
+            28, 12, 35, 3, 26]
         
         self.winning_color = ""
 
@@ -350,3 +346,84 @@ class RoulletteGame:
         self.winning_number = -1
         self.winning_color = ""
 
+class HackingGame:
+    def __init__(self, questionAmount, requiredScore):
+        self.questionAmount = questionAmount
+        self.requiredScore = requiredScore
+        self.scoreAcquired = 0
+        self.questionsCompleted = 0
+        print("DEBUG: hacking game attributes assigned")
+        print([self.questionAmount, self.questionsCompleted, self.scoreAcquired, self.requiredScore])
+    
+    # This game will be simple, a user can bet on a certain amount of events for the cards to be drawn to
+    # The rarity of said event will then determine the points gained
+    # If the user has the required score and hasn't depleted all of their questions, they win, or else they lose
+
+    def determine_winner(self) -> str:
+        if self.questionsCompleted > self.questionAmount:
+            return "The player lost! Ran out of questions"
+        elif self.scoreAcquired >= self.requiredScore:
+            return "The player wins! got the required score"
+        else:
+            return "Continue"
+
+    def question_IsNumber(self) -> str:
+        deck = Deck()
+
+        deck.shuffle()
+        print(deck.deal())
+        card = deck.deal()
+        
+        if isinstance(card.get_value(), int) and 2 <= card.get_value() < 10 or "10" in str(card):
+            self.scoreAcquired += 14
+            self.questionsCompleted += 1 
+            return f"Card: {str(card)} was a number. {self.determine_winner()}"
+        else:
+            self.questionsCompleted += 1 
+            return f"Card: {str(card)} not a number. {self.determine_winner()}"
+                
+    def question_IsFaceCard(self) -> str:
+        deck = Deck()
+
+        deck.shuffle()
+        print(deck.deal())
+
+        card = deck.deal()
+        if not isinstance(card.get_value(), int) and 2 <= card.get_value() < 10 and "ace" not in str(card).lower():
+            self.scoreAcquired += 43
+            self.questionsCompleted += 1
+            return f"card: {str(card)} was a face card. {self.determine_winner()}"
+        else:
+            self.questionsCompleted += 1
+            return f"card: {str(card)} was not a face card. {self.determine_winner()}"
+
+    def question_IsCard(self, cardPicked: str) -> str:
+        deck = Deck()
+
+        deck.shuffle()
+        print(deck.deal())
+
+        card = deck.deal()
+        if cardPicked in str(card):
+            self.scoreAcquired += 130
+            self.questionsCompleted += 1
+            return f"card: {str(card)} was indeed your guess. {self.determine_winner()}"
+        else:
+            self.questionCompleted += 1
+            return f"card: {str(card)} was not your guess. {self.determine_winner()}"
+
+    def question_IsSuit(self, suitPicked: str) -> str:
+        deck = Deck()
+
+        deck.shuffle()
+        print(deck.deal())
+
+        card = deck.deal()
+        if suitPicked in str(card):
+            self.scoreAcquired += 32.5
+            self.questionsCompleted += 1
+
+            return f"card: {str(card)} was indeed you guess. {self.determine_winner()}"
+        else:
+            self.questionsCompleted += 1
+            return f"card: {str(card)} was unforunately not your guess. {self.determine_winner()}"

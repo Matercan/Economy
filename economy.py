@@ -14,7 +14,7 @@ class Bank:
         if os.path.exists(Bank._DATA_FILE): # Use the absolute path
             with open(Bank._DATA_FILE, "r") as f:
                 try:
-                   Bank.bank_accounts = json.load(f)
+                    Bank.bank_accounts = json.load(f)
                 except json.JSONDecodeError:
                     print(f"Error reading {Bank._DATA_FILE}: File might be empty or corrupted. Initializing empty.")
                     Bank.bank_accounts = {}
@@ -118,9 +118,7 @@ class Bank:
         
         if random.uniform(0, 100) < successchance:
             print("Succeeded")
-
-            user_account = Bank.read_balance(user_id)
-            
+ 
             percentstolen = random.uniform(min_percent, max_percent) / 100
             amount_stolen = int(percentstolen * banktotal)
 
@@ -669,7 +667,7 @@ class Items:
         except (TypeError, IndexError) as e: # Catch IndexError if index is out of bounds
             # Check if the error is due to non-numeric price
             if isinstance(e, TypeError) and (isinstance(item_price, str) or item_price is None):
-                 print(f"Item '{item_name}' does not have a valid numeric pricetag (value was {item_price}).")
+                print(f"Item '{item_name}' does not have a valid numeric pricetag (value was {item_price}).")
             else:
                 print(f"An error occurred while buying item at index {index}: {e}")
                 print(f"Debug: Item source data might be malformed at index {index}. Current item_sources length: {len(Items.item_sources)}")
@@ -795,7 +793,7 @@ class Offshore:
     def generate_account(user_id: str, balance: float) -> str:
         
         Items.generate_user_specific_item(user_id, Items.get_item_source_index_by_name("Offshore bank account"), balance)
-        balanceKey = Items.item_sources[len(Items.item_sources)-1][0]
+        balanceKey = Items.item_sources[len(Items.item_sources) - 1][0]
         interest = log(balance, 10) / 2
 
         Offshore.balances.append([balanceKey, interest, balance, time.time()]) 
@@ -915,19 +913,19 @@ class Offshore:
         keys = []
 
         for item in Items.get_user_items(user_id):
-            #print(f"ITEM: {Items.get_user_items(user_id)[item]}")
+            # print(f"ITEM: {Items.get_user_items(user_id)[item]}")
             index = Items.get_user_items(user_id)[item]
-            if Items.item_sources[index][1] == False:
+            if not Items.item_sources[index][1]:
                 print("Continuing")
                 continue
             
             for account in Offshore.balances:
-                #print(item)
-                #print(account[0])
+                # print(item)
+                # print(account[0])
                 if item == account[0]:
                     keys.append(account[0])
         
-        #print(f"KEYS: {keys}")
+        # print(f"KEYS: {keys}")
         return keys
 
     @staticmethod
@@ -942,14 +940,3 @@ class Offshore:
         for key in keys:
             print(f"key updating: {key}")
             Offshore.update_account(Offshore.get_index_from_key(key))
-
-Items.item_sources = Items.load_item_sources()
-Items.player_inventory = Items.load_player_inventory()
-Offshore.load_balances()
-print(f" USER 1234 KEYS: {Offshore.get_user_keys("1234")}")
-print(f" USER 1234 DATA: {Offshore.get_accounts_from_keys(Offshore.get_user_keys("1234"))}")
-print(f" USER 1234 INDEX of 'ig': {Offshore.get_index_from_key('ig')}")
-print(f" 'ig' balance: {Offshore.calculate_balance(Offshore.get_data_from_key('ig'))}")
-
-print(f" MATERCAN'S KEYS: {Offshore.get_user_keys("777170937682329601")}")
-print(f"CALCULATE INTEREST: {Offshore.calculate_interest(Offshore.get_data_from_key("ig"))}")
