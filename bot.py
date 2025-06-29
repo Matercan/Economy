@@ -11,8 +11,8 @@ import time
 import asyncio
 import sys
 from economy import Bank, Income, Items, Offshore
-from game_logic import BlackjackGame, CardflipGame 
-from views_embeds import CommandsView, CooldownsView
+from game_logic import BlackjackGame, CardflipGame, HackingGame 
+from views_embeds import CommandsView, CooldownsView, HackingGameView
 from nltk.corpus import words
 import datetime
 
@@ -59,7 +59,6 @@ print(f"Expected balance.json path: {os.path.join(os.path.dirname(__file__), 'ba
 @bot.command(name='commands', aliases=['help', 'economy'])
 async def display_commands(ctx):
     """Display all available commands and their descriptions"""
-    
     
     view = CommandsView()
 
@@ -3155,6 +3154,30 @@ async def card_flip_command(ctx, bet: str = "all"):
 
     await ctx.send(embed=embed)
     
+@bot.command(name='hackr', aliases=['hk'])
+async def hacker_command(ctx):
+    game = HackingGame(6, 200)
+    embed = views_embeds.create_hacking_embed(game)
+    view = HackingGameView(ctx.author.id, True, game) 
+    await ctx.send("If you win this one, you gain a key to an offshore bank account", embed=embed, view=view) 
+
+@bot.command(name='predictor', aliases=['pd'])
+async def predictor_command(ctx, bet="all"):
+
+    if bet == "all":
+        bet = Bank.read_balance(str(ctx.author.id))["cash"]
+    else:
+        try:
+            bet = float(bet)
+        except ValueError:
+            await ctx.send("Invalid bet sucker")
+            return
+
+    game = HackingGame(12, 200)
+    print(game) 
+    embed = views_embeds.create_hacking_embed(game=game)
+    view = HackingGameView(ctx.author.id, False, game, bet=bet)
+    await ctx.send(f"If you win this one you get {bet}", embed=embed, view=view)
 
 @bot.command(name='remove-bank-account', aliases=['rm-b'])
 async def removeaccount(ctx):

@@ -352,6 +352,8 @@ class HackingGame:
         self.requiredScore = requiredScore
         self.scoreAcquired = 0
         self.questionsCompleted = 0
+        print("DEBUG: hacking game attributes assigned")
+        print([self.questionAmount, self.questionsCompleted, self.scoreAcquired, self.requiredScore])
     
     # This game will be simple, a user can bet on a certain amount of events for the cards to be drawn to
     # The rarity of said event will then determine the points gained
@@ -370,15 +372,15 @@ class HackingGame:
 
         deck.shuffle()
         print(deck.deal())
-        
         card = deck.deal()
-        if str(card.get_value()) in str(card):
+        
+        if isinstance(card.get_value(), int) and 2 <= card.get_value() < 10 or "10" in str(card):
             self.scoreAcquired += 14
-            self.questionAmount += 1
-            return f"card: {str(card)} was a number. {self.determine_winner()}"    
+            self.questionsCompleted += 1 
+            return f"Card: {str(card)} was a number. {self.determine_winner()}"
         else:
-            self.questionAmount += 1
-            return f"card: {str(card)} not a number. {self.determine_winner()}"    
+            self.questionsCompleted += 1 
+            return f"Card: {str(card)} not a number. {self.determine_winner()}"
                 
     def question_IsFaceCard(self) -> str:
         deck = Deck()
@@ -387,12 +389,12 @@ class HackingGame:
         print(deck.deal())
 
         card = deck.deal()
-        if str(card.get_value()) not in str(card) and str(card).lower() != "ace":
+        if not isinstance(card.get_value(), int) and 2 <= card.get_value() < 10 and "ace" not in str(card).lower():
             self.scoreAcquired += 43
-            self.questionAmount += 1
+            self.questionsCompleted += 1
             return f"card: {str(card)} was a face card. {self.determine_winner()}"
         else:
-            self.questionAmount += 1
+            self.questionsCompleted += 1
             return f"card: {str(card)} was not a face card. {self.determine_winner()}"
 
     def question_IsCard(self, cardPicked: str) -> str:
@@ -404,23 +406,24 @@ class HackingGame:
         card = deck.deal()
         if cardPicked in str(card):
             self.scoreAcquired += 130
-            self.questionAmount += 1
+            self.questionsCompleted += 1
             return f"card: {str(card)} was indeed your guess. {self.determine_winner()}"
         else:
-            self.questionAmount += 1
+            self.questionCompleted += 1
             return f"card: {str(card)} was not your guess. {self.determine_winner()}"
 
-    def question_IsRank(self, rankPicked: str) -> str:
+    def question_IsSuit(self, suitPicked: str) -> str:
         deck = Deck()
 
         deck.shuffle()
         print(deck.deal())
 
         card = deck.deal()
-        if rankPicked in str(card):
+        if suitPicked in str(card):
             self.scoreAcquired += 32.5
-            self.questionAmount += 1
+            self.questionsCompleted += 1
+
             return f"card: {str(card)} was indeed you guess. {self.determine_winner()}"
         else:
-            self.questionAmount += 1
+            self.questionsCompleted += 1
             return f"card: {str(card)} was unforunately not your guess. {self.determine_winner()}"
