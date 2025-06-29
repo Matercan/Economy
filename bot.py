@@ -15,6 +15,7 @@ from game_logic import BlackjackGame, CardflipGame, HackingGame
 from views_embeds import CommandsView, CooldownsView, HackingGameView
 from nltk.corpus import words
 import datetime
+import math
 
 import views_embeds
 
@@ -1093,8 +1094,9 @@ async def toggle_spellcheck(ctx):
 
 @bot.event
 async def on_message(message):
+    
 
-    if "general" in message.channel.name:
+    if "general" in message.channel.name and not message.content.startswith("m!"):
         return
 
     user_id = str(message.author.id)
@@ -2216,7 +2218,6 @@ async def leaderboard(ctx):
         total_wealth = cash + bank
 
         try:
-            # Convert user_id_str to int before fetching member
             member = await ctx.guild.fetch_member(int(user_id_str))
             name = member.display_name if member else f"Unknown User ({user_id_str})" # Show ID if user not found/left
             
@@ -2235,7 +2236,6 @@ async def leaderboard(ctx):
                 value=f"Total: `{total_wealth:,.2f}` (Cash: `{cash:,.2f}`, Bank: `{bank:,.2f}`)",
                 inline=False # Each member gets their own line
             )
-        # --- FIX 3: Catch ValueError for int() conversion, and ensure discord.NotFound is caught ---
         except (discord.NotFound, ValueError) as e:
             # This handles cases where user_id might be invalid or the member has left the guild
             print(f"Could not fetch member for user_id {user_id_str}: {e}") # Log the error
@@ -2260,7 +2260,6 @@ async def leaderboard(ctx):
             )
             continue 
     
-    # --- FIX 4: Add await to ctx.send() ---
     await ctx.send(embed=embed)
 
 @bot.command(name='rob', aliases=['steal', 'yoink'])
@@ -2321,6 +2320,81 @@ async def rob(ctx, target: discord.Member):
         Bank.addcash(user_id_str, amount_lost)
         crime_success_dict[user_id_str] = 0
         await balance(ctx)
+
+@bot.command(name='followerboard', aliases=['poorest', 'follower'])
+async def followerboard(ctx):
+    # Ensure bank accounts are loaded before accessing them directly
+    # Bank.read_balance() does this implicitly, but it's good to be sure if you manipulate Bank.bank_accounts directly
+    Bank.read_balance() 
+
+    embed = discord.Embed(
+        title="💰 The Poverty-stricken Members", # Capitalized "Richest" for better title
+        description="The most poorest, dumbest members of this economy!", # Slightly rephrased description
+        color=discord.Color.green()
+    )
+
+    # --- FIX 1 & 2: Correct sorting key and unpacking ---
+    # Sort by the sum of 'cash' and 'bank' values in the nested dictionary
+    # x[0] is user_id, x[1] is the {'bank': X, 'cash': Y} dictionary
+    sorted_members = sorted(
+        Bank.bank_accounts.items(), 
+        key=lambda x: x[1].get("cash", 0) + x[1].get("bank", 0), # Use .get() for safety
+        reverse=False
+    )
+
+    for i, (user_id_str, account_data) in enumerate(sorted_members, 1):
+        if i > 10: # Only show top 10
+            break
+
+        # Extract cash and bank from the unpacked account_data dictionary
+        cash = account_data.get("cash", 0)
+        bank = account_data.get("bank", 0)
+        total_wealth = cash + bank
+
+        try:
+            member = await ctx.guild.fetch_member(int(user_id_str))
+            name = member.display_name if member else f"Unknown User ({user_id_str})" # Show ID if user not found/left
+            
+            # Determine medal emoji
+            if i == 1:
+                medal = "🥇"
+            elif i == 2:
+                medal = "🥈"
+            elif i == 3:
+                medal = "🥉"
+            else:
+                medal = "💎" # Using a different emoji for ranks 4-10
+            
+            embed.add_field(
+                name=f"{medal} #{Bank.get_accounts_total() - i} {name}", # Combine medal, rank, and name in the name field
+                value=f"Total: `{total_wealth:,.2f}` (Cash: `{cash:,.2f}`, Bank: `{bank:,.2f}`)",
+                inline=False # Each member gets their own line
+            )
+        except (discord.NotFound, ValueError) as e:
+            # This handles cases where user_id might be invalid or the member has left the guild
+            print(f"Could not fetch member for user_id {user_id_str}: {e}") # Log the error
+
+            member = await bot.fetch_user(int(user_id_str))
+            name = member.name
+
+            # Determine medal emoji
+            if i == 1:
+                medal = "🥇"
+            elif i == 2:
+                medal = "🥈"
+            elif i == 3:
+                medal = "🥉"
+            else:
+                medal = "💎" # Using a different emoji for ranks 4-10
+
+            embed.add_field(
+                name=f"{medal} #{Bank.get_accounts_total() - i} {name}",
+                value=f"Total: `{total_wealth:,.2f}` (Cash: `{cash:,.2f}`, Bank: `{bank:,.2f}`)",
+                inline=False
+            )
+            continue 
+    
+    await ctx.send(embed=embed)
 
 @bot.command()
 async def slap(ctx, member: discord.Member):
@@ -3162,7 +3236,7 @@ async def hacker_command(ctx):
     await ctx.send("If you win this one, you gain a key to an offshore bank account", embed=embed, view=view) 
 
 @bot.command(name='predictor', aliases=['pd'])
-async def predictor_command(ctx, bet="all"):
+async def predictor_command(ctx, difficulty=1,bet="all"):
 
     if bet == "all":
         bet = Bank.read_balance(str(ctx.author.id))["cash"]
@@ -3173,7 +3247,7 @@ async def predictor_command(ctx, bet="all"):
             await ctx.send("Invalid bet sucker")
             return
 
-    game = HackingGame(12, 200)
+    game = HackingGame(int(10 * math.sqrt(difficulty)), int(100 * math.sqrt(difficulty)))
     print(game) 
     embed = views_embeds.create_hacking_embed(game=game)
     view = HackingGameView(ctx.author.id, False, game, bet=bet)

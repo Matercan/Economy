@@ -56,19 +56,19 @@ async def send_gambling_commands_embed(interaction: discord.Interaction):
     )
 
     embed.add_field(
-        name="Blackjack <amount>",
+        name="m!Blackjack <amount>",
         value="Score more than the dealer or have the dealer bust to earn money \ntyping no amount will make you bet all of the cash you have on you so be careful",
         inline=False
     )
     
     embed.add_field(
-        name="cardflip <amount>",
+        name="m!cardflip <amount>",
         value="Get a card with higher value than the dealer to win. \ntping no amount will make you bet all of the cash you have on you so be careful",
         inline=False
     )
 
     embed.add_field(
-        name="hacker",
+        name="m!hackr",
         value="Predict the attribute of the dealer's card to win. If you do, you will earn a key to one of our richest members' offshore bank accounts \ntyping no amount will bet all the cash you have so be careful",
         inline=False
     )
