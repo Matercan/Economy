@@ -1827,6 +1827,15 @@ async def offshore_bank_account_deposit(ctx, amount="all", key: str = "1"):
     await ctx.send(f"Deposited {amount} money")
     await offshore_bank_account_command(ctx)
 
+@bot.command(name='oupdate', aliases=['oup'])
+async def update_offshore_accounts(ctx):
+    user_id = str(ctx.author.id)
+
+    keys = Offshore.get_user_keys(user_id)
+    Offshore.update_accounts_from_keyes(keys)
+
+    await offshore_bank_account_command(ctx)
+
 @bot.command(name='buy-offshore', aliases=['obuy', 'oacc'])
 async def purchase_offshore_bank_account(ctx):
     """

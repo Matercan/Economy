@@ -1,6 +1,5 @@
-from aiohttp import TraceConnectionQueuedEndParams
 import discord
-from game_logic import BlackjackGame, RoulletteGame
+from game_logic import BlackjackGame, HackingGame
 from economy import Income, Items, Bank, Offshore
 import time, os, json
 
@@ -652,7 +651,7 @@ class OffshoreView(discord.ui.View):
 
         i = 0
         for account_data in accounts: 
-            button_label = f"Account {i+1}" 
+            button_label = f"Account {i + 1}" 
             
             print(i)
 
@@ -681,7 +680,7 @@ class OffshoreView(discord.ui.View):
         button = discord.ui.Button(
             label="Bank account",
             style=discord.ButtonStyle.secondary,
-            row = 0,
+            row=0,
             custom_id="Bank"
         )
         
@@ -689,10 +688,9 @@ class OffshoreView(discord.ui.View):
         self.add_item(button)
 
     async def handle_button_click(self, interaction: discord.Interaction):
-        # CORRECTED TYPO: cliked_custom_id -> clicked_custom_id
         clicked_custom_id = interaction.data["custom_id"]
 
-        if not clicked_custom_id in Items.get_user_items(str(interaction.user.id)):
+        if clicked_custom_id not in Items.get_user_items(str(interaction.user.id)):
             await interaction.response.send_message("This is not your bank account to read", ephemeral=True)
             return
        
@@ -709,7 +707,7 @@ class OffshoreView(discord.ui.View):
             ranked_members.append((Bank.gettotal(user_id_str), user_id_str))
 
         ranked_members.sort(key=lambda x: x[0], reverse=True)
-        rank=-1
+        rank = -1
         richens = len(ranked_members)
 
         for i, (money, user_id_str) in enumerate(ranked_members):
@@ -728,16 +726,129 @@ class OffshoreView(discord.ui.View):
         # Calculate and display total worth using your gettotal method
         total_worth = Bank.gettotal(user_id)
         embed.add_field(name="✨ Total Worth", value=f"{total_worth:,.2f}", inline=False)
-        embed.add_field(name="Rank", value=f"#{rank}", inline=False)
+        embed.add_field(name="Rank", value=f"#{rank} of {richens}", inline=False)
 
         embed.set_thumbnail(url=interaction.user.avatar.url if interaction.user.avatar else None)
         await interaction.response.send_message(ephemeral=False, embed=embed)
 
-    async def on_timeout(self) -> None:
+    async def on_timeout(self, interaction: discord.Interaction) -> None:
         for item in self.children:
             item.disabled = True
         if self.message:
-            # CORRECTED TYPO: Content -> content
-            await self.message.edit(content="Buttons Timed out.", view=self)
+            await interaction.response.edit_original_response(content="Buttons Timed out.", view=self)
 
-     
+def create_hacking_embed(game: HackingGame):
+    embed = discord.Embed(
+        name="🃏 hacking game",
+        description=game.determine_winner()
+    )
+
+    embed.add_field(
+        name="Score",
+        value=f"{game.scoreAcquired} score of {game.requiredScore} required",
+        inline=False
+    )
+
+    embed.add_field(
+        name="Questions",
+        value=f"{game.questionAmount - game.questionsCompleted} questions left",
+        inline=True
+    )
+
+    return embed
+
+
+class HackingGameView(discord.ui.View):
+    def __init__(self, player_id: int, for_key: bool, game: HackingGame):
+        super().__init__(timeout=100)
+        self.message = None
+        self.game = game
+        self.player_id = player_id
+
+        for rank in ['hearts', 'diamonds', 'clubs', 'spades']:
+            button_label = rank
+            button_style = discord.ButtonStyle.primary
+            button_id = rank
+            button_row = 1
+            
+            button = discord.ui.Button(
+                label=button_label,
+                style=button_style,
+                custom_id=button_id,
+                row=button_row
+            )
+
+            button.callback = self 
+            self.add_item(button)
+
+            
+
+
+    def disable_buttons(self):
+        for item in self.children:
+            if isinstance(item, discord.ui.Button):
+                item.disabled = True
+
+    # Called when the view times out
+    async def on_timeout(self):
+        self.disable_buttons()
+        # Optionally, notify the user or edit the message
+        if self.message:
+            try:
+                await self.message.edit(content="Your Blackjack game timed out.", view=self)
+            except discord.HTTPException:
+                pass # Message might have been deleted
+        print("DEBUG: Timed out")
+
+    @discord.ui.button(label="Is it a number?", style=discord.ButtonStyle.success)
+    async def number_button(self, interaction: discord.Interaction, button: discord.ui.Button):
+        if interaction.user.id != self.player.id:
+            await interaction.response.send_message("This isn't your game!", ephemeral=True)
+            return
+
+        await interaction.response.defer()
+        
+        response = self.game.question_IsNumber() 
+        embed = create_hacking_embed(self.game)
+        await interaction.response.edit_original_response(response, embed=embed, view=self)
+        await interaction.response.send_message("Or type what rank the card will be.")
+
+        if "player wins" in response.lower():
+            self.disable_buttons()
+        elif "player lost" in response.lower():
+            self.disable_buttons()
+
+    @discord.ui.button(label="Is it a face card?", style=discord.ButtonStyle.danger)
+    async def face_card_Button(self, interaction: discord.Interaction, button: discord.ui.Button):
+        if interaction.user.id != self.player_id:
+            await interaction.response.send_message("This isn't your game!", ephemeral=True)
+            return
+
+        embed = create_hacking_embed(self.game)
+        response = self.game.question_IsFaceCard()
+        embed = create_hacking_embed(self.game)
+        await interaction.response.edit_original_response(response, embed=embed, view=self)
+        await interaction.response.send_message("Or type what rank the card will be.")
+        
+        if "player wins" in response.lower():
+            self.disable_buttons()
+        elif "player lost" in response.lower():
+            self.disable_buttons()
+
+    async def handle_rank_guess(self, interaction: discord.Interaction):
+        clicked_id = interaction.data["custom_id"]
+
+        if interaction.user.id != self.player_id:
+            await interaction.response.send_message("This isn't your game!", ephemeral=True)
+            return
+        
+        await interaction.response.defer()
+
+        response = self.game.question_IsRank(clicked_id)
+        embed = create_hacking_embed(self.game)
+        await interaction.response.edit_original_response(response, embed=embed, view=self)
+    
+        if "player wins" in response.lower():
+            self.disable_buttons()
+        elif "player lost" in response.lower():
+            self.disable_buttons()
