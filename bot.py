@@ -2056,11 +2056,7 @@ crime_success_dict = {}
 
 @bot.command(name='crime')
 async def crime(ctx):
-    global crime_success_dict
     print(crime_success_dict)
-
-    if not crime_success_dict:
-        crime_success_dict = {}
 
     cooldown_msg = check_cooldown(ctx, 'crime')
     if cooldown_msg:
@@ -2260,7 +2256,6 @@ async def leaderboard(ctx):
 
 @bot.command(name='rob', aliases=['steal', 'yoink'])
 async def rob(ctx, target: discord.Member):
-    global crime_success_dict
     print(crime_success_dict)
 
     cooldown_msg = check_cooldown(ctx, 'rob')
