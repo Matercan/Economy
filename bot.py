@@ -1759,7 +1759,7 @@ async def offshore_bank_account_command(ctx):
 
     view = views_embeds.OffshoreView(accounts=my_items)
 
-    await ctx.send("You're funds sir/ma'am", view=view)
+    await ctx.send("Your funds sir/ma'am", view=view)
     view.message = ctx.message
 
 
@@ -2550,17 +2550,9 @@ async def guillotine(ctx):
     # Get sorted members to identify the richest
     # Ensure bank accounts are loaded for the sort
     Bank.read_balance() # This ensures Bank.bank_accounts is up-to-date
-    sorted_members = sorted(
-        Bank.bank_accounts.items(),
-        key=lambda x: x[1].get("cash", 0) + x[1].get("bank", 0),
-        reverse=True
-    )
+   
 
-    if not sorted_members:
-        await ctx.send("There are no accounts to guillotine!")
-        return
-
-    richest_user_id_str, richest_account_data = sorted_members[0]
+    richest_user_id_str, richest_account_data = (Bank.get_richest_user_id(), Bank.read_balance(Bank.get_richest_user_id()))
 
     richest_cash = richest_account_data.get("cash", 0)
     richest_bank = richest_account_data.get("bank", 0)
