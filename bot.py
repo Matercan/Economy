@@ -166,7 +166,6 @@ async def on_ready():
                 print(f"{member.name} ({member.display_name}, {member.id}) ")
 
 async def check_guillotine_cooldown():
-    global is_restarting_for_disconnect
     await bot.wait_until_ready()
     while not bot.is_closed():
 
