@@ -2059,7 +2059,8 @@ async def crime(ctx):
     global crime_success_dict
     print(crime_success_dict)
 
-    
+    if not crime_success_dict:
+        crime_success_dict = {}
 
     cooldown_msg = check_cooldown(ctx, 'crime')
     if cooldown_msg:
@@ -2291,11 +2292,7 @@ async def rob(ctx, target: discord.Member):
             await ctx.send("Due to the impressive amount of crimes you have succeeded in a row, criminals flock to you with you as their boss (check m!in)")
         if 'Slippery gloves' in Items.get_user_items(user_id_str):
             Items.removefromitems(user_id_str, 'Slipery gloves', 1)
-
-
     else:
-        
-
         await ctx.send(f"You were caught and pay {amount_lost} as fine")
         
         if "A good lawyer" in Items.get_user_items(user_id_str):
