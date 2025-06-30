@@ -471,7 +471,6 @@ async def on_disconnect():
     Event that fires when the bot disconnects from Discord.
     Handles saving data and sending the 'bot offline' ping, unless restarting.
     """
-    global is_restarting_for_disconnect # Access the global flag
 
     print("Bot disconnected.")
     
