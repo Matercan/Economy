@@ -647,13 +647,13 @@ def OffshoreEmbed(account: list):
 
     account[2] = Offshore.calculate_balance(account)
 
-    days = f"{(timespan % 86400) // 86400:.0f}d " if timespan > 86400 else ""
-    hours = f"{(timespan % 3600) // 3600:.0f}h " if (timespan % 3600) // 3600 != 0 else ""
-    minutes = f"{(timespan % 60) // 60:.0f}m " if (timespan % 60) // 60 != 0 else ""
+    days = f"{(timespan // 86400):.0f}d " if timespan > 86400 else ""
+    hours = f"{(timespan % 86400) // 3600:.0f}h " if (timespan % 86400) // 3600 != 0 else ""
+    minutes = f"{(timespan % 3600) // 60:.0f}m " if (timespan % 3600) // 60 != 0 else ""
 
     embed.add_field(
         name="Information",
-        value=f"balance: {account[2]:,.0f} \ninterest: {account[1]:.1f}% per day \nduration: {days + hours + minutes}",
+        value=f"balance: ${account[2]:,.0f} \ninterest: {account[1]:.1f}% per day \nduration: {days + hours + minutes}",
         inline=False
     )
 
@@ -740,12 +740,12 @@ class OffshoreView(discord.ui.View):
             title=f"{interaction.user.display_name}'s Balance",
             color=discord.Color.blue()
         )
-        embed.add_field(name="💰 Cash", value=f"{cash:,.2f}", inline=False)
-        embed.add_field(name="🏦 Bank", value=f"{bank:,.2f}", inline=False)
+        embed.add_field(name="💰 Cash", value=f"${cash:,.2f}", inline=False)
+        embed.add_field(name="🏦 Bank", value=f"${bank:,.2f}", inline=False)
         
         # Calculate and display total worth using your gettotal method
         total_worth = Bank.gettotal(user_id)
-        embed.add_field(name="✨ Total Worth", value=f"{total_worth:,.2f}", inline=False)
+        embed.add_field(name="✨ Total Worth", value=f"${total_worth:,.2f}", inline=False)
         embed.add_field(name="Rank", value=f"#{rank} of {richens}", inline=False)
 
         embed.set_thumbnail(url=interaction.user.avatar.url if interaction.user.avatar else None)

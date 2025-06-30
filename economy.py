@@ -427,7 +427,7 @@ class Income():
                         user_cash_balance = Bank.read_balance(user_id).get("cash", 0)
                         amount_gained = user_cash_balance * value
                         Bank.addcash(user_id, amount_gained) # Pass user_id
-                        collection_messages.append(f"✅ Collected `{amount_gained:,.2f}` (Interest) to bank from '{source_name_key}'!")
+                        collection_messages.append(f"✅ Collected `${amount_gained:,.2f}` (Interest) to bank from '{source_name_key}'!")
                     else: 
                         Bank.addcash(user_id, value) # Pass user_id
                         collection_messages.append(f"✅ Collected `{value:,.2f}` cash from '{source_name_key}'!")
@@ -437,7 +437,7 @@ class Income():
                         user_bank_balance = Bank.read_balance(user_id).get("bank", 0)
                         amount_gained = user_bank_balance * value
                         Bank.addbank(user_id, amount_gained) # Pass user_id
-                        collection_messages.append(f"✅ Collected `{amount_gained:,.2f}` (Interest) to bank from '{source_name_key}'!")
+                        collection_messages.append(f"✅ Collected `${amount_gained:,.2f}` (Interest) to bank from '{source_name_key}'!")
                     else: # Assume value is a fixed amount for bank
                         Bank.addbank(user_id, value) # Pass user_id
                         collection_messages.append(f"✅ Collected `{value:,.2f}` to bank from '{source_name_key}'!")

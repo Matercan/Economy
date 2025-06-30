@@ -1500,7 +1500,7 @@ async def get_user_rank(ctx, member: discord.Member = None):
         await ctx.send(
             f"{target_member.display_name}'s rank: **#{rank}** "
             f"out of {total_members_with_balance} members with a balance. "
-            f"Total money: {target_money:,.2f}"
+            f"Total money: ${target_money:,.2f}"
         )
     else:
         await ctx.send(f"{target_member.display_name} does not have a recorded balance yet.")
@@ -1539,12 +1539,12 @@ async def balance(ctx, member: discord.Member = None):
         title=f"{target_member.display_name}'s Balance",
         color=discord.Color.blue()
     )
-    embed.add_field(name="💰 Cash", value=f"{cash:,.2f}", inline=False)
-    embed.add_field(name="🏦 Bank", value=f"{bank:,.2f}", inline=False)
+    embed.add_field(name="💰 Cash", value=f"${cash:,.2f}", inline=False)
+    embed.add_field(name="🏦 Bank", value=f"${bank:,.2f}", inline=False)
     
     # Calculate and display total worth using your gettotal method
     total_worth = Bank.gettotal(user_id)
-    embed.add_field(name="✨ Total Worth", value=f"{total_worth:,.2f}", inline=False)
+    embed.add_field(name="✨ Total Worth", value=f"${total_worth:,.2f}", inline=False)
     embed.add_field(name="Rank", value=f"#{rank} of {richens}", inline=False)
 
     embed.set_thumbnail(url=target_member.avatar.url if target_member.avatar else None)
@@ -1563,7 +1563,7 @@ async def economy_stats_display(ctx):
 
     embed.add_field(
         name="Total tracked wealth (in the bank)",
-        value=f"{Bank.get_bank_total():,.2f}",
+        value=f"${Bank.get_bank_total():,.2f}",
         inline=False
     )
 
@@ -1575,7 +1575,7 @@ async def economy_stats_display(ctx):
 
     embed.add_field(
         name="GDP per capita",
-        value=f"{Bank.get_bank_total() // Bank.get_accounts_total():,.2f}",
+        value=f"${Bank.get_bank_total() // Bank.get_accounts_total():,.2f}",
         inline=False
     )
 
@@ -1607,7 +1607,7 @@ async def deposit(ctx, money: str="all"):
         color=discord.Color.blue()
     )
 
-    embed.set_footer(text=f"deposited {money:,.2f} cash to bank", icon_url=ctx.author.avatar.url if ctx.author.avatar else None)
+    embed.set_footer(text=f"deposited ${money:,.0f} cash to bank", icon_url=ctx.author.avatar.url if ctx.author.avatar else None)
 
     await ctx.send(embed=embed)
 
@@ -1655,7 +1655,7 @@ async def withdraw(ctx, money: str="all"):
         color=discord.Color.blue()
     )
 
-    embed.set_footer(text=f"withdrew {money:,.2f} from bank to cash", icon_url=ctx.author.avatar.url if ctx.author.avatar else None)
+    embed.set_footer(text=f"withdrew ${money:,.0f} from bank to cash", icon_url=ctx.author.avatar.url if ctx.author.avatar else None)
 
     await ctx.send(embed=embed)
 
@@ -1679,8 +1679,6 @@ async def give(ctx, member: discord.Member, money: float):
         Bank.addcash(user_id=target_id, money=money)
         Bank.addcash(user_id=user_id, money=-money)
         await ctx.send(f"{member.display_name} has recieved your money")
-        await balance(ctx, member=member)
-        await balance(ctx, member=ctx.author)
         
     except (KeyError) as e:
         print(f"An error occurred in !give command: {e}") # Log the actual error for debugging
@@ -1784,7 +1782,7 @@ async def offshore_bank_account_withdraw(ctx, amount: float, key: str = "1"):
 
 
     Offshore.withdraw(key, amount, str(ctx.author.id))
-    await ctx.send(f"Withdrew {amount} money")
+    await ctx.send(f"Withdrew ${amount}")
     await offshore_bank_account_command(ctx)
 
 
@@ -1825,7 +1823,7 @@ async def offshore_bank_account_deposit(ctx, amount="all", key: str = "1"):
         
 
     Offshore.deposit(key, amount, str(ctx.author.id))
-    await ctx.send(f"Deposited {amount} money")
+    await ctx.send(f"Deposited ${amount}")
     await offshore_bank_account_command(ctx)
 
 @bot.command(name='oupdate', aliases=['oup'])
@@ -1850,7 +1848,7 @@ async def purchase_offshore_bank_account(ctx):
         return
 
     Bank.addbank(user_id, -1e6)
-    await ctx.send(views_embeds.OffshoreEmbed(Offshore.get_data_from_key(Offshore.generate_account(user_id, 1e6))))
+    await ctx.send(embed=views_embeds.OffshoreEmbed(Offshore.get_data_from_key(Offshore.generate_account(user_id, 1e6))), ephemeral=True)
      
 
 
@@ -1891,7 +1889,7 @@ async def display_incomes(ctx):
             if is_interest:
                 value_display = f"**{value * 100:,.2f}%** interest on your {'bank' if goes_to_bank else 'cash'}"
             else:
-                value_display = f"**{value}** {'to bank' if goes_to_bank else 'to cash'}"
+                value_display = f"**${value}** {'to bank' if goes_to_bank else 'to cash'}"
             
             cooldown_days = int(cooldown // 86400)
             cooldown_hours = int((cooldown % 86400) // 3600)
@@ -2169,7 +2167,7 @@ async def work(ctx):
         earned_amount = random.uniform(mini_earnings, maxi_earnings)
         earned_amount = int(earned_amount) # Convert to an integer for currency
 
-        message = work_responses[random.randint(1, len(work_responses) - 1)] + f"You gain {earned_amount}"
+        message = work_responses[random.randint(1, len(work_responses) - 1)] + f"You gain ${earned_amount}"
     # Add the earned cash to the user's balance
     Bank.addcash(user_id=user_id_str, money=earned_amount) # Corrected parameter name to user_id
 
@@ -2199,9 +2197,6 @@ async def leaderboard(ctx):
         color=discord.Color.green()
     )
 
-    # --- FIX 1 & 2: Correct sorting key and unpacking ---
-    # Sort by the sum of 'cash' and 'bank' values in the nested dictionary
-    # x[0] is user_id, x[1] is the {'bank': X, 'cash': Y} dictionary
     sorted_members = sorted(
         Bank.bank_accounts.items(), 
         key=lambda x: x[1].get("cash", 0) + x[1].get("bank", 0), # Use .get() for safety
@@ -2233,7 +2228,7 @@ async def leaderboard(ctx):
             
             embed.add_field(
                 name=f"{medal} #{i} {name}", # Combine medal, rank, and name in the name field
-                value=f"Total: `{total_wealth:,.2f}` (Cash: `{cash:,.2f}`, Bank: `{bank:,.2f}`)",
+                value=f"Total: $`{total_wealth:,.2f}` (Cash: $`{cash:,.2f}`, Bank: $`{bank:,.2f}`)",
                 inline=False # Each member gets their own line
             )
         except (discord.NotFound, ValueError) as e:
@@ -2255,7 +2250,7 @@ async def leaderboard(ctx):
 
             embed.add_field(
                 name=f"{medal} #{i} {name}",
-                value=f"Total: `{total_wealth:,.2f}` (Cash: `{cash:,.2f}`, Bank: `{bank:,.2f}`)",
+                value=f"Total: $`{total_wealth:,.2f}` (Cash: $`{cash:,.2f}`, Bank: $`{bank:,.2f}`)",
                 inline=False
             )
             continue 
@@ -2287,7 +2282,7 @@ async def rob(ctx, target: discord.Member):
         crime_success_dict[user_id_str] += 1
             
 
-        await ctx.send(f"You robbed {target.display_name} for {amount_gained}")
+        await ctx.send(f"You robbed {target.display_name} for ${amount_gained}")
         Bank.addcash(user_id_str, amount_gained)
         Bank.addcash(target_id_str, -amount_gained)
         await balance(ctx)
@@ -2333,9 +2328,6 @@ async def followerboard(ctx):
         color=discord.Color.green()
     )
 
-    # --- FIX 1 & 2: Correct sorting key and unpacking ---
-    # Sort by the sum of 'cash' and 'bank' values in the nested dictionary
-    # x[0] is user_id, x[1] is the {'bank': X, 'cash': Y} dictionary
     sorted_members = sorted(
         Bank.bank_accounts.items(), 
         key=lambda x: x[1].get("cash", 0) + x[1].get("bank", 0), # Use .get() for safety
@@ -2367,7 +2359,7 @@ async def followerboard(ctx):
             
             embed.add_field(
                 name=f"{medal} #{Bank.get_accounts_total() - i} {name}", # Combine medal, rank, and name in the name field
-                value=f"Total: `{total_wealth:,.2f}` (Cash: `{cash:,.2f}`, Bank: `{bank:,.2f}`)",
+                value=f"Total: $`{total_wealth:,.2f}` (Cash: $`{cash:,.2f}`, Bank: $`{bank:,.2f}`)",
                 inline=False # Each member gets their own line
             )
         except (discord.NotFound, ValueError) as e:
@@ -2389,7 +2381,7 @@ async def followerboard(ctx):
 
             embed.add_field(
                 name=f"{medal} #{Bank.get_accounts_total() - i} {name}",
-                value=f"Total: `{total_wealth:,.2f}` (Cash: `{cash:,.2f}`, Bank: `{bank:,.2f}`)",
+                value=f"Total: $`{total_wealth:,.2f}` (Cash: $`{cash:,.2f}`, Bank: $`{bank:,.2f}`)",
                 inline=False
             )
             continue 
@@ -2424,7 +2416,7 @@ async def rob_bank(ctx):
     if user_id_str not in crime_success_dict:
         crime_success_dict[user_id_str] = 0
 
-    embed.add_field(name="🏦 Bank total", value=f"{Bank.get_bank_total():,.2f}", inline=False)
+    embed.add_field(name="🏦 Bank total", value=f"${Bank.get_bank_total():,.2f}", inline=False)
     embed.add_field(name="✨ attempted robber", value=f"{ctx.author.display_name}", inline=False)
 
     embed.set_thumbnail(url=ctx.author.avatar.url)
@@ -2436,7 +2428,7 @@ async def rob_bank(ctx):
     new_money = Bank.gettotal(user_id_str)
     if new_money - current_cash > 0:
         embed.add_field(name="Robbery successful",
-                         value=f"{ctx.author.display_name} robbed the bank for {new_money - current_cash:,.2f}",
+                         value=f"{ctx.author.display_name} robbed the bank for ${new_money - current_cash:,.2f}",
                          inline=False)
         await ctx.send(embed=embed)
 
@@ -2455,7 +2447,7 @@ async def rob_bank(ctx):
             Bank.addbank(user_id_str, -10000)
             crime_success_dict[user_id_str] += 1
 
-            if crime_success_dict[user_id_str] == 5:
+            if crime_success_dict[user_id_str] == 3:
                 await ctx.send("A good of criminals flock to you")
                 Income.addtoincomes(user_id_str, "Organized crime ring leader", 13)
 
@@ -2463,7 +2455,7 @@ async def rob_bank(ctx):
 
         Bank.addcash(user_id_str, random.randint(20, 40) * current_cash // -100) if "A good lawyer" not in Items.get_user_items(user_id_str) else Bank.addcash(user_id_str, 1)
         embed.add_field(name="Robbery unsuccessful",
-                        value=f"{ctx.author.display_name} lost {new_money - current_cash:,.2f} after being caught by the police",
+                        value=f"{ctx.author.display_name} lost ${new_money - current_cash:,.2f} after being caught by the police",
                         inline=False)
         await ctx.send(embed=embed)
     
@@ -2502,22 +2494,22 @@ async def richest_member(ctx):
         
         embed = discord.Embed(
             title="👑 The Richest Member",
-            description=f"Our server's top earner is **{name}**!",
+            description=f"Our economy's top earner is **{name}**!",
             color=discord.Color.gold()
         )
         embed.add_field(
             name="💎 Total Wealth",
-            value=f"`{total_wealth:,.2f}`", # Formatted with comma and 2 decimal places
+            value=f"$`{total_wealth:,.2f}`", # Formatted with comma and 2 decimal places
             inline=False
         )
         embed.add_field(
             name="💵 Cash",
-            value=f"`{cash:,.2f}`",
+            value=f"$`{cash:,.2f}`",
             inline=True
         )
         embed.add_field(
             name="🏦 Bank",
-            value=f"`{bank:,.2f}`",
+            value=f"$`{bank:,.2f}`",
             inline=True
         )
         
@@ -2528,7 +2520,7 @@ async def richest_member(ctx):
         await ctx.send(embed=embed)
 
     except (discord.NotFound, ValueError):
-        await ctx.send(f"Couldn't find the richest member's Discord profile (ID: `{richest_user_id_str}`). They might have left the server.")
+        await ctx.send(f"Couldn't find the richest member's Discord profile (ID: `{richest_user_id_str}`)")
     except Exception as e:
         print(f"An unexpected error occurred in !richest_member: {e}")
         await ctx.send("An error occurred while trying to find the richest member.")
@@ -2576,13 +2568,13 @@ async def guillotine(ctx):
 
     embed.add_field(
         name=f"👑 The Fallen Capitalist: {richest_name}",
-        value=f"They once hoarded a vile wealth of `{richest_total_wealth:,.2f}`",
+        value=f"They once hoarded a vile wealth of $`{richest_total_wealth:,.2f}`",
         inline=False
     )
     
     embed.add_field(
         name=f"✨ The Revolutionary: {ctx.author.display_name}",
-        value=f"With but a value of `{saviour_total_wealth_before:,.2f}`, you guillotined them!",
+        value=f"With but a value of $`{saviour_total_wealth_before:,.2f}`, you guillotined them!",
         inline=False
     )
 
@@ -2604,7 +2596,7 @@ async def guillotine(ctx):
 
     embed.add_field(
         name="💰 Your personal gain from the revolution:",
-        value=f"You gained `{money_gained_by_saviour:,.2f}`!",
+        value=f"You gained $`{money_gained_by_saviour:,.2f}`!",
         inline=False
     )
     
@@ -2655,7 +2647,7 @@ async def list_items(ctx):
             
             try:
                 price = float(value_or_effect)
-                value_display += f"for the low low price of {price:,.0f} "
+                value_display += f"for the low low price of ${price:,.0f} "
             except ValueError:
                 value_display += f"with {value_or_effect} "
             
@@ -2826,67 +2818,6 @@ async def use_item(ctx, item: str, target: discord.Member = None):
         await usebrick(ctx, ctx.author, target=target)
         Items.removefromitems(user_id_str, item[0].capitalize() + item[1:], -1)
 
-@bot.command(name='lastmessagediff', aliases=['lmd', 'msgtime'])
-async def last_message_difference(ctx, member: discord.Member = None):
-    """
-    Shows the time difference between the last two messages of a user.
-    Usage: !lastmessagediff
-           !lastmessagediff @MemberName
-    """
-    target_member = member if member else ctx.author
-    target_user_id = target_member.id
-
-    if target_user_id not in user_last_message_timestamps or \
-       len(user_last_message_timestamps[target_user_id]) < 2:
-        await ctx.send(f"{target_member.display_name} needs to send at least 2 messages for me to calculate the difference.")
-        return
-
-    # Get the last two timestamps
-    oldest_msg_time = user_last_message_timestamps[target_user_id][0]
-    latest_msg_time = user_last_message_timestamps[target_user_id][1]
-
-    # --- DEBUG PRINT: Verify types retrieved from the list ---
-    print(f"DEBUG - !lastmessagediff: Oldest message time: {oldest_msg_time} (Type: {type(oldest_msg_time)})")
-    print(f"DEBUG - !lastmessagediff: Latest message time: {latest_msg_time} (Type: {type(latest_msg_time)})")
-    # --- END DEBUG PRINT ---
-
-    # --- CRITICAL: Ensure both are datetime.datetime objects ---
-    if not isinstance(oldest_msg_time, datetime.datetime) or \
-       not isinstance(latest_msg_time, datetime.datetime):
-        await ctx.send(f"An internal error occurred: Stored message timestamps for {target_member.display_name} are corrupted or not in the expected format (datetime objects). Please try again later or contact the bot developer.")
-        print(f"ERROR: Expected datetime.datetime objects, but found {type(oldest_msg_time)} and {type(latest_msg_time)} for user {target_user_id}. Resetting timestamps for this user.")
-        # Optionally, clear the problematic data for this user to allow it to be re-populated correctly
-        if target_user_id in user_last_message_timestamps:
-            del user_last_message_timestamps[target_user_id]
-        return
-    # --- END CRITICAL ---
-
-    time_difference = latest_msg_time - oldest_msg_time
-
-    # Format the timedelta object into a human-readable string
-    total_seconds = int(time_difference.total_seconds())
-    
-    days = total_seconds // (24 * 3600)
-    total_seconds %= (24 * 3600)
-    hours = total_seconds // 3600
-    total_seconds %= 3600
-    minutes = total_seconds // 60
-    seconds = total_seconds % 60
-
-    time_str_parts = []
-    if days > 0:
-        time_str_parts.append(f"{days} day{'s' if days != 1 else ''}")
-    if hours > 0:
-        time_str_parts.append(f"{hours} hour{'s' if hours != 1 else ''}")
-    if minutes > 0:
-        time_str_parts.append(f"{minutes} minute{'s' if minutes != 1 else ''}")
-    if seconds > 0 or not time_str_parts: # Always show seconds if there's any time, or if everything else is zero
-        time_str_parts.append(f"{seconds} second{'s' if seconds != 1 else ''}")
-
-    time_difference_str = ", ".join(time_str_parts)
-
-    await ctx.send(f"The time difference between {target_member.display_name}'s last two messages was: **{time_difference_str}**.")
-
 @bot.command(name='statuscheck', aliases=['checkstatus'])
 async def check_user_status(ctx, member: discord.Member=None):
     """
@@ -2929,10 +2860,10 @@ async def take_loan(ctx):
 
     Income.saveincomes()
 
-    # await ctx.send(Income.collectincomes(user_id_str))
+    await ctx.send(Income.collectincomes(user_id_str))
     
  
-    await ctx.send("Taken out loan of Value 50,000")
+    await ctx.send("Taken out loan of Value $50,000")
 
 def create_blackjack_embed(game: BlackjackGame, player_id: int, bet_amount: int, show_dealer_full_hand: bool = False):
     print("DEBUG: Inside create_blackjack_embed.") # DEBUG PRINT CB1
