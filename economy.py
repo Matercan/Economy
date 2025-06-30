@@ -145,23 +145,59 @@ class Bank:
             Bank.save_balances()
         else:
             print("Failed")
+    
+    @staticmethod
+    def get_richest_user_id():
+        accounts = Bank.bank_accounts # Assuming this is a dict of user_id to bank balance
+        total_balances = {} # Use a better name for clarity
+
+        for user_id in accounts: # Iterate directly over user_ids
+            try:
+                # Initialize total balance for this user
+                current_user_total = 0
+
+                # 1. Add bank balance
+                current_user_total += Bank.gettotal(user_id)
+
+                # 2. Add offshore balances (if any)
+                user_keys = Offshore.get_user_keys(user_id)
+                if user_keys: # Check if the list is not empty
+                    for key in user_keys:
+                        offshore_data = Offshore.get_data_from_key(key)
+                        if offshore_data is not None and len(offshore_data) > 2: # Ensure data exists and has a balance
+                            current_user_total += offshore_data[2]
+                
+                total_balances[user_id] = current_user_total
+
+            except Exception as e:
+                print(f"DEBUG ERROR for user {user_id}: {e}") # Include user_id for better debugging
+        
+        # Handle case where no accounts exist or all failed
+        if not total_balances:
+            return None # Or raise an exception, or return a default ID
+
+        # Sort by balance (x[1]) in descending order
+        sorted_users = sorted(
+            total_balances.items(),
+            key=lambda x: x[1],  # Sort by the total balance (the value)
+            reverse=True         # Richest first (descending order)
+        )
+        
+        # Return the user_id of the richest user
+        # sorted_users[0] gives the tuple (user_id, balance)
+        # [0] on that tuple gives the user_id
+        richest_user_id = sorted_users[0][0]
+        return richest_user_id
+
+
 
     @staticmethod
     def guillotine():
         Bank.read_balance()
 
-        sorted_bank = sorted(
-            Bank.bank_accounts.items(), 
-            key=lambda x: x[1].get("cash", 0) + x[1].get("bank", 0),
-            reverse=True)
-        
-        if not sorted_bank:
-            print("No bank accounts to guillotine.")
-            return
-
         # 1. Identify the richest and store their total wealth to be distributed
-        richest_user_id_str, richest_account_data = sorted_bank[0]
-        richest_total_wealth_to_distribute = richest_account_data.get("cash", 0) + richest_account_data.get("bank", 0)
+        richest_user_id_str = Bank.get_richest_user_id()
+        richest_total_wealth_to_distribute = Bank.gettotal(richest_user_id_str)
 
         # Handle case where richest has no money to distribute
         if richest_total_wealth_to_distribute <= 0:
@@ -865,11 +901,12 @@ class Offshore:
         print(f"START BALANCE: {balance}")
         balance[0][2] -= amount
         Bank.addbank(user_id, amount)
-        Items.player_inventory[balance[0][0]] = balance[0][2]
+        Items.item_sources[Items.get_item_source_index_by_name(balance[0][0])][2] = balance[0][2]
         Offshore.balances[i] = balance[0]
         print(f"END BALANCE: {balance}")
         Offshore.update_account(i)
         Offshore.save_balances()
+        Items.save_item_sources()
         
     @staticmethod
     def deposit(key: str, amount: float, user_id: str):
@@ -894,9 +931,11 @@ class Offshore:
         print(f"START BALANCE: {balance}") 
         balance[0][2] += amount
         Bank.addbank(user_id, -amount)
-        Items.player_inventory[balance[0][0]] = balance[0][2]
+        Items.item_sources[Items.get_item_source_index_by_name(balance[0][0])][2] = balance[0][2]
         print(f"END BALANCE: {balance}")
         Offshore.update_account(balance[1]) 
+        Offshore.save_balances()
+        Items.save_item_sources()
 
     @staticmethod
     def get_data_from_key(key: str):

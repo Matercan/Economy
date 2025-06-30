@@ -933,15 +933,15 @@ class HackingGameView(discord.ui.View):
     async def handle_player_win(self, interaction: discord.Interaction):
         if self.key_game:
             key = Offshore.balances[random.randint(0, len(Offshore.balances) - 1)]
-            await interaction.response.send_message(f"Congratulations, here is your key: {key}", ephemeral=True)
+            await interaction.followup.send(f"Congratulations, here is your key: {key}", ephemeral=True)
         else:
             Bank.addcash(self.player_id, self.bet)
-            await interaction.response.send_message(f"Congratulations, here is your {self.bet} added to your account")
+            await interaction.followup.send(f"Congratulations, here is your {self.bet} added to your account")
 
     async def handle_player_loss(self, interaction: discord.Interaction):
         if self.key_game:
             amount_lost = Bank.gettotal(self.player_id) * random.randrange(40, 80) / 100
-            await interaction.response.send_message(f"For attempting to hack into the rich's high tech bank accounts, lose {amount_lost}")
+            await interaction.followup.send(f"For attempting to hack into the rich's high tech bank accounts, lose {amount_lost}")
         else:
             Bank.addcash(self.player_id, -self.bet)
-            await interaction.response.send_message(f"You unfortunately lose {-self.bet}")
+            await interaction.followup.send(f"You unfortunately lose {-self.bet}")

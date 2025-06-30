@@ -1361,7 +1361,7 @@ async def on_message(message):
     
 @bot.command()
 async def typeinallservers(ctx, message: str):
-    
+    ctx.message.delete()
     for role in ctx.author.roles:
         if role.name == "mater":
             # get the Announcements channel
@@ -1776,8 +1776,8 @@ async def offshore_bank_account_withdraw(ctx, amount: float, key: str = "1"):
         await offshore_bank_account_command(ctx)
         return
     if key not in user_keys:
-        await ctx.send("Key not in your offshore keys")
-        return
+        await ctx.send("Key not in your offshore keys \ntype oclear then your key  to generate a new account with the same amount of money")
+        # return
     if amount >= Offshore.get_data_from_key(key)[2]:
         await ctx.send("You can't withdraw more money from you're offshore account than you have")
         return
@@ -1809,8 +1809,8 @@ async def offshore_bank_account_deposit(ctx, amount="all", key: str = "1"):
         await offshore_bank_account_command(ctx)
         return
     if key not in user_keys:
-        await ctx.send("Key not in your offshore keys")
-        return
+        await ctx.send("Key not in your offshore keys \nidk why you're giving them money??")
+        # return
     if amount == "all":
         amount = Bank.read_balance(str(ctx.author.id))["bank"]
     else:
@@ -2739,7 +2739,7 @@ async def buy_item(ctx, *, item: str):
     if item_data[7]:
         has_role = False
         for role in ctx.author.roles:
-            if role.name == item_data[7].lower():
+            if role.name.lower() == item_data[7].lower():
                 has_role = True
         if not has_role:
             await ctx.send(f"This item requires role {item_data[7]}")
@@ -2782,23 +2782,26 @@ async def display_inventory(ctx):
     item_emoji = ["🗡️", "⚔️", "🛡️", "💸"]
 
     for item, i in enumerate(inventory_data):
+        print(item)
+        print(i)
         item_data = Items.item_sources[Items.get_item_source_index_by_name(i)]
-        embed.add_field(name=item_data[0],
-                        value=item_data[3] + " " + item_emoji[random.randint(0, len(item_emoji) - 1)],
-                        inline=False)
-
-    field_emoji = []
-    for field in embed.fields:
-        print(field)
-        emoji = field.__getattribute__("value")[len(field.__getattribute__("value")) - 1]
-        print(emoji)
-        field_emoji.append(emoji)
-
-    for i in range(len(field_emoji)):
-        if len(field_emoji) < 2: break
-        if field_emoji[i - 1] == field_emoji[i] and field_emoji[i - 1] == field_emoji[i - 2]: pass
-        # await ctx.send("Congrats you got 3 emojis in a row \n gain 5000")
-        # Bank.addcash(user_id_str, 5000)
+        print(item_data)
+        if not item_data[1]: 
+            embed.add_field(
+                name=item_data[0],
+                value=item_data[3] + " " + item_emoji[random.randint(0, len(item_emoji) - 1)],
+                inline=False)
+        else:
+            print("DEBUG: not user key")
+            print(item_data[2])
+            print(item_data[3])
+            embed.add_field(
+                name=item_data[3],
+                value=str(item_data[2]) + " " + item_emoji[random.randint(0, len(item_emoji) - 1)],
+                inline=False)
+        print("Added field")
+    
+    print(embed.to_dict())
 
     embed.set_thumbnail(url='https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcTYjkNcpGalEIy9SRBVj8IO8YjAxOgtnR8uAg&s')
 
