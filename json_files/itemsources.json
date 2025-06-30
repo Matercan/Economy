@@ -122,7 +122,7 @@
   [
     "tfhk",
     true,
-    1000000.0,
+    510926.8152032712,
     "777170937682329601's Offshore bank account",
     null,
     null,
@@ -134,6 +134,36 @@
     true,
     2000000,
     "727830793493413936's Offshore bank account",
+    null,
+    null,
+    null,
+    null
+  ],
+  [
+    "jizboqcnklpguexzn",
+    true,
+    1000000.0,
+    "777170937682329601's Offshore bank account",
+    null,
+    null,
+    null,
+    null
+  ],
+  [
+    "yoy",
+    true,
+    500041.8045686737,
+    "777170937682329601's Offshore bank account",
+    null,
+    null,
+    null,
+    null
+  ],
+  [
+    "uqgllxlafcwhfssmchtkfehwsj",
+    true,
+    0.4066091748,
+    "606937826587705372's Offshore bank account",
     null,
     null,
     null,

@@ -181,7 +181,7 @@ async def check_guillotine_cooldown():
                 last_used = cooldowns[guild_id]['guillotine']
                 cooldown_time = command_cooldowns.get('guillotine', 86400)
                 
-                # If cooldown has expired
+                # If cooldown has expred
                 if time.time() - last_used >= cooldown_time:
                     reminder_channel = discord.utils.get(guild.text_channels, name="reminders")
                     if reminder_channel:
@@ -1361,7 +1361,7 @@ async def on_message(message):
     
 @bot.command()
 async def typeinallservers(ctx, message: str):
-    ctx.message.delete()
+    await ctx.message.delete()
     for role in ctx.author.roles:
         if role.name == "mater":
             # get the Announcements channel
@@ -1793,6 +1793,8 @@ async def duplicate_account_buskers(ctx, key: str):
     Offshore.generate_account(ctx.author.id, account_data[2])
     
     del Offshore.balances[Offshore.get_index_from_key(key)]
+    Items.removefromitems(str(ctx.author.id), key)
+    del Items.item_sources[Items.get_item_source_index_by_name(key)]
     Offshore.save_balances()
 
 @bot.command(name='odeposit', aliases=['odep'])
@@ -1848,7 +1850,7 @@ async def purchase_offshore_bank_account(ctx):
         return
 
     Bank.addbank(user_id, -1e6)
-    await ctx.send(embed=views_embeds.OffshoreEmbed(Offshore.get_data_from_key(Offshore.generate_account(user_id, 1e6))), ephemeral=True)
+    await offshore_bank_account_command(ctx)
      
 
 
@@ -2744,6 +2746,10 @@ async def buy_item(ctx, *, item: str):
     if item_data[6]:
         # Pass role_name as a keyword argument
         await removerole(ctx, ctx.author, role_name=item_data[6]) 
+    
+    if item_data[0] == "Offshore bank account":
+        purchase_offshore_bank_account(ctx)
+        Bank.addcash(user_id_str, 1e6)
 
     await ctx.send(embed=embed)
 
@@ -2994,7 +3000,14 @@ class BlackjackView(discord.ui.View):
             self.disable_buttons()
             self.is_game_over = True
             self.determine_winner()
-        
+
+            # Determine winner and adjust balance
+            if "Player wins" in self.game.result_message:
+                Bank.addcash(str(self.player_id), self.bet_amount) # Win bet
+            elif "Dealer wins" in self.game.result_message:
+                Bank.addcash(str(self.player_id), -self.bet_amount) # Lose bet
+            # No change for push
+            
         # Update the message with the new hand
         embed = create_blackjack_embed(self.game, self.player_id, self.bet_amount, show_dealer_full_hand=self.game.is_game_over)
         await interaction.edit_original_response(embed=embed, view=self)
@@ -3158,11 +3171,11 @@ async def card_flip_command(ctx, bet: str = "all"):
 async def hacker_command(ctx):
     game = HackingGame(6, 200)
     embed = views_embeds.create_hacking_embed(game)
-    view = HackingGameView(ctx.author.id, True, game) 
+    view = HackingGameView(ctx.author.id, True, game, bot) 
     await ctx.send("If you win this one, you gain a key to an offshore bank account", embed=embed, view=view) 
 
 @bot.command(name='predictor', aliases=['pd'])
-async def predictor_command(ctx, difficulty=1,bet="all"):
+async def predictor_command(ctx, difficulty=1, bet="all"):
 
     if bet == "all":
         bet = Bank.read_balance(str(ctx.author.id))["cash"]
@@ -3176,7 +3189,7 @@ async def predictor_command(ctx, difficulty=1,bet="all"):
     game = HackingGame(int(10 * math.sqrt(difficulty)), int(100 * math.sqrt(difficulty)))
     print(game) 
     embed = views_embeds.create_hacking_embed(game=game)
-    view = HackingGameView(ctx.author.id, False, game, bet=bet)
+    view = HackingGameView(ctx.author.id, False, game, bot, bet=bet)
     await ctx.send(f"If you win this one you get {bet}", embed=embed, view=view)
 
 @bot.command(name='remove-bank-account', aliases=['rm-b'])

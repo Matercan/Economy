@@ -430,7 +430,7 @@ class Income():
                         collection_messages.append(f"✅ Collected `${amount_gained:,.2f}` (Interest) to bank from '{source_name_key}'!")
                     else: 
                         Bank.addcash(user_id, value) # Pass user_id
-                        collection_messages.append(f"✅ Collected `{value:,.2f}` cash from '{source_name_key}'!")
+                        collection_messages.append(f"✅ Collected `${value:,.2f}` cash from '{source_name_key}'!")
                 elif income_destination_type == "bank":
                     # For bank income, if 'is_interest' is true and value is a percentage, calculate it from user's current bank balance
                     if is_interest and value < 1: # Assume value is a percentage (e.g., 0.05 for 5%)
@@ -440,7 +440,7 @@ class Income():
                         collection_messages.append(f"✅ Collected `${amount_gained:,.2f}` (Interest) to bank from '{source_name_key}'!")
                     else: # Assume value is a fixed amount for bank
                         Bank.addbank(user_id, value) # Pass user_id
-                        collection_messages.append(f"✅ Collected `{value:,.2f}` to bank from '{source_name_key}'!")
+                        collection_messages.append(f"✅ Collected `${value:,.2f}` to bank from '{source_name_key}'!")
                 
                 # Update the timestamp in the in-memory playerincomes dictionary
                 details["since"] = time.time() # Correctly update the 'since' key in the details dictionary

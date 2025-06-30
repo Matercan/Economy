@@ -1,14 +1,7 @@
 import discord
-from discord.ext import commands
 from game_logic import BlackjackGame, HackingGame
 from economy import Income, Items, Bank, Offshore
 import time, os, json, random, asyncio
-
-intents = discord.Intents.all()
-intents.message_content = True
-intents.members = True
-
-bot = commands.Bot(command_prefix='m!', intents=intents)
 
 
 class CommandsView(discord.ui.View):
@@ -145,6 +138,18 @@ async def send_economy_commands_embed(interaction: discord.Interaction):
     help_embed.add_field(
         name="m!loan",
         value="Takes out a 50000 loan for the user",
+        inline=False
+    )
+
+    help_embed.add_field(
+        name="m!owith / m!odep [amount] [key]",
+        value="Withdraws or deposits an amount of money from an offshore bank account",
+        inline=False
+    )
+
+    help_embed.add_field(
+        name="m!obuy",
+        value="Creates an offshore bank account",
         inline=False
     )
 
@@ -646,6 +651,7 @@ def OffshoreEmbed(account: list):
     timespan = time.time() - account[3]
 
     account[2] = Offshore.calculate_balance(account)
+    account[3] = Offshore.calculate_interest(account)
 
     days = f"{(timespan // 86400):.0f}d " if timespan > 86400 else ""
     hours = f"{(timespan % 86400) // 3600:.0f}h " if (timespan % 86400) // 3600 != 0 else ""
@@ -751,11 +757,10 @@ class OffshoreView(discord.ui.View):
         embed.set_thumbnail(url=interaction.user.avatar.url if interaction.user.avatar else None)
         await interaction.response.send_message(ephemeral=False, embed=embed)
 
-    async def on_timeout(self, interaction: discord.Interaction) -> None:
+    async def on_timeout(self) -> None:
         for item in self.children:
-            item.disabled = True
-        if self.message:
-            await interaction.edit_original_response(content="Buttons Timed out.", view=self)
+            item.disabled = True 
+            
 
 def create_hacking_embed(game: HackingGame):
     print("Instanced")
@@ -791,13 +796,14 @@ def create_hacking_embed(game: HackingGame):
 
 
 class HackingGameView(discord.ui.View):
-    def __init__(self, player_id: int, for_key: bool, game: HackingGame, bet: float = 0):
+    def __init__(self, player_id: int, for_key: bool, game: HackingGame, bot, bet: float = 0):
         super().__init__(timeout=100)
         self.message = None
         self.game = game
         self.player_id = player_id
         self.key_game = for_key
         self.bet = bet
+        self.bot = bot
 
         for suit in ['Hearts', 'Diamonds', 'Clubs', 'Spades']:
             print(f"{suit} is about to be added")
@@ -892,9 +898,9 @@ class HackingGameView(discord.ui.View):
             return message.author.id == self.user_awaiting_input and message.channel.id == self.channel_awaiting_input
 
         try:
-            user_message = await bot.wait_for('message', check=check, timeout=30)
+            user_message = await self.bot.wait_for('message', check=check, timeout=30)
             
-            response = self.game.question_IsCard(user_message)
+            response = self.game.question_IsCard(user_message.content)
             embed = create_hacking_embed(self.game)
             await interaction.edit_original_response(content=response, embed=embed, view=self)
             

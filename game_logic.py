@@ -360,7 +360,7 @@ class HackingGame:
     # If the user has the required score and hasn't depleted all of their questions, they win, or else they lose
 
     def determine_winner(self) -> str:
-        if self.questionsCompleted > self.questionAmount:
+        if self.questionsCompleted >= self.questionAmount:
             return "The player lost! Ran out of questions"
         elif self.scoreAcquired >= self.requiredScore:
             return "The player wins! got the required score"
@@ -409,7 +409,7 @@ class HackingGame:
             self.questionsCompleted += 1
             return f"card: {str(card)} was indeed your guess. {self.determine_winner()}"
         else:
-            self.questionCompleted += 1
+            self.questionsCompleted += 1
             return f"card: {str(card)} was not your guess. {self.determine_winner()}"
 
     def question_IsSuit(self, suitPicked: str) -> str:
