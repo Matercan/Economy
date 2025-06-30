@@ -161,11 +161,16 @@ class Bank:
 
                 # 2. Add offshore balances (if any)
                 user_keys = Offshore.get_user_keys(user_id)
+                print(user_keys)
                 if user_keys: # Check if the list is not empty
                     for key in user_keys:
                         offshore_data = Offshore.get_data_from_key(key)
+                        print(offshore_data)
                         if offshore_data is not None and len(offshore_data) > 2: # Ensure data exists and has a balance
                             current_user_total += offshore_data[2]
+                            print(current_user_total)
+                
+                print(current_user_total)
                 
                 total_balances[user_id] = current_user_total
 
