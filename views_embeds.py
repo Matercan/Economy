@@ -649,9 +649,10 @@ def OffshoreEmbed(account: list):
     )
 
     timespan = time.time() - account[3]
+    print(account[3])
 
     account[2] = Offshore.calculate_balance(account)
-    account[3] = Offshore.calculate_interest(account)
+    account[1] = Offshore.calculate_interest(account)
 
     days = f"{(timespan // 86400):.0f}d " if timespan > 86400 else ""
     hours = f"{(timespan % 86400) // 3600:.0f}h " if (timespan % 86400) // 3600 != 0 else ""
