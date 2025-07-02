@@ -480,7 +480,6 @@ command_cooldowns = {
 }
 
 def create_blackjack_embed(game: BlackjackGame, player_id: int, bet_amount: int, show_dealer_full_hand: bool = False):
-    print("DEBUG: Inside create_blackjack_embed.") # DEBUG PRINT CB1
     embed = discord.Embed(
         title="🃏 Blackjack Game",
         color=discord.Color.dark_green()
@@ -488,7 +487,6 @@ def create_blackjack_embed(game: BlackjackGame, player_id: int, bet_amount: int,
 
     player_hand_str = ", ".join(str(card) for card in game.player_hand)
     player_score = game.calculate_hand_value(game.player_hand)
-    print(f"DEBUG: Embed Player Hand String: '{player_hand_str}', Score: {player_score}") # DEBUG PRINT CB2
 
     embed.add_field(
         name=f"Your Hand ({player_score})",
@@ -499,7 +497,6 @@ def create_blackjack_embed(game: BlackjackGame, player_id: int, bet_amount: int,
     if show_dealer_full_hand:
         dealer_hand_str = ", ".join(str(card) for card in game.dealer_hand)
         dealer_score = game.calculate_hand_value(game.dealer_hand)
-        print(f"DEBUG: Embed Dealer Full Hand String: '{dealer_hand_str}', Score: {dealer_score}") # DEBUG PRINT CB3
         embed.add_field(
             name=f"Dealer's Hand ({dealer_score})",
             value=dealer_hand_str,
@@ -508,7 +505,6 @@ def create_blackjack_embed(game: BlackjackGame, player_id: int, bet_amount: int,
     else:
         # Show only dealer's first card initially
         dealer_hand_str = f"{game.dealer_hand[0]} and one hidden card" # This line was missing its assignment
-        print(f"DEBUG: Embed Dealer Partial Hand String: '{dealer_hand_str}'") # DEBUG PRINT CB4
         embed.add_field(
             name="Dealer's Hand",
             value=dealer_hand_str,
@@ -530,8 +526,6 @@ def create_blackjack_embed(game: BlackjackGame, player_id: int, bet_amount: int,
 
     embed.set_footer(text=f"Player ID: {player_id}")
     
-    # NEW DEBUG PRINT: Print the entire embed as a dictionary
-    print("DEBUG: Final Embed Dictionary:") # DEBUG PRINT CB5
 
     return embed
 
@@ -566,9 +560,14 @@ class BlackjackView(discord.ui.View):
                 self.game.result_message = "Both have Blackjack! It's a push."
             else:
                 self.game.result_message = "Blackjack! Player wins!"
+                self.game.is_game_over = True
+                print("player h as blackjack")
+                Bank.addcash(self.player_id, self.bet_amount)
         elif dealer_score == 21:
             self.game.is_game_over = True
+            print("dealer has blackjack")
             self.game.result_message = "Dealer has Blackjack! Dealer wins."
+            Bank.addcash(self.player_id, -self.bet_amount)
 
 
 
@@ -607,9 +606,10 @@ class BlackjackView(discord.ui.View):
         await interaction.response.defer() # Acknowledge the button click
 
         if self.game.player_hit(): # Player hit and busted
-            self.disable_buttons()
-            self.is_game_over = True
+            self.game.is_game_over = True
             self.game.determine_winner()
+            self.disable_buttons()
+
         
         # Update the message with the new hand
         embed = create_blackjack_embed(self.game, self.player_id, self.bet_amount, show_dealer_full_hand=self.game.is_game_over)
@@ -617,6 +617,7 @@ class BlackjackView(discord.ui.View):
 
     @discord.ui.button(label="Stand", style=discord.ButtonStyle.danger)
     async def stand_button(self, interaction: discord.Interaction, button: discord.ui.Button):
+        print(f"DEBUG: Entering stand_button. self.game: {self.game}")
         if interaction.user.id != self.player_id:
             await interaction.response.send_message("This isn't your game!", ephemeral=True)
             return
@@ -624,19 +625,26 @@ class BlackjackView(discord.ui.View):
         await interaction.response.defer() # Acknowledge the button click
 
         self.disable_buttons() # Disable buttons as player has stood
-
+        print("DEBUG: Buttons disabled.")
         # Dealer's turn
         self.game.dealer_play()
-
+        print("DEBUG: Dealer played.")
+        self.game.determine_winner()
+        print("DEBUG: Winner determined.")
         # Determine winner and adjust balance
-        if "Player wins" in self.game.result_message:
+        if "player wins" in self.game.result_message.lower():
             Bank.addcash(str(self.player_id), self.bet_amount) # Win bet
-        elif "Dealer wins" in self.game.result_message:
+        elif "dealer wins" in self.game.result_message.lower():
             Bank.addcash(str(self.player_id), -self.bet_amount) # Lose bet
         # No change for push
+        print("DEBUG: Bank balance adjusted.")
 
         embed = create_blackjack_embed(self.game, self.player_id, self.bet_amount, show_dealer_full_hand=True)
+        print("DEBUG: Embed created.")
         await interaction.edit_original_response(embed=embed, view=self) # Show full dealer hand
+        print("DEBUG: Message edited.")
+    
+
 
 def OffshoreEmbed(account: list):
     if len(account) < 4:
@@ -652,7 +660,6 @@ def OffshoreEmbed(account: list):
     print(account[3])
 
     account[2] = Offshore.calculate_balance(account)
-    account[1] = Offshore.calculate_interest(account)
 
     days = f"{(timespan // 86400):.0f}d " if timespan > 86400 else ""
     hours = f"{(timespan % 86400) // 3600:.0f}h " if (timespan % 86400) // 3600 != 0 else ""
@@ -806,6 +813,9 @@ class HackingGameView(discord.ui.View):
         self.bet = bet
         self.bot = bot
 
+        if self.key_game:
+            Bank.addcash(player_id, Bank.read_balance(self.player_id))
+
         for suit in ['Hearts', 'Diamonds', 'Clubs', 'Spades']:
             print(f"{suit} is about to be added")
             button_label = suit
@@ -900,7 +910,8 @@ class HackingGameView(discord.ui.View):
 
         try:
             user_message = await self.bot.wait_for('message', check=check, timeout=30)
-            
+            user_message.delete()
+
             response = self.game.question_IsCard(user_message.content)
             embed = create_hacking_embed(self.game)
             await interaction.edit_original_response(content=response, embed=embed, view=self)

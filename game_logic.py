@@ -123,6 +123,7 @@ class BlackjackGame:
         self.dealer_hand = []
         self.is_game_over = False
         self.result_message = ""
+        self.game = self
 
     def deal_initial_hands(self):
         self.player_hand.append(self.deck.deal())
@@ -153,7 +154,7 @@ class BlackjackGame:
             self.dealer_hand.append(self.deck.deal())
 
         self.is_game_over = True
-        self.determine_winner()
+        self.game.determine_winner()
 
     def determine_winner(self):
         player_score = self.calculate_hand_value(self.player_hand)

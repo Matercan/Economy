@@ -807,7 +807,7 @@ class Offshore:
             print(account)
             return -1
 
-        days = (time.time() - account[3]) // 86400
+        days = (time.time() - account[3]) / 86400
         print(days)
         amount = account[2]
         print(amount)

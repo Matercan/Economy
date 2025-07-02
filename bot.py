@@ -336,6 +336,8 @@ async def timeout(ctx, member: discord.Member, minutes: int, ping: bool=True):
         await ctx.send("I don't have permission to timeout this user.")
     except discord.HTTPException as e:
         await ctx.send(f"Failed to timeout user: {e} - Ping mater")
+    except AttributeError as f:
+        await ctx.send(f"Failled to timeout user {f} - Ping mater")
 
 @bot.command()
 @commands.has_permissions(manage_roles=True)
@@ -1763,7 +1765,6 @@ async def offshore_bank_account_command(ctx):
 async def offshore_bank_account_withdraw(ctx, amount: float, key: str = "1"):
     user_keys = Offshore.get_user_keys(str(ctx.author.id))
     print(user_keys)
-    Offshore.update_accounts_from_keyes(user_keys)
     print(user_keys)
     await ctx.message.delete()
 
@@ -1778,7 +1779,7 @@ async def offshore_bank_account_withdraw(ctx, amount: float, key: str = "1"):
         await ctx.send("You can't withdraw more money from you're offshore account than you have")
         return
 
-
+    print(f"{ctx.author.id} trying to withdraw {amount} cash from {key}")
     Offshore.withdraw(key, amount, str(ctx.author.id))
     await ctx.send(f"Withdrew ${amount}")
     await offshore_bank_account_command(ctx)
@@ -2912,9 +2913,6 @@ def create_blackjack_embed(game: BlackjackGame, player_id: int, bet_amount: int,
 
     embed.set_footer(text=f"Player ID: {player_id}")
     
-    # NEW DEBUG PRINT: Print the entire embed as a dictionary
-    print("DEBUG: Final Embed Dictionary:") # DEBUG PRINT CB5
-    print(embed.to_dict()) # This will show the raw data sent to Discord
 
     return embed
 
@@ -2989,7 +2987,7 @@ class BlackjackView(discord.ui.View):
         if self.game.player_hit(): # Player hit and busted
             self.disable_buttons()
             self.is_game_over = True
-            self.determine_winner()
+            self.game.determine_winner()
 
             # Determine winner and adjust balance
             if "Player wins" in self.game.result_message:
