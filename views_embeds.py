@@ -631,6 +631,7 @@ class BlackjackView(discord.ui.View):
         print("DEBUG: Dealer played.")
         self.game.determine_winner()
         print("DEBUG: Winner determined.")
+        print(f"results message: {self.game.result_message}")
         # Determine winner and adjust balance
         if "player wins" in self.game.result_message.lower():
             Bank.addcash(str(self.player_id), self.bet_amount) # Win bet

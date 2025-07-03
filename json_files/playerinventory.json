@@ -2,7 +2,8 @@
   "445059352521342978": {
     "Knife": 1,
     "Brick": 2,
-    "Pickaxe": 5
+    "Pickaxe": 5,
+    "Shield": 6
   },
   "727830793493413936": {
     "Slippery gloves": 7,
@@ -17,11 +18,11 @@
   },
   "777170937682329601": {
     "A good lawyer": 8,
-    "Shield": 6,
     "hjmpfoubiveodbmurmeardfpbk": 11,
     "tfhk": 12,
     "yoy": 15,
-    "uvkmnxiaeyoeywzncpgkcyqbcj": 17
+    "uvkmnxiaeyoeywzncpgkcyqbcj": 17,
+    "Brick": 2
   },
   "606937826587705372": {
     "Slippery gloves": 7,
@@ -32,5 +33,8 @@
   },
   "763559063501012992": {
     "Bomb": 0
+  },
+  "1231349860050141265": {
+    "Knife": 1
   }
 }

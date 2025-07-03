@@ -12,7 +12,7 @@ import asyncio
 import sys
 from economy import Bank, Income, Items, Offshore
 from game_logic import BlackjackGame, CardflipGame, HackingGame 
-from views_embeds import CommandsView, CooldownsView, HackingGameView
+from views_embeds import CommandsView, CooldownsView, HackingGameView, BlackjackView
 from nltk.corpus import words
 import datetime
 import math
@@ -2871,7 +2871,6 @@ def create_blackjack_embed(game: BlackjackGame, player_id: int, bet_amount: int,
 
     player_hand_str = ", ".join(str(card) for card in game.player_hand)
     player_score = game.calculate_hand_value(game.player_hand)
-    print(f"DEBUG: Embed Player Hand String: '{player_hand_str}', Score: {player_score}") # DEBUG PRINT CB2
 
     embed.add_field(
         name=f"Your Hand ({player_score})",
@@ -2891,7 +2890,6 @@ def create_blackjack_embed(game: BlackjackGame, player_id: int, bet_amount: int,
     else:
         # Show only dealer's first card initially
         dealer_hand_str = f"{game.dealer_hand[0]} and one hidden card" # This line was missing its assignment
-        print(f"DEBUG: Embed Dealer Partial Hand String: '{dealer_hand_str}'") # DEBUG PRINT CB4
         embed.add_field(
             name="Dealer's Hand",
             value=dealer_hand_str,
@@ -2915,113 +2913,6 @@ def create_blackjack_embed(game: BlackjackGame, player_id: int, bet_amount: int,
     
 
     return embed
-
-class BlackjackView(discord.ui.View):
-    def __init__(self, game: BlackjackGame, player_id: int, bet_amount: int):
-        super().__init__(timeout=120) # Game times out after 2 minutes of inactivity
-        self.game = game
-        self.player_id = player_id
-        self.bet_amount = bet_amount
-        self.message = None
-
-        # Check for immediate Blackjack after initial deal
-        try:
-            player_score = self.game.calculate_hand_value(self.game.player_hand)
-            dealer_score = self.game.calculate_hand_value(self.game.dealer_hand)
-        except Exception as e:
-            print(f"ERROR: Exception during score calculation in BlackjackView.__init__: {e}")
-            import traceback
-            traceback.print_exc() # <-- PRINT THE FULL TRACEBACK
-            self.game.is_game_over = True # Force game over to avoid further errors
-            self.game.result_message = f"An internal error occurred: {e}"
-            self.disable_buttons() # Disable buttons immediately
-            return # Exit init
-
-
-        if player_score == 21:
-            self.game.is_game_over = True
-            if dealer_score == 21:
-                self.game.result_message = "Both have Blackjack! It's a push."
-            else:
-                self.game.result_message = "Blackjack! Player wins!"
-        elif dealer_score == 21:
-            self.game.is_game_over = True
-            self.game.result_message = "Dealer has Blackjack! Dealer wins."
-
-
-
-        if self.game.is_game_over:
-            self.disable_buttons()
-        
-    def disable_buttons(self):
-        for item in self.children:
-            if isinstance(item, discord.ui.Button):
-                item.disabled = True
-    
-    # Called when the view times out
-    async def on_timeout(self):
-        self.disable_buttons()
-        # Optionally, notify the user or edit the message
-        if self.message:
-            try:
-                await self.message.edit(content="Your Blackjack game timed out.", view=self)
-            except discord.HTTPException:
-                pass # Message might have been deleted
-        print("DEBUG: Timed out")
-
-    # Store the message the view is attached to, useful for editing
-    async def on_error(self, interaction: discord.Interaction, error: Exception, item: discord.ui.Item):
-        print(f"Error in BlackjackView: {error}")
-        await interaction.followup.send("An error occurred during your game.", ephemeral=True)
-
-
-    @discord.ui.button(label="Hit", style=discord.ButtonStyle.success)
-    async def hit_button(self, interaction: discord.Interaction, button: discord.ui.Button):
-        # Ensure only the player who started the game can interact
-        if interaction.user.id != self.player_id:
-            await interaction.response.send_message("This isn't your game!", ephemeral=True)
-            return
-        
-        await interaction.response.defer() # Acknowledge the button click
-
-        if self.game.player_hit(): # Player hit and busted
-            self.disable_buttons()
-            self.is_game_over = True
-            self.game.determine_winner()
-
-            # Determine winner and adjust balance
-            if "Player wins" in self.game.result_message:
-                Bank.addcash(str(self.player_id), self.bet_amount) # Win bet
-            elif "Dealer wins" in self.game.result_message:
-                Bank.addcash(str(self.player_id), -self.bet_amount) # Lose bet
-            # No change for push
-            
-        # Update the message with the new hand
-        embed = create_blackjack_embed(self.game, self.player_id, self.bet_amount, show_dealer_full_hand=self.game.is_game_over)
-        await interaction.edit_original_response(embed=embed, view=self)
-
-    @discord.ui.button(label="Stand", style=discord.ButtonStyle.danger)
-    async def stand_button(self, interaction: discord.Interaction, button: discord.ui.Button):
-        if interaction.user.id != self.player_id:
-            await interaction.response.send_message("This isn't your game!", ephemeral=True)
-            return
-        
-        await interaction.response.defer() # Acknowledge the button click
-
-        self.disable_buttons() # Disable buttons as player has stood
-
-        # Dealer's turn
-        self.game.dealer_play()
-
-        # Determine winner and adjust balance
-        if "Player wins" in self.game.result_message:
-            Bank.addcash(str(self.player_id), self.bet_amount) # Win bet
-        elif "Dealer wins" in self.game.result_message:
-            Bank.addcash(str(self.player_id), -self.bet_amount) # Lose bet
-        # No change for push
-
-        embed = create_blackjack_embed(self.game, self.player_id, self.bet_amount, show_dealer_full_hand=True)
-        await interaction.edit_original_response(embed=embed, view=self) # Show full dealer hand
 
 @bot.command(name="blackjack", aliases=['bj'], help="Starts a game of Blackjack with your bet!")
 async def blackjack_command(ctx: commands.Context, bet: str = "all"): # Changed to ctx and removed app_commands.describe
