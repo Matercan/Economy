@@ -14,10 +14,19 @@
     false,
     500,
     "houses the ability to stab people and a good source of income",
-    "Knife",
-    "Knife",
-    "tin",
-    "tin"
+    [
+      "Knife",
+      "Arrest"
+    ],
+    [
+      "Knife"
+    ],
+    [
+      "tin"
+    ],
+    [
+      "Knife"
+    ]
   ],
   [
     "Brick",
@@ -35,26 +44,44 @@
     150000,
     "attains you freedom from the wrteched Knife",
     null,
-    "tin",
-    "Knife",
-    "Knife"
+    [
+      "tin"
+    ],
+    [
+      "Knife"
+    ],
+    [
+      "Knife"
+    ],
+    [
+      "Knife",
+      "Arrest"
+    ]
   ],
   [
     "Gay",
     false,
     10000,
     "Gay gay homosexual gay",
-    "Gay",
-    "Gay",
+    [
+      "Gay"
+    ],
+    [
+      "Gay"
+    ],
     null,
-    "tin"
+    [
+      "tin"
+    ]
   ],
   [
     "Pickaxe",
     false,
     5000,
     "can be used to mine things",
-    "Mining",
+    [
+      "Mining"
+    ],
     null,
     null,
     null
@@ -97,7 +124,9 @@
     null,
     null,
     null,
-    "tin"
+    [
+      "tin"
+    ]
   ],
   [
     "gvqfhpwpvhvzjad",
@@ -112,7 +141,7 @@
   [
     "hjmpfoubiveodbmurmeardfpbk",
     true,
-    1005478.0877225705,
+    2035234.6415156245,
     "777170937682329601's Offshore bank account",
     null,
     null,
@@ -122,7 +151,7 @@
   [
     "tfhk",
     true,
-    211366.65082181199,
+    67523.22759265677,
     "777170937682329601's Offshore bank account",
     null,
     null,
@@ -132,7 +161,7 @@
   [
     "jciqordsghhzpkjowi",
     true,
-    2000000.0815875216,
+    2871582.6299930187,
     "727830793493413936's Offshore bank account",
     null,
     null,
@@ -181,6 +210,16 @@
   ],
   [
     "l",
+    true,
+    84.01044955465477,
+    "606937826587705372's Offshore bank account",
+    null,
+    null,
+    null,
+    null
+  ],
+  [
+    "jpgdc",
     true,
     1000000.0,
     "606937826587705372's Offshore bank account",

@@ -1099,9 +1099,13 @@ async def on_message(message):
 
     ctx = await bot.get_context(message)
     
-    if isinstance(ctx.channel, discord.DMChannel):
+    if isinstance(ctx.channel, discord.DMChannel) and not ctx.author.bot:
         await ctx.send("THE BOT DOESN'T ACCEPT DMS!!!!!")
         return 
+
+    if ctx.author.bot:
+        print("It's a bot")
+        return
     
     if "general" in message.channel.name and not message.content.startswith("m!"):
         return
@@ -1742,7 +1746,7 @@ async def offshore_bank_account_withdraw(ctx, amount: float, key: str = "1"):
     if key not in user_keys:
         await ctx.send("Key not in your offshore keys \ntype oclear then your key  to generate a new account with the same amount of money")
         # return
-    if amount >= Offshore.get_data_from_key(key)[2]:
+    if amount > Offshore.get_data_from_key(key)[2]:
         await ctx.send("You can't withdraw more money from you're offshore account than you have")
         return
 
@@ -2689,6 +2693,7 @@ async def buy_item(ctx, *, item: str):
 
     item_data = Items.item_sources[index]
     cost = 0
+    print(item_data)
 
     try:
         cost = float(item_data[2])
@@ -2705,10 +2710,13 @@ async def buy_item(ctx, *, item: str):
     if item_data[7]:
         has_role = False
         for role in ctx.author.roles:
-            if role.name.lower() == item_data[7].lower():
-                has_role = True
+            for role_required in item_data[6]:
+                print(role_required)
+                print(role)
+                if role.name.lower() == role_required.lower():
+                    has_role = True
         if not has_role:
-            await ctx.send(f"This item requires role {item_data[7]}")
+            await ctx.send(f"This item requires one of {item_data[6]}")
             return
 
     embed = discord.Embed(
@@ -2716,16 +2724,19 @@ async def buy_item(ctx, *, item: str):
         description=f"Bought {item_data[0]} for {item_data[2]}",
         color=discord.Color.blue()
     )
-
+    
+    print("Finished adding the embeds")
     Items.buyitem(user_id_str, index) 
  
     if item_data[5]:
         # Pass role_name as a keyword argument
-        await addrole(ctx, ctx.author, role_name=item_data[5]) 
+        for role in item_data[5]:
+            await addrole(ctx, ctx.author, role_name=role) 
     
     if item_data[6]:
         # Pass role_name as a keyword argument
-        await removerole(ctx, ctx.author, role_name=item_data[6]) 
+        for role in item_data[6]:
+            await removerole(ctx, ctx.author, role_name=role) 
     
     if item_data[0] == "Offshore bank account":
         Bank.addcash(user_id_str, 1e6)
@@ -2733,6 +2744,7 @@ async def buy_item(ctx, *, item: str):
         
 
     await ctx.send(embed=embed)
+    await ctx.send(embed=views_embeds.create_balance_embed(user_id_str, bot, amountAddedToCash=-cost))
 
 @bot.command(name='inventory', aliases=['inv', 'my-items'])
 async def display_inventory(ctx):

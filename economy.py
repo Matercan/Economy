@@ -381,6 +381,18 @@ class Income():
         Income.saveincomes()
 
     @staticmethod
+    def removefromincomes(user_id: str, source_name: str):
+        if not Income.playerincomes:
+            Income.playerincomes = Income.loadincomes()
+
+        if user_id not in Income.playerincomes:
+            Income.playerincomes[user_id] = {}
+
+        del Income.playerincomes[user_id][source_name]
+
+        Income.saveincomes()
+
+    @staticmethod
     def collectincomes(user_id: str):
         Income.loadincomes() # Load player incomes (crucial for latest timestamps)
         Income.create_sources() # Ensure income sources are loaded
@@ -590,7 +602,7 @@ class Items:
             json.dump(Items.item_sources, f, indent=2)
 
     @staticmethod
-    def create_source(name: str, is_collectible: bool, value_or_effect: any, description: str, associated_income_source_name: str = None, role_added: str = None, role_removed: str = None, role_required: str = None):
+    def create_source(name: str, is_collectible: bool, value_or_effect: any, description: str, associated_income_source_name: list = None, role_added: list = None, role_removed: list = None, role_required: list = None, associated_incomes_removed_names: list = None):
         """
         Creates a new item source, optionally linking it to an income source and roles.
 
@@ -599,11 +611,12 @@ class Items:
             is_collectible (bool): True if the item can be collected, False otherwise.
             value_or_effect (any): The value of the item or its effect (e.g., price, or a descriptive string).
             description (str): A brief description of the item.
-            associated_income_source_name (str, optional): The name of an Income source
+            associated_income_source_name (str, optional): The name of an Income sources
                                                             that this item provides. Defaults to None.
             role_added (str, optional): The name of the role given to owners of this item. Defaults to None.
             role_removed (str, optional): The name of the role removed from the owners of this item. Defaults to None.
             role_required (str, optional): The name of the role required to own this item. Defaults to None.
+            associated_incomes_removed (str, optional): The name of the incomes that it removes
         """
         if not Items.item_sources:
             Items.create_item_sources()
@@ -667,8 +680,13 @@ class Items:
         # Ensure the item_source_data has enough elements to check for associated income
         if len(item_source_data) > 4: # index 4 is for associated_income_source_name
             associated_income_source_name = item_source_data[4]
+            
         else:
             associated_income_source_name = None # No associated income defined for this item
+        if len(item_source_data) > 8:
+            associated_income_source_removed = item_source_data[8]
+        else:
+            associated_income_source_removed = None
 
         if user_id not in Items.player_inventory:
             Items.player_inventory[user_id] = {}
@@ -680,13 +698,24 @@ class Items:
 
         # If there's an associated income source, add it to the user's incomes
         if associated_income_source_name:
-            income_source_index = Income.get_source_index_by_name(associated_income_source_name)
-            if income_source_index != -1:
-                Income.addtoincomes(user_id, associated_income_source_name, income_source_index)
-                print(f"Automatically added income source '{associated_income_source_name}' to {user_id}.")
-            else:
-                print(f"Warning: Associated income source '{associated_income_source_name}' for item '{item_name}' not found.")
-    
+            for source in associated_income_source_name:
+                income_source_index = Income.get_source_index_by_name(source)
+                if income_source_index != -1:
+                    Income.addtoincomes(user_id, Income.read_source(income_source_index, 0), income_source_index)
+                    print(f"Automatically added income source '{Income.read_source(income_source_index, 0)}' to {user_id}.")
+                else:
+                    print(f"Warning: Associated income source '{Income.read_source(income_source_index, 0)}' for item '{item_name}' not found.")
+        if associated_income_source_removed:
+            for source in associated_income_source_removed:
+                print(source)
+                income_source_index = Income.get_source_index_by_name(source)
+                if income_source_index != -1:
+                    print(f"Well {source} exists??")
+                    Income.removefromincomes(user_id, source)
+                    print(f"Automatically removed income source '{Income.read_source(income_source_index, 0)}' from {user_id}")
+                else:
+                    print(f"Automatically removed income source '{Income.read_source(income_source_index, 0)}' for item '{item_name}' not found")
+
     @staticmethod
     def buyitem(user_id: str, index: int):
         try:
@@ -694,7 +723,7 @@ class Items:
             item_data = Items.item_sources[index]
             item_name = item_data[0] # Item name is at index 0
             item_price = item_data[2] # Item price/value is at index 2
-            
+            print(item_data) 
             print(f"Item price: {item_price}") 
 
             if Bank.read_balance(user_id=user_id)["cash"] >= item_price: # Use >= for sufficient funds
