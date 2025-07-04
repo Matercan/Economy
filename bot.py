@@ -447,7 +447,7 @@ async def restart(ctx):
             await bot.close() # This will trigger on_disconnect (which will see is_restarting_for_disconnect=True)
             
             # This replaces the current process with a new one, effectively restarting the script
-            os.execv(sys.executable, ['python'] + sys.argv)
+            os.execv(sys.executable, ['.venv/bin/python'] + sys.argv)
             # Code after os.execv will not be reached in this process
             return # Ensure the command handler exits
     if ctx.author.display_name == "sulf":
@@ -1094,10 +1094,6 @@ async def toggle_spellcheck(ctx):
 
 @bot.event
 async def on_message(message):
-    
-
-    if "general" in message.channel.name and not message.content.startswith("m!"):
-        return
 
     user_id = str(message.author.id)
 
@@ -1106,6 +1102,9 @@ async def on_message(message):
     if isinstance(ctx.channel, discord.DMChannel):
         await ctx.send("THE BOT DOESN'T ACCEPT DMS!!!!!")
         return 
+    
+    if "general" in message.channel.name and not message.content.startswith("m!"):
+        return
 
     if not can_load_sources and not message.author.bot:
         await ctx.send("I'm not willing to let all data be wiped.")
@@ -1516,40 +1515,8 @@ async def balance(ctx, member: discord.Member = None):
         target_member = member
 
     user_id = str(target_member.id)
-    cash = Bank.read_balance(user_id)["cash"]
-    bank = Bank.read_balance(user_id)["bank"]
     
-    ranked_members = []
-
-    for user_id_str, data in Bank.read_balance().items():
-        ranked_members.append((Bank.gettotal(user_id_str), user_id_str))
-
-    ranked_members.sort(key=lambda x: x[0], reverse=True)
-    rank = -1
-    richens = len(ranked_members)
-
-    for i, (money, user_id_str) in enumerate(ranked_members):
-        if user_id_str == user_id:
-            rank = i + 1
-            break
-
-
-    # Using an embed for better presentation
-    embed = discord.Embed(
-        title=f"{target_member.display_name}'s Balance",
-        color=discord.Color.blue()
-    )
-    embed.add_field(name="💰 Cash", value=f"${cash:,.2f}", inline=False)
-    embed.add_field(name="🏦 Bank", value=f"${bank:,.2f}", inline=False)
-    
-    # Calculate and display total worth using your gettotal method
-    total_worth = Bank.gettotal(user_id)
-    embed.add_field(name="✨ Total Worth", value=f"${total_worth:,.2f}", inline=False)
-    embed.add_field(name="Rank", value=f"#{rank} of {richens}", inline=False)
-
-    embed.set_thumbnail(url=target_member.avatar.url if target_member.avatar else None)
-    embed.set_footer(text=f"Requested by {ctx.author.display_name}", icon_url=ctx.author.avatar.url if ctx.author.avatar else None)
-
+    embed = views_embeds.create_balance_embed(user_id, bot)
 
     await ctx.send(embed=embed)
 
@@ -1755,7 +1722,7 @@ async def offshore_bank_account_command(ctx):
         await balance(ctx)
         return
 
-    view = views_embeds.OffshoreView(accounts=my_items)
+    view = views_embeds.OffshoreView(accounts=my_items, bot=bot)
 
     await ctx.send("Your funds sir/ma'am", view=view)
     view.message = ctx.message
@@ -1849,6 +1816,7 @@ async def purchase_offshore_bank_account(ctx):
         return
 
     Bank.addbank(user_id, -1e6)
+    Offshore.generate_account(user_id, 1e6)
     await offshore_bank_account_command(ctx)
      
 
@@ -1926,11 +1894,18 @@ async def collect_income_command(ctx):
     Usage: !collect
     """
     user_id_str = str(ctx.author.id)
+    bank_at_start = Bank.read_balance(user_id_str)["bank"]
+    cash_at_start = Bank.read_balance(user_id_str)["cash"]
 
     # 1. Call Income.collectincomes() to perform the collection
     # This method updates timestamps for collected incomes and returns messages
     collection_results = Income.collectincomes(user_id_str)
     
+    bank_gained = Bank.read_balance(user_id_str)["bank"] - bank_at_start
+    cash_gained = Bank.read_balance(user_id_str)["cash"] - cash_at_start
+    
+    await ctx.send(embed=views_embeds.create_balance_embed(user_id_str, bot, amountAddedToCash=cash_gained, amountAddedToBank=bank_gained))
+
     # 2. Create the main embed for the collection summary
     embed = discord.Embed(
         title=f"💰 Income Collection for {ctx.author.display_name}",
@@ -2008,15 +1983,17 @@ async def slut(ctx):
     if 'gain' in message:
         Bank.addcash(user_id=user_id, money=amount_gained)
         message = message.replace('____', str(amount_gained))
+        await ctx.send(embed=views_embeds.create_balance_embed(user_id, bot, amountAddedToCash=amount_gained))
     else:
         amount_lost = -Bank.gettotal(user_id=user_id) * random.randint(20, 60) // 100
         Bank.addcash(user_id=user_id, money=amount_lost)
         message = message.replace('____', str(amount_lost))
+        await ctx.send(embed=views_embeds.create_balance_embed(user_id, bot, amountAddedToCash=amount_lost))
 
         if "A good lawyer" in Items.get_user_items(user_id):
             await ctx.send(message)
             await ctx.send("However, due to their good lawyer, the money was dealt with and troubles were sorted out behind the seens")
-            
+
             if user_id not in crime_success_dict:
                 crime_success_dict[user_id] = 0
             
@@ -2027,10 +2004,10 @@ async def slut(ctx):
     
             Bank.addbank(user_id, -10000)
             Bank.addbank(user_id, -amount_lost)
-            return
+            await ctx.send(embed=views_embeds.create_balance_embed(user_id, bot, amountAddedToCash=1e4))
 
         crime_success_dict[user_id] = 0
-        
+                
 
     await ctx.send(message)
 
@@ -2071,6 +2048,8 @@ async def crime(ctx):
     amount_lost = -user_total * random.randint(20, 40) // 100
     amount_lost = int(amount_lost)
 
+    balance_embed = views_embeds.create_balance_embed(user_id, bot)
+
     if user_id not in crime_success_dict:
         crime_success_dict[user_id] = 0
 
@@ -2083,6 +2062,7 @@ async def crime(ctx):
 
             response_message = response_message.replace('____', str(amount_gained))
             Bank.addcash(user_id=user_id, money=amount_gained)
+            balance_embed = views_embeds.create_balance_embed(user_id, bot, amountAddedToCash=amount_gained) 
         else:
             await ctx.send("Those slippery gloves prevented your capture, but you don't gain anything")
             if 'Slippery gloves' in Items.get_user_items(user_id):
@@ -2097,7 +2077,9 @@ async def crime(ctx):
         response_message = response_message.replace('____', str(amount_lost))
         
         if "A good lawyer" in Items.get_user_items(user_id):
+            balance_embed = views_embeds.create_balance_embed(user_id, bot, amountAddedToCash=1e4)
             await ctx.send("However, due to their good lawyer, the money was dealt with and troubles were sorted out behind the seens")
+            
             
             if user_id not in crime_success_dict:
                 crime_success_dict[user_id] = 0
@@ -2112,8 +2094,12 @@ async def crime(ctx):
 
         Bank.addcash(user_id=user_id, money=amount_lost)
         crime_success_dict[user_id] = 0
+        balance_embed = views_embeds.create_balance_embed(user_id, bot, amountAddedToCash=amount_lost) 
+    
+    await ctx.send(response_message, embed=balance_embed)
+    
 
-    await ctx.send(response_message)
+   
 
 work_responses = [
     "You spent the day as a professional 'femboy hype man,' ensuring everyone was adequately glittered and confident. You earned a decent wage, plus a lifetime supply of self-esteem!",
@@ -2182,6 +2168,7 @@ async def work(ctx):
     embed.set_footer(text=f"Your current balance: Cash: {current_cash}, Bank: {current_bank}")
 
     await ctx.send(embed=embed)
+    await ctx.send(embed=views_embeds.create_balance_embed(user_id_str, bot, amountAddedToCash=earned_amount))
  
 @bot.command(name='leaderboard', aliases=['richest', 'leader'])
 async def leaderboard(ctx):
@@ -2597,6 +2584,8 @@ async def guillotine(ctx):
     # Or state a generic message like "All loyal citizens gained a portion of the wealth!"
 
     await ctx.send(embed=embed)
+    await ctx.send(views_embeds.create_balance_embed(user_id_str, bot, amountAddedToBank=money_gained_by_saviour))
+    await ctx.send(views_embeds.create_balance_embed(richest_user_id_str, bot, amountAddedToBank=-richest_total_wealth))
 
 @bot.command(name='store', aliases=['shop', 'items'])
 async def list_items(ctx):
@@ -2739,8 +2728,9 @@ async def buy_item(ctx, *, item: str):
         await removerole(ctx, ctx.author, role_name=item_data[6]) 
     
     if item_data[0] == "Offshore bank account":
-        purchase_offshore_bank_account(ctx)
         Bank.addcash(user_id_str, 1e6)
+        await purchase_offshore_bank_account(ctx)
+        
 
     await ctx.send(embed=embed)
 
@@ -2943,7 +2933,7 @@ async def blackjack_command(ctx: commands.Context, bet: str = "all"): # Changed 
 
     # Optional: Show typing indicator while preparing the game
     await ctx.defer() # This shows the bot is 'typing'
-
+    
     # 3. Initialize Game
     game = BlackjackGame()
     game.deal_initial_hands()
@@ -2972,6 +2962,16 @@ async def blackjack_command(ctx: commands.Context, bet: str = "all"): # Changed 
     # 7. Send the initial message with buttons
     # For prefix commands, ctx.send returns the Message object 
     message = await ctx.send(embed=embed, view=view)
+    gain = True
+    if Bank.read_balance(player_id_str)["cash"] - user_balance:
+        gain = True
+    else:
+        gain = False
+
+    if gain:
+        message = await ctx.send(embed=views_embeds.create_balance_embed(player_id_str, bot, amountAddedToCash=bet))
+    else:
+        message = await ctx.send(embed=views_embeds.create_balance_embed(player_id_str, bot, amountAddedToCash=-bet))
     view.message = message # Store the Message object in the view for future edits by buttons
 
 
@@ -3045,6 +3045,14 @@ async def card_flip_command(ctx, bet: str = "all"):
         embed.color = discord.Color.blue()
 
     await ctx.send(embed=embed)
+    
+    print(bet)
+    if "player wins" in game.result_message.lower():
+        print("player wins")
+        await ctx.send(embed=views_embeds.create_balance_embed(player_id_str, bot, float(bet)))
+    else:
+        print("playaer loses")
+        await ctx.send(embed=views_embeds.create_balance_embed(player_id_str, bot, float(-bet)))
     
 @bot.command(name='hackr', aliases=['hk'])
 async def hacker_command(ctx):

@@ -159,6 +159,11 @@ class BlackjackGame:
     def determine_winner(self):
         player_score = self.calculate_hand_value(self.player_hand)
         dealer_score = self.calculate_hand_value(self.dealer_hand)
+        
+        print("DEBUG: determining winner")
+        
+        print(f"DEBUG: player score {player_score}")
+        print(f"DEBUG: dealer score {dealer_score}")
 
         if player_score > 21:
             self.result_message = "Player busts! Dealer wins."
@@ -168,8 +173,10 @@ class BlackjackGame:
             self.result_message = "It's a push! You tie with the dealer."
         elif player_score > dealer_score:
             self.result_message = "Player wins!"
-        else:
-            self.results_message = "Dealer wins!"
+        
+        print(f"results message before checking if dealer won: {self.result_message}")
+        if dealer_score > player_score:
+            self.result_message = "Dealer wins!"
 
 class CardflipGame:
     def __init__(self) -> None:

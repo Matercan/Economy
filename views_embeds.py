@@ -536,6 +536,7 @@ class BlackjackView(discord.ui.View):
         self.player_id = player_id
         self.bet_amount = bet_amount
         self.message = None
+        self.starting_bal = Bank.read_balance("player_id")["cash"]
         
         print("Attributes assigned")
 
@@ -609,7 +610,6 @@ class BlackjackView(discord.ui.View):
             self.game.is_game_over = True
             self.game.determine_winner()
             self.disable_buttons()
-
         
         # Update the message with the new hand
         embed = create_blackjack_embed(self.game, self.player_id, self.bet_amount, show_dealer_full_hand=self.game.is_game_over)
@@ -635,7 +635,9 @@ class BlackjackView(discord.ui.View):
         # Determine winner and adjust balance
         if "player wins" in self.game.result_message.lower():
             Bank.addcash(str(self.player_id), self.bet_amount) # Win bet
+            print("player wins")
         elif "dealer wins" in self.game.result_message.lower():
+            print("player wins")
             Bank.addcash(str(self.player_id), -self.bet_amount) # Lose bet
         # No change for push
         print("DEBUG: Bank balance adjusted.")
@@ -661,6 +663,7 @@ def OffshoreEmbed(account: list):
     print(account[3])
 
     account[2] = Offshore.calculate_balance(account)
+    account[1] = Offshore.calculate_interest(account) if Offshore.calculate_interest(account) > account[1] else account[1]
 
     days = f"{(timespan // 86400):.0f}d " if timespan > 86400 else ""
     hours = f"{(timespan % 86400) // 3600:.0f}h " if (timespan % 86400) // 3600 != 0 else ""
@@ -677,9 +680,10 @@ def OffshoreEmbed(account: list):
     return embed
 
 class OffshoreView(discord.ui.View):
-    def __init__(self, accounts: list):
+    def __init__(self, accounts: list, bot):
         super().__init__(timeout=100)
         self.message = None # This will be set by the command later
+        self.bot = bot
 
         print("Initialized")
         print(accounts)
@@ -732,38 +736,8 @@ class OffshoreView(discord.ui.View):
         await interaction.response.send_message(clicked_custom_id, ephemeral=True, embed=OffshoreEmbed(Offshore.get_data_from_key(clicked_custom_id))) 
     
     async def handle_bank_click(self, interaction: discord.Interaction):
-        user_id = str(interaction.user.id)
-        cash = Bank.read_balance(user_id)["cash"]
-        bank = Bank.read_balance(user_id)["bank"]
-        
-        ranked_members = []
+        embed = create_balance_embed(str(interaction.user.id), self.bot)
 
-        for user_id_str, data in Bank.read_balance().items():
-            ranked_members.append((Bank.gettotal(user_id_str), user_id_str))
-
-        ranked_members.sort(key=lambda x: x[0], reverse=True)
-        rank = -1
-        richens = len(ranked_members)
-
-        for i, (money, user_id_str) in enumerate(ranked_members):
-            if user_id_str == user_id:
-                rank = i + 1
-                break
-
-
-        embed = discord.Embed(
-            title=f"{interaction.user.display_name}'s Balance",
-            color=discord.Color.blue()
-        )
-        embed.add_field(name="💰 Cash", value=f"${cash:,.2f}", inline=False)
-        embed.add_field(name="🏦 Bank", value=f"${bank:,.2f}", inline=False)
-        
-        # Calculate and display total worth using your gettotal method
-        total_worth = Bank.gettotal(user_id)
-        embed.add_field(name="✨ Total Worth", value=f"${total_worth:,.2f}", inline=False)
-        embed.add_field(name="Rank", value=f"#{rank} of {richens}", inline=False)
-
-        embed.set_thumbnail(url=interaction.user.avatar.url if interaction.user.avatar else None)
         await interaction.response.send_message(ephemeral=False, embed=embed)
 
     async def on_timeout(self) -> None:
@@ -955,7 +929,7 @@ class HackingGameView(discord.ui.View):
             await interaction.followup.send(f"Congratulations, here is your key: {key}", ephemeral=True)
         else:
             Bank.addcash(self.player_id, self.bet)
-            await interaction.followup.send(f"Congratulations, here is your {self.bet} added to your account")
+            await interaction.followup.send(create_balance_embed(self.player_id, self.bot, amountAddedToCash=self.bet))
 
     async def handle_player_loss(self, interaction: discord.Interaction):
         if self.key_game:
@@ -963,4 +937,65 @@ class HackingGameView(discord.ui.View):
             await interaction.followup.send(f"For attempting to hack into the rich's high tech bank accounts, lose {amount_lost}")
         else:
             Bank.addcash(self.player_id, -self.bet)
-            await interaction.followup.send(f"You unfortunately lose {-self.bet}")
+            await interaction.followup.send(create_balance_embed(self.player_id, self.bot, amountAddedToCash=-self.bet))
+
+def create_balance_embed(user_id: str, bot, amountAddedToCash: float = 0, amountAddedToBank: float = 0):
+    user = bot.get_user(int(user_id))
+    cash = Bank.read_balance(user_id)["cash"] - amountAddedToCash
+    bank = Bank.read_balance(user_id)["bank"] - amountAddedToBank
+    
+    print(f"DEBUG BALANCE: {cash}, {bank}")
+
+    ranked_members = []
+
+    for user_id_str, data in Bank.read_balance().items():
+        ranked_members.append((Bank.gettotal(user_id_str), user_id_str))
+
+    ranked_members.sort(key=lambda x: x[0], reverse=True)
+    rank = -1
+    richens = len(ranked_members)
+
+    for i, (money, user_id_str) in enumerate(ranked_members):
+        if user_id_str == user_id:
+            rank = i + 1
+            break
+
+
+    embed = discord.Embed(
+        title=f"{user.display_name}'s Balance",
+        color=discord.Color.blue()
+    )
+
+    cashAddedStr = ""
+    bankAddedStr = ""
+    totalAddedStr = ""
+
+    if amountAddedToCash < 0:
+        cashAddedStr = f"{amountAddedToCash:,.0f}"
+    elif amountAddedToCash > 0:
+        cashAddedStr = f"+{amountAddedToCash:,.0f}"
+
+    if amountAddedToBank < 0:
+        bankAddedStr = f"{amountAddedToBank:,.0f}"
+    elif amountAddedToBank > 0:
+        bankAddedStr = f"+{amountAddedToBank:,.0f}"
+    
+    if amountAddedToBank + amountAddedToCash > 0:
+        totalAddedStr = f"+{amountAddedToCash + amountAddedToBank:,.0f}"
+    elif amountAddedToBank + amountAddedToCash < 0:
+        totalAddedStr = f"{amountAddedToCash + amountAddedToBank:,.0f}"
+
+    print(f"DEBUG: cash added: {cashAddedStr}, {bankAddedStr}, {totalAddedStr}")
+
+
+    embed.add_field(name="💰 Cash", value=f"${cash:,.2f}{cashAddedStr}", inline=False)
+    embed.add_field(name="🏦 Bank", value=f"${bank:,.2f}{bankAddedStr}", inline=False)
+
+    # Calculate and display total worth using your gettotal method
+    total_worth = cash + bank
+    embed.add_field(name="✨ Total Worth", value=f"${total_worth:,.2f}{totalAddedStr}", inline=False)
+    embed.add_field(name="Rank", value=f"#{rank} of {richens}", inline=False)
+
+    embed.set_thumbnail(url=user.avatar.url if user.avatar else None)
+
+    return embed
