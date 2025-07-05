@@ -1956,7 +1956,7 @@ async def collect_income_command(ctx):
     await ctx.send(embed=views_embeds.create_balance_embed(user_id_str, bot, amountAddedToCash=cash_gained, amountAddedToBank=bank_gained)) # Send embed of how much wealth changed
 
 
-Slut_respondes = [
+Slut_responses = [
     "kakashi came by and killed the mood. You lose ____",
     "kakashi came and u partied really hard and u gain ____ ",
     "you failed you unfortunately lose your husband/or wife you lose ____",
@@ -1972,6 +1972,7 @@ Slut_respondes = [
 
 @bot.command(name='slut')
 async def slut(ctx):
+    global crime_success_dict
     cooldown_msg = check_cooldown(ctx, 'slut')
     if cooldown_msg:
         await ctx.send(cooldown_msg)
@@ -1980,7 +1981,7 @@ async def slut(ctx):
     user_id = str(ctx.author.id)
     amount_gained = random.randint(100, 1000)
     
-    message = Slut_respondes[random.randint(0, len(Slut_respondes) - 1)]
+    message = Slut_responses[random.randint(0, len(Slut_responses) - 1)]
 
     if 'gain' in message:
         Bank.addcash(user_id=user_id, money=amount_gained)
@@ -2010,8 +2011,11 @@ async def slut(ctx):
 
         crime_success_dict[user_id] = 0
                 
-
-    await ctx.send(message)
+    embed = discord.Embed(
+        title="Slut report",
+        description=message,
+        color=discord.Color.red())
+    await ctx.send(embed=embed)
 
 crime_responses = [
     "You skillfully repossessed a femboy's prized collection of oversized hoodies and managed to gain ____ by selling them as 'vintage couture'!",
@@ -2037,6 +2041,7 @@ crime_success_dict = {}
 @bot.command(name='crime')
 async def crime(ctx):
     # print(crime_success_dict)
+    global crime_success_dict
 
     cooldown_msg = check_cooldown(ctx, 'crime')
     if cooldown_msg:
@@ -2079,7 +2084,7 @@ async def crime(ctx):
         response_message = response_message.replace('____', str(amount_lost))
         
         if "A good lawyer" in Items.get_user_items(user_id):
-            balance_embed = views_embeds.create_balance_embed(user_id, bot, amountAddedToCash=1e4)
+            balance_embed = views_embeds.create_balance_embed(user_id, bot, amountAddedToCash=-1e4)
             await ctx.send("However, due to their good lawyer, the money was dealt with and troubles were sorted out behind the seens")
             
             
@@ -2099,7 +2104,12 @@ async def crime(ctx):
         crime_success_dict[user_id] = 0
         balance_embed = views_embeds.create_balance_embed(user_id, bot, amountAddedToCash=amount_lost) 
     
-    await ctx.send(response_message, embed=balance_embed)
+    embed = discord.embed(
+        title="Crime report",
+        description=response_message,
+        color=discord.Color.red())
+    await ctx.send(embed=embed)
+    await ctx.send(embed=balance_embed)
     
 
    
@@ -2247,6 +2257,7 @@ async def leaderboard(ctx):
 
 @bot.command(name='rob', aliases=['steal', 'yoink'])
 async def rob(ctx, target: discord.Member):
+    global crime_success_dict
     # print(crime_success_dict)
 
     cooldown_msg = check_cooldown(ctx, 'rob')
@@ -2391,6 +2402,8 @@ async def rob_bank(ctx):
     if cooldown_msg:
         await ctx.send(cooldown_msg)
         return
+
+    global crime_success_dict
 
     user_id_str = str(ctx.author.id)
     current_cash = Bank.gettotal(user_id_str)
