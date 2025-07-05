@@ -8,15 +8,15 @@ import os
 import nltk
 from fuzzywuzzy import fuzz
 import time
+import datetime
+import math
 import asyncio
 import sys
+from nltk.corpus import words
+sys.path.append("secondary_py")
 from economy import Bank, Income, Items, Offshore
 from game_logic import BlackjackGame, CardflipGame, HackingGame 
 from views_embeds import CommandsView, CooldownsView, HackingGameView, BlackjackView
-from nltk.corpus import words
-import datetime
-import math
-
 import views_embeds
 
 english_words = set(words.words())

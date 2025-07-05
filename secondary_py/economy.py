@@ -4,10 +4,16 @@ import json
 import random
 import time
 
+current_script_dir = os.path.dirname(os.path.abspath(__file__))
+project_root_dir = os.path.join(current_script_dir, os.pardir)
+
+JSON_FILES_DIR = os.path.join(project_root_dir, "json_files")
+
+
 class Bank:
 
     bank_accounts = {}
-    _DATA_FILE = os.path.join(os.path.dirname(__file__), "json_files/balance.json")
+    _DATA_FILE = os.path.join(JSON_FILES_DIR, "balance.json")
 
     @staticmethod
     def read_balance(user_id: str = None):
@@ -237,8 +243,11 @@ class Bank:
         # Corrected f-string formatting: .sf -> .2f
         print(f"Guillotined {target_id} (wealth: {target_wealth_to_distribute:,.2f}) and distributed {money_per_recipients:,.2f} to {num_recipients} other members")
 
-class Income():
+class Income:
     
+    PLAYER_DATA_FILE = os.path.join(JSON_FILES_DIR, "playerincomes.json")
+    SOURCES_DATA_FILE = os.path.join(JSON_FILES_DIR, "incomesources.json")
+
     income_sources = []
     playerincomes = {}
 
@@ -258,28 +267,28 @@ class Income():
 
     @staticmethod
     def loadsources():
-        if os.path.exists("json_files/incomesources.json"):
-            with open("json_files/incomesources.json", "r") as f:
+        if os.path.exists(Income.SOURCES_DATA_FILE):
+            with open(Income.SOURCES_DATA_FILE, "r") as f:
                 return json.load(f)
         else:
             raise FileNotFoundError("incomesources.json not found.")
 
     @staticmethod
     def savesources():
-        with open("json_files/incomesources.json", "w") as f:
+        with open(Income.SOURCES_DATA_FILE, "w") as f:
             json.dump(Income.income_sources, f, indent=2)
 
     @staticmethod
     def loadincomes():
-        if os.path.exists("json_files/playerincomes.json"):
-            with open("json_files/playerincomes.json", "r") as f:
+        if os.path.exists(Income.PLAYER_DATA_FILE):
+            with open(Income.PLAYER_DATA_FILE, "r") as f:
                 return json.load(f)
         else:
             return {}
     
     @staticmethod
     def saveincomes():
-        with open("json_files/playerincomes.json", "w") as f:
+        with open(Income.PLAYER_DATA_FILE, "w") as f:
             json.dump(Income.playerincomes, f, indent=2)
 
     @staticmethod
@@ -572,6 +581,9 @@ class Income():
 
 
 class Items:
+    PLAYER_DATA_FILE = os.path.join(JSON_FILES_DIR, "plyerinventory.json")
+    SOURCES_DATA_FILE = os.path.join(JSON_FILES_DIR, "itemsources.json")
+
     item_sources = [] # List of item definitions: [name, is_collectible, value_or_effect, description, associated_income_source_name, role_added, role_removed, role_required]
     player_inventory = {} # {"user_id": {"item_name": index, ...}}
 
@@ -587,15 +599,15 @@ class Items:
 
     @staticmethod
     def load_item_sources():
-        if os.path.exists("json_files/itemsources.json"):
-            with open("json_files/itemsources.json", "r") as f:
+        if os.path.exists(Items.SOURCES_DATA_FILE):
+            with open(Items.PLAYER_DATA_FILE, "r") as f:
                 return json.load(f)
         else:
             raise FileNotFoundError("itemsources.json not found.")
 
     @staticmethod
     def save_item_sources():
-        with open("json_files/itemsources.json", "w") as f:
+        with open(Items.SOURCES_DATA_FILE, "w") as f:
             json.dump(Items.item_sources, f, indent=2)
 
     @staticmethod
@@ -640,15 +652,15 @@ class Items:
 
     @staticmethod
     def load_player_inventory():
-        if os.path.exists("json_files/playerinventory.json"):
-            with open("json_files/playerinventory.json", "r") as f:
+        if os.path.exists(Items.PLAYER_DATA_FILE):
+            with open(Items.PLAYER_DATA_FILE, "r") as f:
                 return json.load(f)
         else:
             return {}
     
     @staticmethod
     def save_player_inventory():
-        with open("json_files/playerinventory.json", "w") as f:
+        with open(Items.PLAYER_DATA_FILE, "w") as f:
             json.dump(Items.player_inventory, f, indent=2)
 
     @staticmethod
@@ -803,7 +815,7 @@ class Items:
 
 class Offshore:
     
-    DATA_PATH = "json_files/offshore.json"
+    DATA_PATH = os.path.join(JSON_FILES_DIR, "offshore,json")
     balances = [] 
 
     # Balances will be stored as follows: [key (lets things interact with it), interest, startbalance, lastupdate]

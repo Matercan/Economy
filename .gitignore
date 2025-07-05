@@ -1,0 +1,8 @@
+# Python bytecode files
+__pycache__/
+
+# Python build artifacts
+*.pyc
+*.pyd
+*.pyo
+.Python
