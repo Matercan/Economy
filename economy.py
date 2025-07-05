@@ -197,48 +197,45 @@ class Bank:
 
 
     @staticmethod
-    def guillotine():
-        Bank.read_balance()
+    def targetted_guillotine(target_id: str):
+        Bank.read_balance() # Makes sure everything is loaded
 
-        # 1. Identify the richest and store their total wealth to be distributed
-        richest_user_id_str = Bank.get_richest_user_id()
-        richest_total_wealth_to_distribute = Bank.gettotal(richest_user_id_str)
-
-        # Handle case where richest has no money to distribute
-        if richest_total_wealth_to_distribute <= 0:
-            print(f"Richest member ({richest_user_id_str}) has no wealth to distribute.")
+        # 1. Identify the balance of the target user and store it
+        target_wealth_to_distribute = Bank.gettotal(target_id) # Corrected variable name
+        
+        # Handle the case where they have no money to distribute
+        if target_wealth_to_distribute <= 0:
+            print("Everyone has no money or target has no money to distribute.")
             return
 
-        # Determine the recipients (all members except the richest)
+        # Determine the recipients
         all_account_ids = list(Bank.bank_accounts.keys())
-        recipients_ids = [uid for uid in all_account_ids if uid != richest_user_id_str]
-        num_recipients = len(recipients_ids)
-
-        # If there are no other members to distribute to, just zero out the richest
+        recipient_ids = [uid for uid in all_account_ids if uid != target_id]
+        num_recipients = len(recipient_ids)
+        
+        # Handle the case where there are no other recipients
         if num_recipients <= 0:
-            print("Not enough other accounts to distribute wealth. Zeroing out richest only.")
-            Bank.bank_accounts[richest_user_id_str]["cash"] = 0
-            Bank.bank_accounts[richest_user_id_str]["bank"] = 0
+            print("There are no other people to distribute wealth to.")
+            # Zero out the target's wealth even if no recipients
+            Bank.bank_accounts[target_id]["cash"] = 0
+            Bank.bank_accounts[target_id]["bank"] = 0
             Bank.save_balances()
             return
 
-        # 2. Zero out the richest member's account *before* distribution
-        Bank.bank_accounts[richest_user_id_str]["cash"] = 0
-        Bank.bank_accounts[richest_user_id_str]["bank"] = 0
+        # 2. Zero out the target's wealth
+        Bank.bank_accounts[target_id]["cash"] = 0
+        Bank.bank_accounts[target_id]["bank"] = 0
 
         # 3. Calculate the share each other member receives
-        money_per_recipient = richest_total_wealth_to_distribute / num_recipients
+        money_per_recipients = target_wealth_to_distribute / num_recipients
 
-        # 4. Distribute money to all other accounts
-        for user_id_distribute in recipients_ids:
-            # Add the money to their bank account (or cash, depending on desired outcome)
-            # Adding to bank is consistent with your original code's intent
-            Bank.addbank(user_id_distribute, money_per_recipient)
+        # Distribute the money
+        for user_id_distribute in recipient_ids:
+            Bank.addbank(user_id_distribute, money_per_recipients)
 
-        Bank.save_balances() # Save all changes after distribution
-        print(f"Guillotined {richest_user_id_str} (wealth: {richest_total_wealth_to_distribute:,.2f}) and distributed {money_per_recipient:,.2f} to {num_recipients} other members.")
-            
-
+        Bank.save_balances()
+        # Corrected f-string formatting: .sf -> .2f
+        print(f"Guillotined {target_id} (wealth: {target_wealth_to_distribute:,.2f}) and distributed {money_per_recipients:,.2f} to {num_recipients} other members")
 
 class Income():
     

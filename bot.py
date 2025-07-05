@@ -838,18 +838,19 @@ def save_cooldowns(cooldowns):
 
 # Dictionary of command cooldown times in seconds
 command_cooldowns = {
-    'kill': 86400,        # 24 hours
-    'random_kill': 86400, # 24 hours
-    'stab': 7200,        # 2 hour
-    'guillotine': 604800, # 7 days
-    'rob_bank': 604800,   # 7 days
-    'seven_d6': 25560,   # 7 hours and 6 minutes
-    '911': 14400,         # 4 hours
+    'kill': 86400,         # 24 hours
+    'random_kill': 86400,  # 24 hours
+    'stab': 7200,          # 2 hour
+    'guillotine': 604800,  # 7 days
+    'rob_bank': 604800,    # 7 days
+    'seven_d6': 25560,     # 7 hours and 6 minutes
+    '911': 14400,          # 4 hours
     'work': 86400,         # 24 hours
     'suicude': 14400,      # 4 hours
     'slut': 14400,         # 4 hours
     'crime': 14400,        # 4 hours
-    'rob': 14400           # 4 hours
+    'rob': 14400,          # 4 hours
+    'guillotine-user': 604800 # 7 Days
 }
 
 def check_cooldown(ctx, command_name, cooldown_time=86400, user_dependent=True):
@@ -2587,7 +2588,7 @@ async def guillotine(ctx):
     else:
         # Fallback thumbnail if richest member's avatar can't be fetched
         # You might want a default guillotine image here
-        embed.set_thumbnail(url="https://i.imgur.com/your_default_thumbnail_url.png") # Replace with a suitable URL
+        embed.set_thumbnail(url="https://upload.wikimedia.org/wikipedia/commons/thumb/4/43/Ex%C3%A9cution_de_Marie_Antoinette_le_16_octobre_1793.jpg/1200px-Ex%C3%A9cution_de_Marie_Antoinette_le_16_octobre_1793.jpg") # Replace with a suitable URL
 
 
     # --- Execute the guillotine operation ---
@@ -2610,6 +2611,82 @@ async def guillotine(ctx):
     await ctx.send(embed=embed)
     await ctx.send(views_embeds.create_balance_embed(user_id_str, bot, amountAddedToBank=money_gained_by_saviour))
     await ctx.send(views_embeds.create_balance_embed(richest_user_id_str, bot, amountAddedToBank=-richest_total_wealth))
+
+@bot.command(name='guillotine-user', aliases=['guill-user', 'guollotine-user'])
+async def guillotine_target(ctx, target: discord.Member):
+    cooldown_msg = check_cooldown(ctx, 'guillotine-user', user_dependent=False)
+    if cooldown_msg:
+        await ctx.send("We can only kill so many capitalists per day")
+        await ctx.send(cooldown_msg)
+        return
+
+    user_id_str = str(ctx.author.id)
+    target_id_str = str(target.id) # <--- Get target's ID as string here
+
+    # Load initial balance for the command executor (saviour)
+    saviour_balance_before = Bank.read_balance(user_id_str)
+    saviour_total_wealth_before = saviour_balance_before.get("cash", 0) + saviour_balance_before.get("bank", 0)
+
+    # Ensure bank accounts are loaded for the sort (Bank.read_balance() does this)
+    # Bank.read_balance() # This line is redundant as Bank.read_balance(target_id_str) will load it
+
+    # Get target's account data using their string ID
+    richest_account_data = Bank.read_balance(target_id_str)
+
+    richest_cash = richest_account_data.get("cash", 0)
+    richest_bank = richest_account_data.get("bank", 0)
+    richest_total_wealth = richest_cash + richest_bank
+    
+    # The 'target' variable is already the discord.Member object, no need to fetch it again.
+    richest_member_obj = target 
+
+    richest_name = richest_member_obj.display_name
+
+    embed = discord.Embed(
+        title="🔪 Guillotine Executed! ✊",
+        description="The wealth of the oppressors has been redistributed!",
+        color=discord.Color.red()
+    )
+
+    embed.add_field(
+        name=f"👑 The Fallen Capitalist: {richest_name}",
+        value=f"They once hoarded a vile wealth of $`{richest_total_wealth:,.2f}`",
+        inline=False
+    )
+    
+    embed.add_field(
+        name=f"✨ The Revolutionary: {ctx.author.display_name}",
+        value=f"With but a value of $`{saviour_total_wealth_before:,.2f}`, you guillotined them!",
+        inline=False
+    )
+
+    if richest_member_obj and richest_member_obj.avatar:
+        embed.set_thumbnail(url=richest_member_obj.avatar.url)
+    else:
+        embed.set_thumbnail(url="https://upload.wikimedia.org/wikipedia/commons/thumb/4/43/Ex%C3%A9cution_de_Marie_Antoinette_le_16_octobre_1793.jpg/1200px-Ex%C3%A9cution_de_Marie_Antoinette_le_16_octobre_1793.jpg")
+
+
+    # --- Execute the guillotine operation ---
+    # Pass the string ID to targetted_guillotine
+    Bank.targetted_guillotine(target_id_str) 
+
+    # --- Calculate money gained by the executor (ctx.author) ---
+    saviour_balance_after = Bank.read_balance(user_id_str)
+    saviour_total_wealth_after = saviour_balance_after.get("cash", 0) + saviour_balance_after.get("bank", 0)
+    money_gained_by_saviour = saviour_total_wealth_after - saviour_total_wealth_before
+
+    embed.add_field(
+        name="💰 Your personal gain from the revolution:",
+        value=f"You gained $`{money_gained_by_saviour:,.2f}`!",
+        inline=False
+    )
+    
+    await ctx.send(embed=embed)
+    # Pass ctx.bot to create_balance_embed
+    await ctx.send(embed=views_embeds.create_balance_embed(user_id_str, bot, amountAddedToBank=money_gained_by_saviour))
+    # Pass ctx.bot and target_id_str
+    # Note: amountAddedToBank for the target should reflect their total loss if their bank is zeroed out
+    await ctx.send(embed=views_embeds.create_balance_embed(target_id_str, bot, amountAddedToBank=-richest_total_wealth))
 
 @bot.command(name='store', aliases=['shop', 'items'])
 async def list_items(ctx):
