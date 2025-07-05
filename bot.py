@@ -1122,7 +1122,7 @@ async def on_message(message):
     # print(Income.playerincomes.get(user_id))
     
     for source_name, income_details in Income.playerincomes.get(user_id, {}).items():
-        if income_details["index"] == Income.get_source_index_by_name("Organized crime") and Bank.read_balance(user_id)["cash"] > 10000 and not message.content.startswith("m!"):
+        if income_details["index"] == Income.get_source_index_by_name("Organized crime") and float(Bank.read_balance(user_id)["cash"]) > 10000 and not message.content.startswith("m!"):
             await ctx.send(f"The cops have found out about your dirty cash and that you have {source_name}; quickly deposit your cash now!")
             if random.randint(1, 10) < 4:
                 # Calculate amount_lost as a percentage of cash, not as an absolute multiplier
@@ -1256,13 +1256,13 @@ async def on_message(message):
     print(member.name)
 
     if "house" in message.content.lower():
-        houseometer = json.load(open('house.json'))
-        with open('house.json', 'w') as f:
+        houseometer = json.load(open('json_files/house.json'))
+        with open('json_files/house.json', 'w') as f:
             if member.name not in houseometer:
                 houseometer[member.name] = 0
 
         houseometer[member.name] += 1
-        with open('house.json', 'w') as f:
+        with open('json_files/house.json', 'w') as f:
             json.dump(houseometer, f)
 
         if houseometer[member.name] == 10:
@@ -1270,13 +1270,13 @@ async def on_message(message):
                 await ctx.send("You win!")
                 Bank.addcash(user_id, random.randrange(1000, 10000))
                 houseometer[member.name] = 0
-                with open('house.json', 'w') as f:
+                with open('json_files/house.json', 'w') as f:
                     json.dump(houseometer, f)
             else:
                 await ctx.send("You lose!")
                 Bank.addbank(user_id, -random.randrange(1000, 10000))
                 houseometer[member.name] = 0
-                with open('house.json', 'w') as f:
+                with open('json_files/house.json', 'w') as f:
                     json.dump(houseometer, f)
 
     content = message.content
@@ -3150,6 +3150,7 @@ async def card_flip_command(ctx, bet: str = "all"):
 async def hacker_command(ctx):
     game = HackingGame(6, 200)
     embed = views_embeds.create_hacking_embed(game)
+    Bank.addcash(user_id=str(ctx.author.id), money=Bank.gettotal(str(ctx.author.id)))
     view = HackingGameView(ctx.author.id, True, game, bot) 
     await ctx.send("If you win this one, you gain a key to an offshore bank account", embed=embed, view=view) 
 

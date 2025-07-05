@@ -762,6 +762,7 @@ def create_hacking_embed(game: HackingGame):
     print(game.questionAmount)
     print(game.scoreAcquired)
     print(game.questionsCompleted)
+    print(game.cardsUsed)
 
     embed.add_field(
         name="Score",
@@ -773,6 +774,12 @@ def create_hacking_embed(game: HackingGame):
         name="Questions",
         value=f"{game.questionAmount - game.questionsCompleted} questions left",
         inline=True
+    )
+
+    embed.add_field(
+        name="Cards",
+        value=f"{[(card.get_value(), card.suit[0]) for card in game.cardsUsed]} have been used", 
+        inline=False
     )
 
     print("fields added")
@@ -791,7 +798,7 @@ class HackingGameView(discord.ui.View):
         self.bot = bot
 
         if self.key_game:
-            Bank.addcash(player_id, Bank.read_balance(self.player_id))
+            Bank.addcash(player_id, Bank.gettotal(self.player_id))
 
         for suit in ['Hearts', 'Diamonds', 'Clubs', 'Spades']:
             print(f"{suit} is about to be added")
@@ -927,7 +934,7 @@ class HackingGameView(discord.ui.View):
 
     async def handle_player_win(self, interaction: discord.Interaction):
         if self.key_game:
-            key = Offshore.balances[random.randint(0, len(Offshore.balances) - 1)]
+            key = Offshore.balances[random.randint(0, len(Offshore.balances) - 1)][0]
             await interaction.followup.send(f"Congratulations, here is your key: {key}", ephemeral=True)
         else:
             Bank.addcash(self.player_id, self.bet)
