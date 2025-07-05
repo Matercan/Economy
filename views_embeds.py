@@ -941,10 +941,31 @@ class HackingGameView(discord.ui.View):
 
 def create_balance_embed(user_id: str, bot, amountAddedToCash: float = 0, amountAddedToBank: float = 0):
     user = bot.get_user(int(user_id))
-    cash = Bank.read_balance(user_id)["cash"] - amountAddedToCash
-    bank = Bank.read_balance(user_id)["bank"] - amountAddedToBank
     
-    print(f"DEBUG BALANCE: {cash}, {bank}")
+    # Get the initial numeric balances
+    initial_cash = Bank.read_balance(user_id)["cash"]
+    initial_bank = Bank.read_balance(user_id)["bank"]
+    initial_balance = Bank.gettotal(user_id)
+
+    cash_display_value = initial_cash - amountAddedToCash 
+    bank_display_value = initial_bank - amountAddedToBank
+    balance_display_value = initial_balance - (amountAddedToBank + amountAddedToCash)
+
+    # Get current (actual) balances from Bank (after any prior transaction that led to calling this embed)
+    cash_now = Bank.read_balance(user_id)["cash"]
+    bank_now = Bank.read_balance(user_id)["bank"] 
+    balance_now = Bank.gettotal(user_id)
+
+    # Format the display values *just before* adding them to the embed
+    formatted_cash_display = f"**{cash_display_value:,.2f}**"
+    formatted_bank_display = f"**{bank_display_value:,.2f}**"
+    formatted_total_display = f"**{balance_display_value:,.2f}**"
+
+    formatted_cash_now = f"**{cash_now:,.2f}**"
+    formatted_bank_now = f"**{bank_now:,.2f}**"
+    formatted_balance_now = f"**{balance_now:,.2f}**"
+
+    print(f"DEBUG BALANCE: {formatted_cash_display}, {formatted_bank_display}, {formatted_total_display}")
 
     ranked_members = []
 
@@ -960,7 +981,6 @@ def create_balance_embed(user_id: str, bot, amountAddedToCash: float = 0, amount
             rank = i + 1
             break
 
-
     embed = discord.Embed(
         title=f"{user.display_name}'s Balance",
         color=discord.Color.blue()
@@ -971,29 +991,30 @@ def create_balance_embed(user_id: str, bot, amountAddedToCash: float = 0, amount
     totalAddedStr = ""
 
     if amountAddedToCash < 0:
-        cashAddedStr = f"{amountAddedToCash:,.0f}"
+        cashAddedStr = f" ({amountAddedToCash:,.0f})" # Added parentheses for clarity
     elif amountAddedToCash > 0:
-        cashAddedStr = f"+{amountAddedToCash:,.0f}"
+        cashAddedStr = f" (+{amountAddedToCash:,.0f})" # Added parentheses for clarity
 
     if amountAddedToBank < 0:
-        bankAddedStr = f"{amountAddedToBank:,.0f}"
+        bankAddedStr = f" ({amountAddedToBank:,.0f})" # Added parentheses for clarity
     elif amountAddedToBank > 0:
-        bankAddedStr = f"+{amountAddedToBank:,.0f}"
+        bankAddedStr = f" (+{amountAddedToBank:,.0f})" # Added parentheses for clarity
     
-    if amountAddedToBank + amountAddedToCash > 0:
-        totalAddedStr = f"+{amountAddedToCash + amountAddedToBank:,.0f}"
-    elif amountAddedToBank + amountAddedToCash < 0:
-        totalAddedStr = f"{amountAddedToCash + amountAddedToBank:,.0f}"
+    total_change_delta = amountAddedToCash + amountAddedToBank
+    if total_change_delta > 0:
+        totalAddedStr = f" (+{total_change_delta:,.0f})"
+    elif total_change_delta < 0:
+        totalAddedStr = f" ({total_change_delta:,.0f})"
 
     print(f"DEBUG: cash added: {cashAddedStr}, {bankAddedStr}, {totalAddedStr}")
 
+    # Use the formatted string variables here
+    embed.add_field(name="💰 Cash", value=f"${formatted_cash_display} -> {formatted_cash_now} {cashAddedStr}", inline=False)
+    embed.add_field(name="🏦 Bank", value=f"${formatted_bank_display} -> {formatted_bank_now} {bankAddedStr}", inline=False)
 
-    embed.add_field(name="💰 Cash", value=f"${cash:,.2f}{cashAddedStr}", inline=False)
-    embed.add_field(name="🏦 Bank", value=f"${bank:,.2f}{bankAddedStr}", inline=False)
-
-    # Calculate and display total worth using your gettotal method
-    total_worth = cash + bank
-    embed.add_field(name="✨ Total Worth", value=f"${total_worth:,.2f}{totalAddedStr}", inline=False)
+    total_worth_numeric = cash_now + bank_now # Use the numeric values for addition
+    
+    embed.add_field(name="✨ Total Worth", value=f"${formatted_total_display} -> {formatted_balance_now} {totalAddedStr}", inline=False)
     embed.add_field(name="Rank", value=f"#{rank} of {richens}", inline=False)
 
     embed.set_thumbnail(url=user.avatar.url if user.avatar else None)
