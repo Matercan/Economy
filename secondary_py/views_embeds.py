@@ -2,6 +2,7 @@ import discord
 from game_logic import BlackjackGame, HackingGame
 from economy import Income, Items, Bank, Offshore
 import time, os, json, random, asyncio
+import economy
 
 
 class CommandsView(discord.ui.View):
@@ -455,7 +456,7 @@ class CooldownsView(discord.ui.View):
 
 def load_cooldowns():
     try:
-        file_path = os.path.abspath('cooldowns.json')
+        file_path = os.path.join(economy.JSON_FILES_DIR, 'cooldowns.json')
         if os.path.exists(file_path):
             with open(file_path, 'r') as f:
                 return json.load(f)
@@ -465,18 +466,19 @@ def load_cooldowns():
         return {}
 
 command_cooldowns = {
-    'kill': 86400,        # 24 hours
-    'random_kill': 86400, # 24 hours
-    'stab': 7200,        # 2 hour
-    'guillotine': 604800, # 7 days
-    'rob_bank': 604800,   # 7 days
-    'seven_d6': 25560,   # 7 hours and 6 minutes
-    '911': 14400,         # 4 hours
+    'kill': 86400,         # 24 hours
+    'random_kill': 86400,  # 24 hours
+    'stab': 7200,          # 2 hour
+    'guillotine': 604800,  # 7 days
+    'rob_bank': 604800,    # 7 days
+    'seven_d6': 25560,     # 7 hours and 6 minutes
+    '911': 14400,          # 4 hours
     'work': 86400,         # 24 hours
     'suicude': 14400,      # 4 hours
     'slut': 14400,         # 4 hours
     'crime': 14400,        # 4 hours
-    'rob': 14400           # 4 hours
+    'rob': 14400,          # 4 hours
+    'guillotine-user': 604800 # 7 days
 }
 
 def create_blackjack_embed(game: BlackjackGame, player_id: int, bet_amount: int, show_dealer_full_hand: bool = False):

@@ -804,7 +804,7 @@ nltk.download('words')
 
 def load_cooldowns():
     try:
-        file_path = os.path.abspath('cooldowns.json')
+        file_path = os.path.abspath('json_files/cooldowns.json')
         if os.path.exists(file_path):
             with open(file_path, 'r') as f:
                 return json.load(f)
@@ -815,7 +815,7 @@ def load_cooldowns():
 
 def save_cooldowns(cooldowns):
     try:
-        file_path = os.path.abspath('cooldowns.json')
+        file_path = os.path.abspath('json_files/cooldowns.json')
         # Create directory if it doesn't exist
         os.makedirs(os.path.dirname(file_path), exist_ok=True)
         
@@ -833,21 +833,7 @@ def save_cooldowns(cooldowns):
         print(f"Error saving cooldowns: {e}")
 
 # Dictionary of command cooldown times in seconds
-command_cooldowns = {
-    'kill': 86400,         # 24 hours
-    'random_kill': 86400,  # 24 hours
-    'stab': 7200,          # 2 hour
-    'guillotine': 604800,  # 7 days
-    'rob_bank': 604800,    # 7 days
-    'seven_d6': 25560,     # 7 hours and 6 minutes
-    '911': 14400,          # 4 hours
-    'work': 86400,         # 24 hours
-    'suicude': 14400,      # 4 hours
-    'slut': 14400,         # 4 hours
-    'crime': 14400,        # 4 hours
-    'rob': 14400,          # 4 hours
-    'guillotine-user': 604800 # 7 Days
-}
+command_cooldowns = views_embeds.command_cooldowns
 
 def check_cooldown(ctx, command_name, cooldown_time=86400, user_dependent=True):
     guild_id = str(ctx.guild.id)
