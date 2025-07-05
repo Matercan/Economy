@@ -1031,7 +1031,7 @@ async def cooldowns(ctx):
 
 def load_spellcheck_state():
     try:
-        file_path = os.path.abspath('spellcheck_state.json')
+        file_path = os.path.abspath('json_files/spellcheck_state.json')
         if os.path.exists(file_path):
             with open(file_path, 'r') as f:
                 return json.load(f)
@@ -1042,7 +1042,7 @@ def load_spellcheck_state():
 
 def save_spellcheck_state(state):
     try:
-        file_path = os.path.abspath('spellcheck_state.json')
+        file_path = os.path.abspath('json_files/spellcheck_state.json')
         # Create directory if it doesn't exist
         os.makedirs(os.path.dirname(file_path), exist_ok=True)
         
@@ -1392,7 +1392,7 @@ async def typeinallservers(ctx, message: str):
     return
 
 
-last5messages = "last5messages.json"
+last5messages = "json_files/last5messages.json"
 
 if os.path.exists(last5messages):
     with open(last5messages, "r") as f:
