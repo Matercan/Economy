@@ -701,6 +701,7 @@ class Items:
             Items.player_inventory[user_id] = {}
 
         # Add the item to the user's inventory
+
         Items.player_inventory[user_id][item_name] = item_index
         Items.save_player_inventory()
         print(f"Item '{item_name}' added to {user_id}'s inventory.")

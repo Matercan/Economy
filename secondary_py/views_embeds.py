@@ -972,7 +972,7 @@ def create_balance_embed(user_id: str, bot, amountAddedToCash: float = 0, amount
 
     formatted_cash_now = f"-> **${cash_now:,.2f}**" if amountAddedToCash != 0 else ""
     formatted_bank_now = f"-> $**${bank_now:,.2f}**" if amountAddedToBank != 0 else ""
-    formatted_balance_now = f"-> **${balance_now:,.2f}**" if amountAddedToBank or amountAddedToCash != 0 else ""
+    formatted_balance_now = f"-> **${balance_now:,.2f}**" if amountAddedToBank + amountAddedToCash != 0 else ""
 
     print(f"DEBUG BALANCE: {formatted_cash_display}, {formatted_bank_display}, {formatted_total_display}")
 
