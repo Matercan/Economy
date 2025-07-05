@@ -581,7 +581,7 @@ class Income:
 
 
 class Items:
-    PLAYER_DATA_FILE = os.path.join(JSON_FILES_DIR, "plyerinventory.json")
+    PLAYER_DATA_FILE = os.path.join(JSON_FILES_DIR, "playerinventory.json")
     SOURCES_DATA_FILE = os.path.join(JSON_FILES_DIR, "itemsources.json")
 
     item_sources = [] # List of item definitions: [name, is_collectible, value_or_effect, description, associated_income_source_name, role_added, role_removed, role_required]
@@ -600,7 +600,7 @@ class Items:
     @staticmethod
     def load_item_sources():
         if os.path.exists(Items.SOURCES_DATA_FILE):
-            with open(Items.PLAYER_DATA_FILE, "r") as f:
+            with open(Items.SOURCES_DATA_FILE, "r") as f:
                 return json.load(f)
         else:
             raise FileNotFoundError("itemsources.json not found.")
@@ -815,7 +815,7 @@ class Items:
 
 class Offshore:
     
-    DATA_PATH = os.path.join(JSON_FILES_DIR, "offshore,json")
+    DATA_PATH = os.path.join(JSON_FILES_DIR, "offshore.json")
     balances = [] 
 
     # Balances will be stored as follows: [key (lets things interact with it), interest, startbalance, lastupdate]
@@ -1025,3 +1025,45 @@ class Offshore:
         for key in keys:
             print(f"key updating: {key}")
             Offshore.update_account(Offshore.get_index_from_key(key))
+
+def main():
+    print("Expected all files should be in cwd/json_files/<file>")
+    print(f"Balances data file: {Bank._DATA_FILE}")
+    if os.path.exists(Bank._DATA_FILE):
+        print("Bank data file exists")
+    else:
+        print("Bank data file does not exist")
+
+
+    print(f"Income data files: {Income.SOURCES_DATA_FILE}, {Income.PLAYER_DATA_FILE}")
+    if os.path.exists(Income.SOURCES_DATA_FILE):
+        print("Income sources data file exists")
+    else:
+        print("Income sources data file does not exist")
+    if os.path.exists(Income.PLAYER_DATA_FILE):
+        print("Player incomes data file exists")
+    else:
+        print("Player incomes data file does not exist")
+    
+    print(f"Inventory data files: {Items.SOURCES_DATA_FILE}, {Items.PLAYER_DATA_FILE}")
+    if os.path.exists(Items.SOURCES_DATA_FILE):
+        print("Item sources data file exists")
+        Items.load_item_sources()
+        print(Items.item_sources)
+    else:
+        print("Item sources data does not exist")
+    if os.path.exists(Items.PLAYER_DATA_FILE):
+        print("Player inventory data file exists")
+        Items.load_player_inventory()
+        print(Items.player_inventory)
+    else:
+        print("Player inventory data file does not exist")
+
+    print(f"Offshore data file: {Offshore.DATA_PATH}")
+    if os.path.exists(Offshore.DATA_PATH):
+        print("Offshore data file exists")
+    else:
+        print("Offshore data does not exist")
+
+if __name__ == '__main__':
+    main()

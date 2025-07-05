@@ -52,10 +52,6 @@ OFFLINE_ROLE_ID = 1383130035984142386 # Role to ping when bot goes offline
 STATUS_CHANNEL_ID = 1368285968632778862 # Channel for online/offline pings
 TARGET_GUILD_ID = 1331355137741950997
 
-print(f"Current working directory: {os.getcwd()}") 
-print(f"Absolute path of economy.py: {os.path.abspath(__file__)}")
-print(f"Expected balance.json path: {os.path.join(os.path.dirname(__file__), 'balance.json')}")
-
 
 @bot.command(name='commands', aliases=['help', 'economy'])
 async def display_commands(ctx):
@@ -66,15 +62,15 @@ async def display_commands(ctx):
     await ctx.send("commands", view=view, ephemeral=True)
 
 
-if os.path.exists('kill_counts.json'):
-    with open('kill_counts.json', 'r') as f:
+if os.path.exists('json_files/kill_counts.json'):
+    with open('json_files/kill_counts.json', 'r') as f:
         kill_counts = json.load(f)
 else:
     kill_counts = {}
 
 def save_kill_counts():
     try:
-        file_path = os.path.abspath('kill_counts.json')
+        file_path = os.path.abspath('json_files/kill_counts.json')
         # Create directory if it doesn't existmember mater
         os.makedirs(os.path.dirname(file_path), exist_ok=True)
         
@@ -668,7 +664,7 @@ async def kill_leaderboard(ctx):
     """Display a leaderboard of users with the most kills"""
     # Load kill counts from JSON file
     try:
-        with open('kill_counts.json', 'r') as f:
+        with open('json_files/kill_counts.json', 'r') as f:
             kill_counts = json.loads(f.read())
     except (FileNotFoundError, json.JSONDecodeError):
         await ctx.send("No kill counts found! - ping mater")
