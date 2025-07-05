@@ -705,7 +705,7 @@ async def topkill_leaderboard(ctx):
     """Display a leaderboard of users with the most kills"""
     # Load kill counts from JSON file
     try:
-        with open('kill_counts.json', 'r') as f:
+        with open('json_files/kill_counts.json', 'r') as f:
             kill_counts = json.loads(f.read())
     except (FileNotFoundError, json.JSONDecodeError):
         await ctx.send("No kill counts found! - ping mater")
@@ -1919,7 +1919,6 @@ async def collect_income_command(ctx):
     bank_gained = Bank.read_balance(user_id_str)["bank"] - bank_at_start
     cash_gained = Bank.read_balance(user_id_str)["cash"] - cash_at_start
     
-    await ctx.send(embed=views_embeds.create_balance_embed(user_id_str, bot, amountAddedToCash=cash_gained, amountAddedToBank=bank_gained))
 
     # 2. Create the main embed for the collection summary
     embed = discord.Embed(
@@ -1968,6 +1967,8 @@ async def collect_income_command(ctx):
     embed.set_footer(text=f"Current Cash: {current_cash:,.2f}, Bank: {current_bank:,.2f}")
     
     await ctx.send(embed=embed) # Send the final embed
+    await ctx.send(embed=views_embeds.create_balance_embed(user_id_str, bot, amountAddedToCash=cash_gained, amountAddedToBank=bank_gained)) # Send embed of how much wealth changed
+
 
 Slut_respondes = [
     "kakashi came by and killed the mood. You lose ____",

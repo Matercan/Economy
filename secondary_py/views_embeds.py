@@ -1010,7 +1010,7 @@ def create_balance_embed(user_id: str, bot, amountAddedToCash: float = 0, amount
 
     # Use the formatted string variables here
     embed.add_field(name="💰 Cash", value=f"{formatted_cash_display}{formatted_cash_now} {cashAddedStr}", inline=False)
-    embed.add_field(name="🏦 Bank", value=f"{formatted_bank_display}{formatted_bank_now} {bankAddedStr}", inline=False)
+    embed.add_field(name="🏦 Bank", value=f"{formatted_bank_display}{formatted_bank_now} {bankAddedStr}", inline=True)
 
     
     embed.add_field(name="✨ Total Worth", value=f"{formatted_total_display}{formatted_balance_now} {totalAddedStr}", inline=False)
