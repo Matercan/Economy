@@ -1581,6 +1581,7 @@ async def deposit(ctx, money: str="all"):
     embed.set_footer(text=f"deposited ${money:,.0f} cash to bank", icon_url=ctx.author.avatar.url if ctx.author.avatar else None)
 
     await ctx.send(embed=embed)
+    await ctx.send(embed=views_embeds.create_balance_embed(user_id, bot, amountAddedToCash=-money, amountAddedToBank=money))
 
 @bot.command()
 async def suicide(ctx):
@@ -1629,6 +1630,7 @@ async def withdraw(ctx, money: str="all"):
     embed.set_footer(text=f"withdrew ${money:,.0f} from bank to cash", icon_url=ctx.author.avatar.url if ctx.author.avatar else None)
 
     await ctx.send(embed=embed)
+    await ctx.send(embed=views_embeds.create_balance_embed(user_id, bot, amountAddedToCash=money, amountAddedToBank=-money))
 
 @bot.command()
 async def give(ctx, member: discord.Member, money: float):
@@ -1650,6 +1652,8 @@ async def give(ctx, member: discord.Member, money: float):
         Bank.addcash(user_id=target_id, money=money)
         Bank.addcash(user_id=user_id, money=-money)
         await ctx.send(f"{member.display_name} has recieved your money")
+        await ctx.send(embed=views_embeds.create_balance_embed(user_id, bot, amountAddedToCash=-money))
+        await ctx.send(embed=views_embeds.create_balance_embed(user_id, bot, amountAddedToCash=money))
         
     except (KeyError) as e:
         print(f"An error occurred in !give command: {e}") # Log the actual error for debugging
@@ -1733,11 +1737,13 @@ async def offshore_bank_account_command(ctx):
 
 
 @bot.command(name='owithdraw', aliases=['owith', 'owit'])
-async def offshore_bank_account_withdraw(ctx, amount: float, key: str = "1"):
+async def offshore_bank_account_withdraw(ctx, amount: str = "all", key: str = "1"):
     user_keys = Offshore.get_user_keys(str(ctx.author.id))
     print(user_keys)
     print(user_keys)
     await ctx.message.delete()
+
+    
 
     if key == "1":
         await ctx.send("Please specify a key")
@@ -1746,6 +1752,12 @@ async def offshore_bank_account_withdraw(ctx, amount: float, key: str = "1"):
     if key not in user_keys:
         await ctx.send("Key not in your offshore keys \ntype oclear then your key  to generate a new account with the same amount of money")
         # return
+    if isinstance(amount, str):
+        if amount == "all":
+            amount = Offshore.get_data_from_key(key)[2]
+        else:
+            await ctx.send("Invalid amount, please type all or a number")
+    amount = float(amount)
     if amount > Offshore.get_data_from_key(key)[2]:
         await ctx.send("You can't withdraw more money from you're offshore account than you have")
         return
@@ -1766,6 +1778,8 @@ async def duplicate_account_buskers(ctx, key: str):
     Items.removefromitems(str(ctx.author.id), key)
     del Items.item_sources[Items.get_item_source_index_by_name(key)]
     Offshore.save_balances()
+
+    offshore_bank_account_command(ctx)
 
 @bot.command(name='odeposit', aliases=['odep'])
 async def offshore_bank_account_deposit(ctx, amount="all", key: str = "1"):
@@ -2094,6 +2108,7 @@ async def crime(ctx):
                 Income.addtoincomes(user_id, "Organised crime", 13)
     
             Bank.addbank(user_id, -10000)
+            await ctx.send(embed=balance_embed)
             return
 
         Bank.addcash(user_id=user_id, money=amount_lost)
@@ -2273,7 +2288,8 @@ async def rob(ctx, target: discord.Member):
         await ctx.send(f"You robbed {target.display_name} for ${amount_gained}")
         Bank.addcash(user_id_str, amount_gained)
         Bank.addcash(target_id_str, -amount_gained)
-        await balance(ctx)
+        robber_balance = views_embeds.create_balance_embed(user_id_str, bot, amountAddedToCash=amount_gained)
+        target_balance = views_embeds.create_balance_embed(target_id_str, bot, amountAddedToCash=-amount_gained)
 
         if crime_success_dict == 3:
             await ctx.send("Due to the impressive amount of crimes you have succeeded in a row, criminals flock to you with you as their boss (check m!in)")
@@ -2298,7 +2314,11 @@ async def rob(ctx, target: discord.Member):
 
         Bank.addcash(user_id_str, amount_lost)
         crime_success_dict[user_id_str] = 0
-        await balance(ctx)
+        robber_balance = views_embeds.create_balance_embed(user_id_str, bot, amountAddedToCash=amount_lost)
+
+    await ctx.send(embed=robber_balance)
+    if target_balance:
+        await ctx.send(embed=target_balance)
 
 @bot.command(name='followerboard', aliases=['poorest', 'follower'])
 async def followerboard(ctx):

@@ -835,6 +835,9 @@ class Offshore:
             print("ERROR: malformed offshore bank account")
             print(account)
             return -1
+        
+        if account[2] == 0:
+            account[2] = 1
 
         days = (time.time() - account[3]) / 86400
         print(days)
