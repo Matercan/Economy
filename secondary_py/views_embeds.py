@@ -4,6 +4,7 @@ from economy import Income, Items, Bank, Offshore
 import time, os, json, random, asyncio, math
 import economy
 
+AUDIT_CHANNEL = 1368552599539810314
 
 class CommandsView(discord.ui.View):
     def __init__(self):
@@ -667,13 +668,22 @@ def OffshoreEmbed(account: list):
     account[2] = Offshore.calculate_balance(account)
     account[1] = Offshore.calculate_interest(account) if Offshore.calculate_interest(account) > account[1] else account[1]
 
+    real_account = Offshore.get_data_from_key(account[0]) 
+
     days = f"{(timespan // 86400):.0f}d " if timespan > 86400 else ""
     hours = f"{(timespan % 86400) // 3600:.0f}h " if (timespan % 86400) // 3600 != 0 else ""
     minutes = f"{(timespan % 3600) // 60:.0f}m " if (timespan % 3600) // 60 != 0 else ""
 
+    balance_display = f"**${account[2]:,.2f}**"
+    interest_display = f"**{account[1]:,.2f}%** intest per day"
+    duration_display = f"**{days + hours + minutes}**" 
+
+    if account[1] > real_account[1]:
+        interest_display += " when modified"
+
     embed.add_field(
         name="Information",
-        value=f"balance: ${account[2]:,.0f} \ninterest: {account[1]:.1f}% per day \nduration: {days + hours + minutes}",
+        value=f"balance: {balance_display} \ninterest: {interest_display} \nlast modified: {duration_display} ago",
         inline=False
     )
 
@@ -738,7 +748,7 @@ class OffshoreView(discord.ui.View):
         await interaction.response.send_message(clicked_custom_id, ephemeral=True, embed=OffshoreEmbed(Offshore.get_data_from_key(clicked_custom_id))) 
     
     async def handle_bank_click(self, interaction: discord.Interaction):
-        embed = create_balance_embed(str(interaction.user.id), self.bot)
+        embed = await create_balance_embed(str(interaction.user.id), self.bot)
 
         await interaction.response.send_message(ephemeral=False, embed=embed)
 
@@ -938,7 +948,7 @@ class HackingGameView(discord.ui.View):
             await interaction.followup.send(f"Congratulations, here is your key: {key}", ephemeral=True)
         else:
             Bank.addcash(self.player_id, self.bet)
-            await interaction.followup.send(create_balance_embed(self.player_id, self.bot, amountAddedToCash=self.bet))
+            await interaction.followup.send(await create_balance_embed(self.player_id, self.bot, amountAddedToCash=self.bet))
 
     async def handle_player_loss(self, interaction: discord.Interaction):
         if self.key_game:
@@ -946,9 +956,9 @@ class HackingGameView(discord.ui.View):
             await interaction.followup.send(f"For attempting to hack into the rich's high tech bank accounts, lose {amount_lost}")
         else:
             Bank.addcash(self.player_id, -self.bet)
-            await interaction.followup.send(create_balance_embed(self.player_id, self.bot, amountAddedToCash=-self.bet))
+            await interaction.followup.send(await create_balance_embed(self.player_id, self.bot, amountAddedToCash=-self.bet))
 
-def create_balance_embed(user_id: str, bot, amountAddedToCash: float = 0, amountAddedToBank: float = 0):
+async def create_balance_embed(user_id: str, bot, amountAddedToCash: float = 0, amountAddedToBank: float = 0):
     user = bot.get_user(int(user_id))
     
     # Get the initial numeric balances
@@ -1026,6 +1036,9 @@ def create_balance_embed(user_id: str, bot, amountAddedToCash: float = 0, amount
     embed.add_field(name="Rank", value=f"**#{rank}** of {richens}", inline=False)
 
     embed.set_thumbnail(url=user.avatar.url if user.avatar else None)
+
+    audit_channel = bot.get_channel(AUDIT_CHANNEL)
+    await audit_channel.send(embed=embed)
 
     return embed
 
