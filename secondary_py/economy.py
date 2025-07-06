@@ -657,7 +657,38 @@ class Items:
                 return json.load(f)
         else:
             return {}
-    
+ 
+    @staticmethod
+    def correct_item_source():
+        if not Items.player_inventory:
+            Items.player_inventory = Items.load_player_inventory()
+        
+        # Ensure Bank.bank_accounts is loaded/updated
+        Bank.read_balance()
+        
+        # Iterate through each user's bank account (to get user_id_str)
+        for user_id_str in list(Bank.bank_accounts):
+            # Check if the user has an inventory entry; if not, create an empty one
+            if user_id_str not in Items.player_inventory:
+                Items.player_inventory[user_id_str] = {}
+            
+            # Get the list of item names for the current user
+            current_user_items_keys = list(Items.player_inventory[user_id_str].keys())
+
+            # Iterate through each item name in the user's inventory
+            for item_name in current_user_items_keys:
+                # Assign the correct source index to the item in the player's inventory
+                # This is the critical fix: use '=' for assignment
+                correct_index = Items.get_item_source_index_by_name(item_name)
+                if correct_index != -1: # Add a check in case item name isn't found
+                    Items.player_inventory[user_id_str][item_name] = correct_index
+                else:
+                    del Items.player_inventory[user_id_str][item_name]
+                    print(f"Warning: Item '{item_name}' not found in item sources for user {user_id_str}. Skipping update for this item.")
+                    # You might want to handle this differently, e.g., remove the item, log an error.
+        
+        Items.save_player_inventory()
+
     @staticmethod
     def save_player_inventory():
         with open(Items.PLAYER_DATA_FILE, "w") as f:
@@ -674,6 +705,8 @@ class Items:
         """
         if not Items.player_inventory:
             Items.player_inventory = Items.load_player_inventory()
+
+        Items.correct_item_source()
 
         if not Items.item_sources:
             Items.create_item_sources() # Ensure item sources are loaded to find item details
@@ -757,6 +790,7 @@ class Items:
         if not Items.player_inventory:
             Items.player_inventory = Items.load_player_inventory()
 
+        Items.correct_item_source()
         user_items = Items.player_inventory.get(user_id, {})
         item_index = user_items.get(item_name, -1)
         return item_index
@@ -765,6 +799,7 @@ class Items:
     def get_user_items(user_id: str):
         if not Items.player_inventory:
             Items.player_inventory = Items.load_player_inventory()
+        Items.correct_item_source()
         return Items.player_inventory.get(user_id, {})
     
     @staticmethod
@@ -774,7 +809,8 @@ class Items:
         Returns True if removal was successful, False otherwise (e.g., not enough items).
         """
         Items.load_player_inventory() # Ensure inventory is loaded
-        
+        Items.correct_item_source()
+
         if user_id not in Items.player_inventory:
             print(f"DEBUG: User {user_id} has no inventory.")
             return False # User has no inventory
@@ -791,6 +827,7 @@ class Items:
         print(f"DEBUG: Removed '{item_name}' from {user_id}'s inventory as count reached 0.")
             
         Items.save_player_inventory()
+        Items.correct_item_source()
         return True
         
     @staticmethod
@@ -838,6 +875,99 @@ class Offshore:
         if os.path.exists(Offshore.DATA_PATH):
             with open(Offshore.DATA_PATH, "w") as f:
                 json.dump(Offshore.balances, f, indent=2)
+
+
+    @staticmethod
+    def clear_balance():
+        print("Starting clear_balance process...")
+        Offshore.load_balances() # Make sure this loads Offshore.balances (a list of tuples)
+        Items.load_item_sources() # Make sure this loads Items.item_sources (a list of lists/tuples for item definitions)
+        Items.player_inventory = Items.load_player_inventory() # Make sure this loads Items.player_inventory (dict of dicts)
+        
+        Bank.read_balance() # Ensure Bank.bank_accounts is up-to-date (list of tuples)
+
+        # --- Phase 1: Identify and Remove Redundant Offshore Accounts and their Item Sources ---
+        print("Phase 1: Clearing redundant offshore accounts...")
+        valid_offshore_keys = []
+        
+        # Collect all valid offshore keys from actual user inventories
+        for user_id_str in list(Bank.bank_accounts): # Bank.bank_accounts contains (money, user_id_str)
+            user_id = user_id_str  
+            user_offshore_keys = Offshore.get_user_keys(user_id) # This should return a list of keys for this user
+            for key in user_offshore_keys:
+                valid_offshore_keys.append(key)
+
+        print(valid_offshore_keys)
+        # Prepare new lists for Offshore.balances and Items.item_sources
+        new_offshore_balances = []
+        offshore_keys_to_remove_from_item_sources = set()
+        
+
+        for account_key in [account[0] for account in Offshore.balances]: # Iterate through current balances
+            if account_key in valid_offshore_keys:
+                new_offshore_balances.append(Offshore.get_data_from_key(account_key))
+            else:
+                # This offshore account key is redundant, mark its corresponding item source for deletion
+                offshore_keys_to_remove_from_item_sources.add(account_key)
+                print(f"Marked redundant offshore account: {account_key}")
+
+        Offshore.balances = new_offshore_balances # Replace with the filtered list
+        
+
+        # Filter Items.item_sources based on whether it has 'S offshore bank accoutn in the name, and is not within the Offshore.new_offshore_balances
+ 
+
+        new_item_sources = []
+        for item_source_data in Items.item_sources:
+            print(f"Item data 3 for {item_source_data[0]}: {item_source_data[3]}")
+            if len(item_source_data) > 0 and item_source_data[0]:
+                # Check if this item is one of the redundant offshore account items
+                if item_source_data[0] not in valid_offshore_keys:
+                    print(f"{item_source_data[0]} not in valid offshore keys")
+                if "'s Offshore bank account" in item_source_data[3] and item_source_data[0] not in valid_offshore_keys:
+                    print(f"Removing redundant item source for offshore account: {item_source_data[0]}")
+                    continue # Skip adding this item source to the new list
+            new_item_sources.append(item_source_data)
+        
+        Items.item_sources = new_item_sources # Replace with the filtered list
+
+        # --- Phase 2: Clear redundant Items from player_inventory ---
+        print("Phase 2: Clearing redundant items from player inventories...")
+        # Create a copy of player_inventory to modify
+        new_player_inventory = {}
+
+        # First, gather all existing user_ids from bank accounts
+        all_present_user_ids = list(Bank.bank_accounts) 
+
+        for user_id_str, user_items_dict in Items.player_inventory.items():
+            if user_id_str not in all_present_user_ids:
+                print(f"Removing inventory for user {user_id_str} as they are not in bank accounts.")
+                continue # Skip this user's inventory entirely
+
+            # Create a new dictionary for the current user's valid items
+            new_user_items_dict = {}
+            for item_name, item_index in user_items_dict.items():
+                # Check if the item_name exists in the current Items.item_sources
+                # Assuming Items.get_item_source_index_by_name can handle non-existent names by returning None
+                if Items.get_item_source_index_by_name(item_name) is not None:
+                    # Item exists in global sources, keep it
+                    new_user_items_dict[item_name] = item_index
+                else:
+                    print(f"Removing non-existent item '{item_name}' from {user_id_str}'s inventory.")
+            
+            new_player_inventory[user_id_str] = new_user_items_dict
+        
+        Items.player_inventory = new_player_inventory # Replace with the cleaned inventory
+
+
+        # --- Phase 3: Final cleanup and Save ---
+        print("Phase 3: Finalizing and saving...")
+        Items.correct_item_source() # Re-index all existing items
+
+        Offshore.save_balances()
+        Items.save_item_sources()
+        Items.save_player_inventory()
+        print("clear_balance process complete.")
 
     @staticmethod
     def calculate_interest(account: list) -> float:
@@ -1000,7 +1130,7 @@ class Offshore:
 
         for item in Items.get_user_items(user_id):
             # print(f"ITEM: {Items.get_user_items(user_id)[item]}")
-            index = Items.get_user_items(user_id)[item]
+            index = Items.get_item_source_index_by_name(item)
             if not Items.item_sources[index][1]:
                 print("Continuing")
                 continue
@@ -1026,13 +1156,6 @@ class Offshore:
         for key in keys:
             print(f"key updating: {key}")
             Offshore.update_account(Offshore.get_index_from_key(key))
-
-    @staticmethod
-    def update_key_holders():
-        for balance in Offshore.balances:
-            for i, user_id in enumerate(Items.player_inventory):
-                if user_id[balance[0]]:
-                    user_id[balance[0]] = Items.get_item_source_index_by_name(balance[0])
 
 def main():
     print("Expected all files should be in cwd/json_files/<file>")

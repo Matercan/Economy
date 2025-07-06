@@ -112,10 +112,11 @@ async def on_ready():
     Bank.read_balance()
     Income.loadincomes()
     Income.create_sources() # Also ensures sources are initialized/loaded
-    Items.load_player_inventory()
+    Items.load_player_inventory() 
+    Items.correct_item_source() # Makes sure all of the indexes are correct for the inventory 
     Items.create_item_sources() # Also ensures item sources are initialized/loaded
     Offshore.load_balances() # Sets the balnaces variable to the one from the json file
-    Offshore.update_key_holders() # Makes sure all of the indexes of the items in the inventory match their respected Item source index 
+    Offshore.clear_balance() # Removes balances that nobody have
     print("Economy data loaded/initialized for all classes.")
 
     # Syncs the bots I think
@@ -1085,9 +1086,6 @@ async def on_message(message):
         await ctx.send("THE BOT DOESN'T ACCEPT DMS!!!!!")
         if message.content.startswith("m! "):
             message.content = "m!" + message.content[3:]
-        
-        if message.content[2:] in views_embeds.command_cooldowns:
-            await ctx.send("Though it really doesn't accept commands with cooldowns")
 
         await bot.process_commands(message)
 
@@ -1721,6 +1719,8 @@ async def duplicate_account_buskers(ctx, key: str):
     del Items.item_sources[Items.get_item_source_index_by_name(key)]
     Offshore.save_balances()
 
+    Items.save_item_sources()
+    Items.correct_item_source()
     await offshore_bank_account_command(ctx)
 
 @bot.command(name='odelete', aliases=['odel', 'od'])
@@ -2752,26 +2752,18 @@ async def display_inventory(ctx):
     item_emoji = ["🗡️", "⚔️", "🛡️", "💸"]
 
     for item, i in enumerate(inventory_data):
-        print(item)
-        print(i)
         item_data = Items.item_sources[Items.get_item_source_index_by_name(i)]
-        print(item_data)
         if not item_data[1]: 
             embed.add_field(
                 name=item_data[0],
                 value=item_data[3] + " " + item_emoji[random.randint(0, len(item_emoji) - 1)],
                 inline=False)
         else:
-            print("DEBUG: not user key")
-            print(item_data[2])
-            print(item_data[3])
             embed.add_field(
                 name=item_data[3],
                 value=str(item_data[2]) + " " + item_emoji[random.randint(0, len(item_emoji) - 1)],
                 inline=False)
-        print("Added field")
     
-    print(embed.to_dict())
 
     embed.set_thumbnail(url='https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcTYjkNcpGalEIy9SRBVj8IO8YjAxOgtnR8uAg&s')
 
