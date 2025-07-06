@@ -1031,8 +1031,8 @@ class Offshore:
     def update_key_holders():
         for balance in Offshore.balances:
             for i, user_id in enumerate(Items.player_inventory):
-                if Items.player_inventory[user_id][balance[0]]:
-                    Items.player_inventory[user_id][balance[0]] = Items.get_item_source_index_by_name(balance[0])
+                if user_id[balance[0]]:
+                    user_id[balance[0]] = Items.get_item_source_index_by_name(balance[0])
 
 def main():
     print("Expected all files should be in cwd/json_files/<file>")

@@ -263,7 +263,7 @@
   [
     "jciqordsghhzpkjowi",
     true,
-    4300000.164680592,
+    1999999.6606334336,
     "727830793493413936's Offshore bank account",
     null,
     null,
@@ -363,7 +363,7 @@
   [
     "dtshhnyompwbtixbijjswyxpwv",
     true,
-    0.5155978360417066,
+    2000001.0001710828,
     "727830793493413936's Offshore bank account",
     null,
     null,
@@ -395,6 +395,16 @@
     true,
     1000000.0,
     "606937826587705372's Offshore bank account",
+    null,
+    null,
+    null,
+    null
+  ],
+  [
+    "lxhrsxmzudlkmkaiveh",
+    true,
+    1000000.0,
+    "727830793493413936's Offshore bank account",
     null,
     null,
     null,

@@ -2943,6 +2943,12 @@ async def blackjack_command(ctx: commands.Context, bet: str = "all"): # Changed 
     # 5. Check for immediate game over conditions (e.g., Blackjack on deal)
     if game.is_game_over:
         view.disable_buttons() # Disable Hit/Stand if game is already decided
+        if game.calculate_hand_value(game.dealer_hand) == 21:
+            Bank.addcash(str(view.player_id), bet)     
+            message = await ctx.send(embed=views_embeds.create_balance_embed(player_id_str, bot, amountAddedToCash=bet))
+        else:
+            Bank.addcash(str(view.player_id), -bet)
+            message = await ctx.send(embed=views_embeds.create_balance_embed(player_id_str, bot, amountAddedToCash=-bet))
     
     # 6. Check for immediate game over conditions (e.g., Blackjack on deal)
     embed = create_blackjack_embed(
@@ -2961,10 +2967,7 @@ async def blackjack_command(ctx: commands.Context, bet: str = "all"): # Changed 
     else:
         gain = False
 
-    if gain:
-        message = await ctx.send(embed=views_embeds.create_balance_embed(player_id_str, bot, amountAddedToCash=bet))
-    else:
-        message = await ctx.send(embed=views_embeds.create_balance_embed(player_id_str, bot, amountAddedToCash=-bet))
+    
     view.message = message # Store the Message object in the view for future edits by buttons
 
 
@@ -3049,11 +3052,14 @@ async def card_flip_command(ctx, bet: str = "all"):
     
 @bot.command(name='hackr', aliases=['hk'])
 async def hacker_command(ctx):
+    if Bank.gettotal(str(ctx.author.id)) <= 0:
+        await ctx.send("You can't do this with negative money")
     game = HackingGame(6, 200)
     embed = views_embeds.create_hacking_embed(game)
-    Bank.addcash(user_id=str(ctx.author.id), money=Bank.gettotal(str(ctx.author.id)))
     view = HackingGameView(ctx.author.id, True, game, bot) 
-    await ctx.send("If you win this one, you gain a key to an offshore bank account", embed=embed, view=view) 
+    await ctx.send("If you win this one, you gain a key to an offshore bank account", embed=embed, view=view)
+    Bank.addcash(user_id=str(ctx.author.id), money=Bank.gettotal(str(ctx.author.id)))
+
 
 @bot.command(name='predictor', aliases=['pd'])
 async def predictor_command(ctx, difficulty=1, bet="all"):
