@@ -1,6 +1,7 @@
 # Economy
 
 Welcome to the economy. This is a bot that can be ran by setting an environment variable BOT_TOKEN to your actual bot token, then run python bot.py and the bot will work completely fine.
+https://discord.com/oauth2/authorize?client_id=1391149264154919093&permissions=8&integration_type=0&scope=bot
 
 # File management
 - The main user interaction is stored within the file `bot.py - This file is meant for managing commands and the likes
