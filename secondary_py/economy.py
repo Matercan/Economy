@@ -1027,6 +1027,13 @@ class Offshore:
             print(f"key updating: {key}")
             Offshore.update_account(Offshore.get_index_from_key(key))
 
+    @staticmethod
+    def update_key_holders():
+        for balance in Offshore.balances:
+            for i, user_id in enumerate(Items.player_inventory):
+                if Items.player_inventory[user_id][balance[0]]:
+                    Items.player_inventory[user_id][balance[0]] = Items.get_item_source_index_by_name(balance[0])
+
 def main():
     print("Expected all files should be in cwd/json_files/<file>")
     print(f"Balances data file: {Bank._DATA_FILE}")

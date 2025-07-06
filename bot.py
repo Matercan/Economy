@@ -16,7 +16,7 @@ from nltk.corpus import words
 sys.path.append("secondary_py")
 from economy import Bank, Income, Items, Offshore
 from game_logic import BlackjackGame, CardflipGame, HackingGame 
-from views_embeds import CommandsView, CooldownsView, HackingGameView, BlackjackView
+from views_embeds import CommandsView, CooldownsView, HackingGameView, BlackjackView, ShopView
 import views_embeds
 
 english_words = set(words.words())
@@ -77,7 +77,7 @@ def save_kill_counts():
         # Use a temporary file to prevent corruption
         temp_path = file_path + '.tmp'
         with open(temp_path, 'w') as f:
-            json.dump(kill_counts, f)
+            json.dump(kill_counts, f, indent=2)
         
         # Safely replace the old file with the new one
         if os.path.exists(file_path):
@@ -115,6 +115,7 @@ async def on_ready():
     Items.load_player_inventory()
     Items.create_item_sources() # Also ensures item sources are initialized/loaded
     Offshore.load_balances() # Sets the balnaces variable to the one from the json file
+    Offshore.update_key_holders() # Makes sure all of the indexes of the items in the inventory match their respected Item source index 
     print("Economy data loaded/initialized for all classes.")
 
     # Syncs the bots I think
@@ -1279,37 +1280,6 @@ async def on_message(message):
                 with open('json_files/house.json', 'w') as f:
                     json.dump(houseometer, f)
 
-    content = message.content
-    
-    if user_id not in message_log:
-        message_log[user_id] = []
-
-    
-    message_log[user_id] = message_log[user_id][-5:]
-
-    save_message_log()
-
-    timeoutcount = 0
-    for lastmessages in message_log[user_id]:
-        
-        if lastmessages.startswith("!"):
-            continue
-
-        if content.lower() == lastmessages.lower():
-            timeoutcount += 1
-         
-    if timeoutcount > 1:
-        if ctx.author.bot or user_id != "503720029456695306":
-            # await timeout(ctx, ctx.author, timeoutcount)
-            # await ctx.send("No spamming")
-            pass
-
-    if timeoutcount == 5: 
-        await timeout(ctx, user_id, 60)
-
-    message_log[user_id].append(content)
-
-
     if "mater" in message.content.lower():
         await ctx.send("It's pronounceed 'matter' btw")
 
@@ -1391,53 +1361,6 @@ async def typeinallservers(ctx, message: str):
     await ctx.send("You don't have permission to use this command")
     return
 
-
-last5messages = "json_files/last5messages.json"
-
-if os.path.exists(last5messages):
-    with open(last5messages, "r") as f:
-        message_log = json.load(f)
-else:
-    message_log = {}
-
-
-def save_message_log():
-    with open(last5messages, "w") as f:
-        json.dump(message_log, f, indent=2)
-
-@bot.command()
-async def indictionary(ctx, word: str):
-    if word.lower() not in english_words:
-        await ctx.send("That's not a word")
-        return
-    
-    await ctx.send("That's a word")
-
-@bot.command()
-async def addtodictionary(ctx, word: str):
-    english_words.append(word)
-    await ctx.send("Added to dictionary")
-
-@bot.command()
-async def removetodictionary(ctx, word: str):
-    english_words.remove(word)
-    await ctx.send("Removed from dictionary")
-
-@bot.command()
-async def englishwords(ctx, starting_letter: str = None):
-    message = ""
-    if starting_letter:
-        for word in english_words:
-            if word.startswith(starting_letter):
-                if len(message) + len(word) > 2000:
-                    await ctx.send(message)
-                    message = ''
-                message += f'{word} '
-
-    else:
-        for word in english_words:
-            await ctx.send(word)
-    await ctx.send(f'{ctx.author.mention} done!')
 
 @bot.command(name='rank', aliases=[])
 async def get_user_rank(ctx, member: discord.Member = None):
@@ -1750,20 +1673,6 @@ async def offshore_bank_account_withdraw(ctx, amount: str = "all", key: str = "1
     await ctx.send(f"Withdrew ${amount}")
     await offshore_bank_account_command(ctx)
 
-
-@bot.command(name='oclear')
-async def duplicate_account_buskers(ctx, key: str):
-    account_data = Offshore.get_data_from_key(key)
-    
-    Offshore.generate_account(ctx.author.id, account_data[2])
-    
-    del Offshore.balances[Offshore.get_index_from_key(key)]
-    Items.removefromitems(str(ctx.author.id), key)
-    del Items.item_sources[Items.get_item_source_index_by_name(key)]
-    Offshore.save_balances()
-
-    offshore_bank_account_command(ctx)
-
 @bot.command(name='odeposit', aliases=['odep'])
 async def offshore_bank_account_deposit(ctx, amount="all", key: str = "1"):
     user_keys = Offshore.get_user_keys(str(ctx.author.id))
@@ -1795,12 +1704,50 @@ async def offshore_bank_account_deposit(ctx, amount="all", key: str = "1"):
     await ctx.send(f"Deposited ${amount}")
     await offshore_bank_account_command(ctx)
 
+@bot.command(name='oclear')
+async def duplicate_account_buskers(ctx, key: str):
+    account_data = Offshore.get_data_from_key(key)
+    
+    Offshore.generate_account(ctx.author.id, account_data[2])
+    
+    del Offshore.balances[Offshore.get_index_from_key(key)]
+    Items.removefromitems(str(ctx.author.id), key)
+    del Items.item_sources[Items.get_item_source_index_by_name(key)]
+    Offshore.save_balances()
+
+    await offshore_bank_account_command(ctx)
+
+@bot.command(name='odelete', aliases=['odel', 'od'])
+async def delete_offshore_bank_account(ctx, key: str):
+    accountData = Offshore.get_data_from_key(key)
+    await ctx.message.delete()
+
+    del Offshore.balances[Offshore.get_index_from_key(key)]
+    Items.removefromitems(str(ctx.author.id), key)
+    del Items.item_sources[Items.get_item_source_index_by_name(key)]
+    userKeys = Offshore.get_user_keys(str(ctx.author.id))
+    
+    keyAmount = len(userKeys)
+    for userKey in userKeys:
+        index = Offshore.get_index_from_key(key)
+        Offshore.balances[index][2] += accountData[2] / keyAmount
+
+    Offshore.save_balances()
+    Items.save_item_sources()
+    Items.save_player_inventory()
+    await offshore_bank_account_command(ctx)
+
 @bot.command(name='oupdate', aliases=['oup'])
 async def update_offshore_accounts(ctx):
     user_id = str(ctx.author.id)
 
     keys = Offshore.get_user_keys(user_id)
     Offshore.update_accounts_from_keyes(keys)
+    
+    for key in keys:
+        Items.player_inventory[user_id][key] = Items.get_item_source_index_by_name(key)
+
+    Items.save_player_inventory()
 
     await offshore_bank_account_command(ctx)
 
@@ -2063,10 +2010,7 @@ async def crime(ctx):
     response_message = crime_responses[random.randint(0, len(crime_responses) - 1)]
     if 'gain' in response_message or 'Slippery gloves' in Items.get_user_items(user_id):
         if 'gain' in response_message:
-            
-
             crime_success_dict[user_id] += 1
-
             response_message = response_message.replace('____', str(amount_gained))
             Bank.addcash(user_id=user_id, money=amount_gained)
             balance_embed = views_embeds.create_balance_embed(user_id, bot, amountAddedToCash=amount_gained) 
@@ -2691,74 +2635,18 @@ async def list_items(ctx):
     Usage: !store
     """
     
-    print("store")
-
-    items = Items.load_item_sources()
-
-    if not items:
-        await ctx.send("Someone ping mater because her code isn't working")
-        return
+    view = ShopView()
     
-    embed = discord.Embed(
-        title="💈Shop💈",
-        description="All of our beautiful items ⛏️",
-        color=discord.Color.purple()
-    )
-
-    for i, source_data in enumerate(items):
-        if len(source_data) >= 5:
-            name = source_data[0]
-            is_collectable = source_data[1]
-            value_or_effect = source_data[2]
-            description = source_data[3]
-            associated_income_source = source_data[4]
-            role_added = source_data[5]
-            role_removed = source_data[6]
-            role_required = source_data[7]
-
-            print(f"Item: {name}")
-
-            if is_collectable:
-                value_display = "A hiddden item "
-                continue
-            else:
-                value_display = f"A(n) {name} "
-            
-            try:
-                price = float(value_or_effect)
-                value_display += f"for the low low price of ${price:,.0f} "
-            except ValueError:
-                value_display += f"with {value_or_effect} "
-            
-            value_display += f"that {description} "
-            
-            if associated_income_source:
-                value_display += f"which gives you {associated_income_source} income "
-            
-            if role_added and not associated_income_source:
-                value_display += f"which gives you {role_added} role "
-            elif role_added:
-                value_display += f"and {role_added} role "
-
-            if role_removed:
-                value_display += f"However, it removes role {role_removed} "
-            
-            if role_required and not role_removed:
-                value_display += f"However, it can only be acquired with {role_required} role "
-            elif role_required:
-                value_display += f"and can only be acquired with role {role_required} "
-
-            cash_emoji = ['💸', '🏦', '💰', '💶', '💵']
-
-            embed.add_field(
-                name=f"{name} " + cash_emoji[random.randint(0, len(cash_emoji) - 1)],
-                value=value_display,
-                inline=False
-            )
-
-    embed.set_thumbnail(url="https://www.ulisses-ebooks.de/images/8135/_product_images/397725/DeanSpencer-filler-armourmerchant.jpg")
-
-    await ctx.send(embed=embed)
+    # Calculate initial items for the first page (page 0)
+    initial_start = view.page * view.itemsPerPage
+    initial_end = min(initial_start + view.itemsPerPage, len(view.shop_items))
+    initial_items_on_page = view.shop_items[initial_start:initial_end]
+    
+    # Create the initial embed
+    initial_embed = views_embeds.create_store_embed(initial_items_on_page)
+    
+    # Send the message with the initial embed and the view attached
+    await ctx.send(embed=initial_embed, view=view)
             
 @bot.command(name='buy', aliases=['purchase', 'get', 'buy-item'])
 async def buy_item(ctx, *, item: str):

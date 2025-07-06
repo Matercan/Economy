@@ -1,7 +1,7 @@
 import discord
 from game_logic import BlackjackGame, HackingGame
 from economy import Income, Items, Bank, Offshore
-import time, os, json, random, asyncio
+import time, os, json, random, asyncio, math
 import economy
 
 
@@ -1026,5 +1026,187 @@ def create_balance_embed(user_id: str, bot, amountAddedToCash: float = 0, amount
     embed.add_field(name="Rank", value=f"**#{rank}** of {richens}", inline=False)
 
     embed.set_thumbnail(url=user.avatar.url if user.avatar else None)
+
+    return embed
+
+def format_items_list(items_list: list):
+    if not items_list:
+        return ""  # Return empty string for an empty list
+    elif len(items_list) == 1:
+        return f"'{items_list[0]}'" # Just one item
+    elif len(items_list) == 2:
+        return f"'{items_list[0]}' and '{items_list[1]}'" # Exactly two items
+    else:
+        # For more than two items, join all but the last with a comma, then add "and LastItem"
+        quoted_items = [f"'{item}'" for item in items_list] # Add quotes to each item
+        return ", ".join(quoted_items[:-1]) + f" and {quoted_items[-1]}"
+
+
+class ShopView(discord.ui.View):
+    def __init__(self):    
+        super().__init__(timeout=180)
+
+        self.page = 0
+        self.itemsPerPage = 10 # Keep your original 10 items per page
+
+        # Load all items once during initialization
+        self.all_items = Items.load_item_sources()
+        
+        # Filter items that are actually meant for the shop
+        # Assuming item[1] is `is_collectable` (True for collectable, False for purchasable)
+        self.shop_items = [item for item in self.all_items if len(item) > 1 and not item[1]] 
+        
+        # Calculate pages based on shop_items
+        self.pages = math.ceil(len(self.shop_items) / self.itemsPerPage) if self.shop_items else 1 # Handle case of no shop items
+
+        # Add page buttons
+        for i in range(self.pages):
+            button_label = f"Page {i + 1}"    
+            button_style = discord.ButtonStyle.primary
+            button_id = f"page_{i}" # Use a prefix like 'page_' for safety
+            button_row = i // 5 # Max 5 buttons per row for Discord UI (0-4, 5-9 etc.)
+
+            button = discord.ui.Button(
+                label=button_label,
+                style=button_style,
+                custom_id=button_id,
+                row=button_row
+            )
+
+            print(f"Adding button for {button_id} to view.") # Debug print
+            button.callback = self.handle_click_page
+            self.add_item(button)
+            # No need for the "button: X added" print inside loop, the above is sufficient.
+
+    async def handle_click_page(self, interaction: discord.Interaction):
+        clicked_id = interaction.data["custom_id"]
+        await interaction.response.defer() # Defer immediately
+
+        try:
+            # Parse the page number from the custom_id (e.g., "page_0" -> 0)
+            pageClicked = int(clicked_id.replace("page_", ""))
+        except ValueError:
+            print(f"Error parsing page ID: {clicked_id}")
+            await interaction.followup.send("Invalid page button clicked. Please try again.", ephemeral=True)
+            return
+
+        # Update the current page
+        self.page = pageClicked
+
+        # Calculate start and end indices for the current page's items
+        startNum = self.page * self.itemsPerPage
+        endNum = min(startNum + self.itemsPerPage, len(self.shop_items))
+
+        # Get the slice of items for the current page
+        items_for_current_page = self.shop_items[startNum:endNum]
+        
+        # Pass the sliced list directly to create_store_embed
+        embed = create_store_embed(items_for_current_page) 
+
+        await interaction.edit_original_response(embed=embed, view=self)
+
+    async def on_timeout(self) -> None:
+        # This will disable all buttons when the view times out
+        for item in self.children:
+            item.disabled = True
+        # You might also want to edit the message to indicate it's timed out
+        await self.message.edit(content="This shop view has timed out.", view=self)
+
+
+
+def create_store_embed(items_on_page: list): # <--- Changed parameter name
+    print(f"create_store_embed called with {len(items_on_page)} items for the page.")
+
+    embed = discord.Embed(
+        title="💈Shop💈",
+        description="All of our beautiful items ⛏️",
+        color=discord.Color.purple()
+    )
+
+    if not items_on_page: # Handle empty page (e.g., if no items fit criteria)
+        embed.description = "No items available on this page."
+        return embed
+
+    # Loop directly over the items provided for this page
+    for i, source_data in enumerate(items_on_page):
+        print(f"Processing item index {i} on page: {source_data[0]}")
+        
+        # Ensure minimum length for basic item properties (adjust if your schema varies)
+        if len(source_data) < 5:
+            print(f"Skipping malformed item source: {source_data} (too short for basic info)")
+            continue 
+
+        name = source_data[0]
+        is_collectable = source_data[1]
+        value_or_effect = source_data[2]
+        description = source_data[3]
+        
+        associated_income_sources = format_items_list(source_data[4])
+        
+        # Safely access higher indices using conditional checks
+        income_sources_removed = format_items_list(source_data[8]) if len(source_data) > 8 and source_data[8] else None
+        role_added = format_items_list(source_data[5]) if len(source_data) > 5 and source_data[5] else None
+        role_removed = format_items_list(source_data[6]) if len(source_data) > 6 and source_data[6] else None
+        role_required = format_items_list(source_data[7]) if len(source_data) > 7 and source_data[7] else None
+
+        print(f"Item: {name}")
+
+        if is_collectable:
+            # If a collectable item shouldn't be shown in the shop, `continue` here
+            print(f"Skipping collectable item: {name}")
+            continue # This will skip adding this particular item to the embed
+        else:
+            value_display = f"A(n) {name} "
+        
+        try:
+            price = float(value_or_effect)
+            value_display += f"for the low low price of ${price:,.0f} "
+        except ValueError:
+            value_display += f"with {value_or_effect} "
+        
+        value_display += f"that {description} "
+        
+ 
+        parts = []
+        if associated_income_sources:
+            parts.append(f"which gives you {associated_income_sources} income(s)")
+        
+        if income_sources_removed:
+            if associated_income_sources:
+                parts.append(f"but takes away {income_sources_removed} income(s)")
+            else:
+                parts.append(f"that takes away {income_sources_removed} income(s)")
+
+        if role_added:
+            if not parts:
+                parts.append(f"which gives you {role_added} role(s)")
+            else:
+                parts.append(f"and {role_added} role(s)")
+
+        if role_removed:
+            if not parts:
+                parts.append(f"that removes {role_removed} role(s)")
+            else:
+                parts.append(f"but removes {role_removed} role(s)")
+
+        if role_required:
+            if not parts:
+                parts.append(f"requires {role_required} role(s) to acquire")
+            else:
+                parts.append(f"and requires {role_required} role(s) to acquire")
+
+        if parts:
+            value_display += " ".join(parts) + ". "
+
+
+        cash_emoji = ['💸', '🏦', '💰', '💶', '💵']
+
+        embed.add_field(
+            name=f"{name} " + cash_emoji[random.randint(0, len(cash_emoji) - 1)],
+            value=value_display,
+            inline=False
+        )
+
+    embed.set_thumbnail(url="https://www.ulisses-ebooks.de/images/8135/_product_images/397725/DeanSpencer-filler-armourmerchant.jpg")
 
     return embed

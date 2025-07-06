@@ -120,12 +120,104 @@
     "Offshore bank account",
     false,
     1000000,
-    "An account that isn't collected to the bank class \nperfect for hiding money from a guillotine, or the cops",
+    "is An account that isn't collected to the bank class \nperfect for hiding money from a guillotine, or the cops",
     null,
     null,
     null,
     [
       "tin"
+    ]
+  ],
+  [
+    "Mayonnaise",
+    false,
+    500,
+    "is a delicious white sauce, perfect for a burger or 2",
+    null,
+    null,
+    null,
+    null
+  ],
+  [
+    "Oil",
+    false,
+    500,
+    "you'd know why you've done this",
+    null,
+    null,
+    null,
+    null
+  ],
+  [
+    "SN-113",
+    false,
+    100000.0,
+    "You gain an electron",
+    [
+      "Reality bending",
+      "Comes at a cost"
+    ],
+    [
+      "Tangibles"
+    ],
+    null,
+    [
+      "Tin"
+    ],
+    null
+  ],
+  [
+    "Monster",
+    false,
+    10000.0,
+    "Femboy juice",
+    [
+      "Femboy"
+    ],
+    [
+      "femboy"
+    ],
+    null,
+    null,
+    null
+  ],
+  [
+    "cock",
+    false,
+    10000.0,
+    "is very very gay",
+    [
+      "Gay"
+    ],
+    [
+      "Gay"
+    ],
+    null,
+    null,
+    null
+  ],
+  [
+    "white monster",
+    false,
+    100000.0,
+    "is the essence of a femboy, or transfem",
+    [
+      "Trans"
+    ],
+    [
+      "trans"
+    ]
+  ],
+  [
+    "pipeline punch",
+    false,
+    100000.0,
+    "is even more essential to being transfem-adjecent",
+    [
+      "Trans"
+    ],
+    [
+      "trans"
     ]
   ],
   [
@@ -149,6 +241,16 @@
     null
   ],
   [
+    "uvkmnxiaeyoeywzncpgkcyqbcj",
+    true,
+    2835718.8228457933,
+    "777170937682329601's Offshore bank account",
+    null,
+    null,
+    null,
+    null
+  ],
+  [
     "tfhk",
     true,
     62433.56018110737,
@@ -161,7 +263,7 @@
   [
     "jciqordsghhzpkjowi",
     true,
-    3508394.463365911,
+    4300000.164680592,
     "727830793493413936's Offshore bank account",
     null,
     null,
@@ -252,6 +354,46 @@
     "vhwwlbepinhqhhximwiukjzdws",
     true,
     2.833970134379342,
+    "606937826587705372's Offshore bank account",
+    null,
+    null,
+    null,
+    null
+  ],
+  [
+    "dtshhnyompwbtixbijjswyxpwv",
+    true,
+    0.5155978360417066,
+    "727830793493413936's Offshore bank account",
+    null,
+    null,
+    null,
+    null
+  ],
+  [
+    "uweyj",
+    true,
+    1,
+    "606937826587705372's Offshore bank account",
+    null,
+    null,
+    null,
+    null
+  ],
+  [
+    "bbvrtivtzzsbwlzqtdu",
+    true,
+    0.0,
+    "606937826587705372's Offshore bank account",
+    null,
+    null,
+    null,
+    null
+  ],
+  [
+    "fkixujxlhvanidwgxfwgwfsuzz",
+    true,
+    1000000.0,
     "606937826587705372's Offshore bank account",
     null,
     null,
