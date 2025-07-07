@@ -140,7 +140,7 @@ async def on_ready():
             print("Skipping 'bot online' ping due to restart flag.")
             # Immediately remove the flag file after detecting it
             try:
-                os.remove(RESTART_FLAG_FILE)
+                # os.remove(RESTART_FLAG_FILE)
                 print(f"Removed restart flag file: {RESTART_FLAG_FILE}")
             except OSError as e:
                 print(f"Error removing restart flag file {RESTART_FLAG_FILE}: {e}")
@@ -1088,13 +1088,11 @@ async def on_message(message):
             message.content = "m!" + message.content[3:]
 
         await bot.process_commands(message)
-
         return 
-
+   
     if ctx.author.bot:
-        print("It's a bot")
         return
-    
+
     if "general" in message.channel.name and not message.content.startswith("m!"):
         return
 
@@ -1258,7 +1256,6 @@ async def on_message(message):
         if corrected_words == words and corrections_needed:
             print("I have no clue what you just said")
 
-    print(member.name)
 
     if "house" in message.content.lower():
         houseometer = json.load(open('json_files/house.json'))
@@ -1286,9 +1283,6 @@ async def on_message(message):
 
     if "mater" in message.content.lower():
         await ctx.send("It's pronounceed 'matter' btw")
-
-    if message.channel.name == "gays-only":
-        print(message.content)
 
     if user_id not in Bank.bank_accounts and not ctx.author.bot:
         Bank.addcash(user_id=user_id, money=100) # Give 100 initial cash
@@ -1854,7 +1848,7 @@ async def collect_income_command(ctx):
     # 1. Call Income.collectincomes() to perform the collection
     # This method updates timestamps for collected incomes and returns messages
     if cash_at_start <= 0 or bank_at_start <= 0:
-        collection_results = "Tried to collect with negative money"
+        collection_results = ["Tried to collect with negative money"]
     else:
         collection_results = Income.collectincomes(user_id_str)
     
@@ -2558,6 +2552,8 @@ async def guillotine(ctx):
     # Or state a generic message like "All loyal citizens gained a portion of the wealth!"
 
     await ctx.send(embed=embed)
+    await ctx.send(await views_embeds.create_balance_embed(user_id_str, bot, amountAddedToBank=money_gained_by_saviour))
+    await ctx.send(await views_embeds.create_balance_embed(richest_user_id_str, bot, amountAddedToBank=-richest_total_wealth))
 
 @bot.command(name='guillotine-user', aliases=['guill-user', 'guollotine-user'])
 async def guillotine_target(ctx, target: discord.Member):
