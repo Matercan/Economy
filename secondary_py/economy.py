@@ -201,6 +201,47 @@ class Bank:
         return richest_user_id
 
 
+    @staticmethod
+    def guillotine():
+        Bank.read_balance()
+
+        # 1. Identify the richest and store their total wealth to be distributed
+        richest_user_id_str = Bank.get_richest_user_id()
+        richest_total_wealth_to_distribute = Bank.gettotal(richest_user_id_str)
+
+        # Handle case where richest has no money to distribute
+        if richest_total_wealth_to_distribute <= 0:
+            print(f"Richest member ({richest_user_id_str}) has no wealth to distribute.")
+            return
+
+        # Determine the recipients (all members except the richest)
+        all_account_ids = list(Bank.bank_accounts.keys())
+        recipients_ids = [uid for uid in all_account_ids if uid != richest_user_id_str]
+        num_recipients = len(recipients_ids)
+
+        # If there are no other members to distribute to, just zero out the richest
+        if num_recipients <= 0:
+            print("Not enough other accounts to distribute wealth. Zeroing out richest only.")
+            Bank.bank_accounts[richest_user_id_str]["cash"] = 0
+            Bank.bank_accounts[richest_user_id_str]["bank"] = 0
+            Bank.save_balances()
+            return
+
+        # 2. Zero out the richest member's account *before* distribution
+        Bank.bank_accounts[richest_user_id_str]["cash"] = 0
+        Bank.bank_accounts[richest_user_id_str]["bank"] = 0
+
+        # 3. Calculate the share each other member receives
+        money_per_recipient = richest_total_wealth_to_distribute / num_recipients
+
+        # 4. Distribute money to all other accounts
+        for user_id_distribute in recipients_ids:
+            # Add the money to their bank account (or cash, depending on desired outcome)
+            # Adding to bank is consistent with your original code's intent
+            Bank.addbank(user_id_distribute, money_per_recipient)
+
+        Bank.save_balances() # Save all changes after distribution
+        print(f"Guillotined {richest_user_id_str} (wealth: {richest_total_wealth_to_distribute:,.2f}) and distributed {money_per_recipient:,.2f} to {num_recipients} other members.")
 
     @staticmethod
     def targetted_guillotine(target_id: str):

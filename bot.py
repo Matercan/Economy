@@ -1853,7 +1853,10 @@ async def collect_income_command(ctx):
 
     # 1. Call Income.collectincomes() to perform the collection
     # This method updates timestamps for collected incomes and returns messages
-    collection_results = Income.collectincomes(user_id_str)
+    if cash_at_start <= 0 or bank_at_start <= 0:
+        collection_results = "Tried to collect with negative money"
+    else:
+        collection_results = Income.collectincomes(user_id_str)
     
     bank_gained = Bank.read_balance(user_id_str)["bank"] - bank_at_start
     cash_gained = Bank.read_balance(user_id_str)["cash"] - cash_at_start
@@ -2555,8 +2558,6 @@ async def guillotine(ctx):
     # Or state a generic message like "All loyal citizens gained a portion of the wealth!"
 
     await ctx.send(embed=embed)
-    await ctx.send(await views_embeds.create_balance_embed(user_id_str, bot, amountAddedToBank=money_gained_by_saviour))
-    await ctx.send(await views_embeds.create_balance_embed(richest_user_id_str, bot, amountAddedToBank=-richest_total_wealth))
 
 @bot.command(name='guillotine-user', aliases=['guill-user', 'guollotine-user'])
 async def guillotine_target(ctx, target: discord.Member):
