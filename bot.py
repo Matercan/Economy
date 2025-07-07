@@ -1029,52 +1029,6 @@ async def cooldowns(ctx):
     await ctx.send("Cooldowns for the server", view=CooldownsView(), ephemeral=True)
 
 
-def load_spellcheck_state():
-    try:
-        file_path = os.path.abspath('json_files/spellcheck_state.json')
-        if os.path.exists(file_path):
-            with open(file_path, 'r') as f:
-                return json.load(f)
-        return {}
-    except (FileNotFoundError, json.JSONDecodeError, PermissionError) as e:
-        print(f"Error loading spellcheck state: {e} - ping mater")
-        return {}
-
-def save_spellcheck_state(state):
-    try:
-        file_path = os.path.abspath('json_files/spellcheck_state.json')
-        # Create directory if it doesn't exist
-        os.makedirs(os.path.dirname(file_path), exist_ok=True)
-        
-        # Use a temporary file to prevent corruption
-        temp_path = file_path + '.tmp'
-        with open(temp_path, 'w') as f:
-            json.dump(state, f)
-        
-        # Safely replace the old file with the new one
-        if os.path.exists(file_path):
-            os.replace(temp_path, file_path)
-        else:
-            os.rename(temp_path, file_path)
-    except (PermissionError, OSError) as e:
-        print(f"Error saving spellcheck state: {e} - ping mater")
-
-@bot.command()
-async def toggle_spellcheck(ctx):
-    """Toggle spellcheck functionality for yourself"""
-    state = load_spellcheck_state()
-    user_id = str(ctx.author.id)
-    
-    # Toggle the state
-    current_state = state.get(user_id, True)  # Default to True if not set
-    state[user_id] = not current_state
-    
-    # Save the new state
-    save_spellcheck_state(state)
-    
-    status = "enabled" if state[user_id] else "disabled"
-    await ctx.send(f"Spellcheck has been {status} for you.")
-
 @bot.event
 async def on_message(message):
 
@@ -1201,108 +1155,6 @@ async def on_message(message):
     # Keep only the last two timestamps
     if len(user_last_message_timestamps[user_id]) > 2:
         user_last_message_timestamps[user_id].pop(0) # Remove the oldest timestamp
-
-
-    # Check if spellcheck is enabled for this user
-    state = load_spellcheck_state()
-    
-    if state.get(user_id, False):  # Default to True if not set
-        # Check for non-English words and suggest corrections
-        words = message.content.lower().split() 
-        corrections_needed = False
-        corrected_words = []
-        
-        for word in words:
-            
-            # Strip punctuation for checking
-            clean_word = ''.join(c for c in word if c.isalnum())
-            if clean_word:
-                # Try both singular and plural forms
-                if clean_word not in english_words and clean_word + 's' not in english_words and clean_word + 'es' not in english_words:
-                    corrections_needed = True
-                    # Find closest English word
-                    best_match = None
-                    best_score = 0
-                    for eng_word in english_words:
-                        # Check similarity with word and its plural forms
-                        score1 = fuzz.ratio(clean_word, eng_word)
-                        score2 = fuzz.ratio(clean_word, eng_word + 's')
-                        score3 = fuzz.ratio(clean_word, eng_word + 'es')
-                        score = max(score1, score2, score3)
-                        
-                        if score > best_score and score > 60:  # 60% similarity threshold
-                            best_score = score
-                            best_match = eng_word
-                            # Use plural form if it was the best match
-                            if score2 > score1 and score2 > score3:
-                                best_match = eng_word + 's'
-                            elif score3 > score1 and score3 > score2:
-                                best_match = eng_word + 'es'
-                    
-                    if best_match:
-                        # Preserve original punctuation
-                        for i, char in enumerate(word):
-                            if not char.isalnum():
-                                best_match = best_match[:i] + char + best_match[i:]
-                        corrected_words.append(best_match)
-                    else:
-                        corrected_words.append(word)  # Keep original if no good match
-                else:
-                    corrected_words.append(word)
-        
-        if corrections_needed and corrected_words != words:
-            corrected_sentence = ' '.join(corrected_words)
-            await message.channel.send(f"Did you mean: {corrected_sentence}")
-        if corrected_words == words and corrections_needed:
-            print("I have no clue what you just said")
-
-
-    if "house" in message.content.lower():
-        houseometer = json.load(open('json_files/house.json'))
-        with open('json_files/house.json', 'w') as f:
-            if member.name not in houseometer:
-                houseometer[member.name] = 0
-
-        houseometer[member.name] += 1
-        with open('json_files/house.json', 'w') as f:
-            json.dump(houseometer, f)
-
-        if houseometer[member.name] == 10:
-            if random.randint(1, 2) <= 1:
-                await ctx.send("You win!")
-                Bank.addcash(user_id, random.randrange(1000, 10000))
-                houseometer[member.name] = 0
-                with open('json_files/house.json', 'w') as f:
-                    json.dump(houseometer, f)
-            else:
-                await ctx.send("You lose!")
-                Bank.addbank(user_id, -random.randrange(1000, 10000))
-                houseometer[member.name] = 0
-                with open('json_files/house.json', 'w') as f:
-                    json.dump(houseometer, f)
-
-    if "mater" in message.content.lower():
-        await ctx.send("It's pronounceed 'matter' btw")
-
-    if user_id not in Bank.bank_accounts and not ctx.author.bot:
-        Bank.addcash(user_id=user_id, money=100) # Give 100 initial cash
-        # Or Bank.bank_accounts[user_id_str] = {"bank": 0, "cash": 100} followed by Bank.save_balances()
-        # await ctx.send(f"Welcome {ctx.author.mention}! Here's your starting cash!")
-
-    if not ctx.author.bot and user_id in user_last_message_timestamps and len(user_last_message_timestamps[user_id]) >= 2:
-        old_message_val = user_last_message_timestamps[user_id][0]
-        new_message_val = user_last_message_timestamps[user_id][1]
-        time_difference = new_message_val - old_message_val
-        # print(time_difference)
-        # print(f"DEBUG: Types in comparison: old_message_val={type(old_message_val)}, new_message_val={type(new_message_val)}")
-        if time_difference >= datetime.timedelta(seconds=5):
-            # print("Added cash")
-            Bank.addcash(user_id=user_id, money=random.randrange(10, 100)) 
-
-        # print(old_message_val)
-        # print(new_message_val)
-
-    # print(user_last_message_timestamps)
     
     for item_index, item_name in enumerate(Items.get_user_items(str(message.author.id))):
         if message.content.lower() == "!" + item_name.lower():
@@ -2828,8 +2680,7 @@ async def take_loan(ctx):
         return
 
 
-
-    Bank.addbank(user_id_str, 50000)
+    # Bank.addbank(user_id_str, 50000)
     
     Income.playerincomes[user_id_str]["Loan"]["since"] = 0
 
