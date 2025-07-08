@@ -533,30 +533,35 @@ def create_blackjack_embed(game: BlackjackGame, player_id: int, bet_amount: int,
     return embed
 
 class BlackjackView(discord.ui.View):
-    def __init__(self, game: BlackjackGame, player_id: int, bet_amount: int):
-        super().__init__(timeout=120) # Game times out after 2 minutes of inactivity
+    def __init__(self, game: 'BlackjackGame', player_id: int, bet_amount: int, bot_instance): # Added bot_instance
+        super().__init__(timeout=120) 
         self.game = game
         self.player_id = player_id
         self.bet_amount = bet_amount
-        self.message = None
-        self.starting_bal = Bank.read_balance("player_id")["cash"]
+        self.message = None # This will be set by the command after sending the message
+        self.bot = bot_instance # Store bot instance for create_balance_embed
+
+        # CRITICAL FIX: Use str(self.player_id) for Bank operations
+        self.starting_bal = Bank.read_balance(str(self.player_id))["cash"] 
         
-        print("Attributes assigned")
+        print("DEBUG: BlackjackView attributes assigned.")
 
         # Check for immediate Blackjack after initial deal
+        # This logic determines the game state but DOES NOT transfer money yet.
+        # Money transfer will happen in _end_game or on_timeout.
         try:
             player_score = self.game.calculate_hand_value(self.game.player_hand)
             dealer_score = self.game.calculate_hand_value(self.game.dealer_hand)
         except Exception as e:
             print(f"ERROR: Exception during score calculation in BlackjackView.__init__: {e}")
             import traceback
-            traceback.print_exc() # <-- PRINT THE FULL TRACEBACK
-            self.game.is_game_over = True # Force game over to avoid further errors
-            self.game.result_message = f"An internal error occurred: {e}"
-            self.disable_buttons() # Disable buttons immediately
-            return # Exit init
+            traceback.print_exc() 
+            self.game.is_game_over = True 
+            self.game.result_message = f"An internal error occurred during game setup: {e}"
+            self.disable_buttons() 
+            return 
 
-        print("Calculate score")
+        print("DEBUG: Scores calculated in BlackjackView.__init__.")
 
         if player_score == 21:
             self.game.is_game_over = True
@@ -564,59 +569,92 @@ class BlackjackView(discord.ui.View):
                 self.game.result_message = "Both have Blackjack! It's a push."
             else:
                 self.game.result_message = "Blackjack! Player wins!"
-                self.game.is_game_over = True
-                print("player h as blackjack")
-                Bank.addcash(self.player_id, self.bet_amount)
+                
         elif dealer_score == 21:
             self.game.is_game_over = True
-            print("dealer has blackjack")
             self.game.result_message = "Dealer has Blackjack! Dealer wins."
-            Bank.addcash(self.player_id, -self.bet_amount)
-
-
-
+            
         if self.game.is_game_over:
             self.disable_buttons()
-        
+            print("DEBUG: Game immediately over in __init__.")
+            # Do NOT transfer money here. Let _end_game handle it.
+
     def disable_buttons(self):
         for item in self.children:
             if isinstance(item, discord.ui.Button):
                 item.disabled = True
     
-    # Called when the view times out
-    async def on_timeout(self):
-        self.disable_buttons()
-        # Optionally, notify the user or edit the message
+    # New helper method to finalize the game and update the message
+    async def _end_game(self):
+        self.disable_buttons() # Ensure buttons are disabled
+        
+        # Determine winner and adjust balance
+        if "player wins" in self.game.result_message.lower():
+            Bank.addcash(str(self.player_id), 2 * self.bet_amount) # Win bet (cancels out money lost at start)
+            money_change = self.bet_amount
+            print(f"DEBUG: Player {self.player_id} wins {self.bet_amount}")
+        elif "dealer wins" in self.game.result_message.lower():
+            Bank.addcash(str(self.player_id), 0) # Lose bet (money is already deducted at start)
+            money_change = -self.bet_amount
+            print(f"DEBUG: Player {self.player_id} loses {self.bet_amount}")
+        else: # Push
+            money_change = 0
+            print(f"DEBUG: Player {self.player_id} pushes.")
+
+        # Update the main blackjack embed to show full dealer hand and result
+        blackjack_embed = create_blackjack_embed(self.game, self.player_id, self.bet_amount, show_dealer_full_hand=True)
+        
+        # Create and send the balance embed
+        balance_embed = await create_balance_embed(str(self.player_id), self.bot, amountAddedToCash=money_change)
+        
         if self.message:
             try:
-                await self.message.edit(content="Your Blackjack game timed out.", view=self)
-            except discord.HTTPException:
-                pass # Message might have been deleted
-        print("DEBUG: Timed out")
+                await self.message.edit(embed=blackjack_embed, view=self) # Update main message
+                await self.message.channel.send(embed=balance_embed) # Send balance embed in the same channel
+            except discord.HTTPException as e:
+                print(f"ERROR: Failed to edit message or send balance embed: {e}")
+        else:
+            print("WARNING: self.message not set, cannot edit or send balance embed.")
 
-    # Store the message the view is attached to, useful for editing
+    async def on_timeout(self):
+        print("DEBUG: Blackjack game timed out.")
+        if not self.game.is_game_over: # Only determine winner if game wasn't already over
+            self.game.is_game_over = True
+            self.game.result_message = "Player loses due to timeout." # Or "No action taken due to timeout"
+            # Bank.addcash(str(self.player_id), -self.bet_amount) 
+        await self._end_game() # Finalize the game state and update embeds
+
     async def on_error(self, interaction: discord.Interaction, error: Exception, item: discord.ui.Item):
         print(f"Error in BlackjackView: {error}")
-        await interaction.followup.send("An error occurred during your game.", ephemeral=True)
-
+        import traceback
+        traceback.print_exc()
+        await interaction.followup.send("An unexpected error occurred during your game. The game has ended.", ephemeral=True)
+        self.game.is_game_over = True
+        self.game.result_message = "An unexpected error occurred."
+        await self._end_game() # Attempt to finalize the game
 
     @discord.ui.button(label="Hit", style=discord.ButtonStyle.success)
     async def hit_button(self, interaction: discord.Interaction, button: discord.ui.Button):
-        # Ensure only the player who started the game can interact
         if interaction.user.id != self.player_id:
             await interaction.response.send_message("This isn't your game!", ephemeral=True)
             return
         
-        await interaction.response.defer() # Acknowledge the button click
+        await interaction.response.defer()
 
-        if self.game.player_hit(): # Player hit and busted
-            self.game.is_game_over = True
-            self.game.determine_winner()
-            self.disable_buttons()
+        if self.game.is_game_over: # Prevent actions if game is already over
+            await interaction.followup.send("This game is already over!", ephemeral=True)
+            return
+
+        player_busted = self.game.player_hit() 
         
-        # Update the message with the new hand
-        embed = create_blackjack_embed(self.game, self.player_id, self.bet_amount, show_dealer_full_hand=self.game.is_game_over)
-        await interaction.edit_original_response(embed=embed, view=self)
+        if player_busted: # Player hit and busted
+            self.game.is_game_over = True
+            self.game.result_message = "Player busts! Dealer wins." # Set result message directly
+            await self._end_game() # Finalize the game
+        else:
+            # Update the message with the new hand (dealer hand still hidden)
+            embed = create_blackjack_embed(self.game, self.player_id, self.bet_amount, show_dealer_full_hand=False)
+            await interaction.edit_original_response(embed=embed, view=self)
 
     @discord.ui.button(label="Stand", style=discord.ButtonStyle.danger)
     async def stand_button(self, interaction: discord.Interaction, button: discord.ui.Button):
@@ -625,30 +663,22 @@ class BlackjackView(discord.ui.View):
             await interaction.response.send_message("This isn't your game!", ephemeral=True)
             return
         
-        await interaction.response.defer() # Acknowledge the button click
+        await interaction.response.defer()
 
-        self.disable_buttons() # Disable buttons as player has stood
+        if self.game.is_game_over: # Prevent actions if game is already over
+            await interaction.followup.send("This game is already over!", ephemeral=True)
+            return
+
+        self.disable_buttons()
         print("DEBUG: Buttons disabled.")
-        # Dealer's turn
-        self.game.dealer_play()
+        
+        self.game.dealer_play() # Dealer plays until 17+ or busts
         print("DEBUG: Dealer played.")
-        self.game.determine_winner()
-        print("DEBUG: Winner determined.")
-        print(f"results message: {self.game.result_message}")
-        # Determine winner and adjust balance
-        if "player wins" in self.game.result_message.lower():
-            Bank.addcash(str(self.player_id), self.bet_amount) # Win bet
-            print("player wins")
-        elif "dealer wins" in self.game.result_message.lower():
-            print("player wins")
-            Bank.addcash(str(self.player_id), -self.bet_amount) # Lose bet
-        # No change for push
-        print("DEBUG: Bank balance adjusted.")
-
-        embed = create_blackjack_embed(self.game, self.player_id, self.bet_amount, show_dealer_full_hand=True)
-        print("DEBUG: Embed created.")
-        await interaction.edit_original_response(embed=embed, view=self) # Show full dealer hand
-        print("DEBUG: Message edited.")
+        
+        self.game.determine_winner() # Determine the final winner and set result_message
+        print("DEBUG: Winner determined. Result: {self.game.result_message}")
+        
+        await self._end_game() # Finalize the game and update embeds
     
 
 
@@ -685,7 +715,7 @@ def OffshoreEmbed(account: list):
         name="Information",
         value=f"balance: {balance_display} \ninterest: {interest_display} \nlast modified: {duration_display} ago",
         inline=False
-    )
+    ) 
 
     embed.set_footer(text=f"key: {account[0]}")
 

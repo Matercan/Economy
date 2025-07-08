@@ -175,7 +175,7 @@ class BlackjackGame:
             self.result_message = "Player wins!"
         
         print(f"results message before checking if dealer won: {self.result_message}")
-        if dealer_score > player_score:
+        if dealer_score > player_score and dealer_score <= 21:
             self.result_message = "Dealer wins!"
 
 class CardflipGame:

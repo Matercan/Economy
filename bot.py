@@ -6,7 +6,6 @@ from discord.ext import commands, tasks
 import json
 import os
 import nltk
-from fuzzywuzzy import fuzz
 import time
 import datetime
 import math
@@ -1512,10 +1511,17 @@ async def offshore_bank_account_withdraw(ctx, amount: str = "all", key: str = "1
         if amount == "all":
             amount = Offshore.get_data_from_key(key)[2]
         else:
-            await ctx.send("Invalid amount, please type all or a number")
-    amount = float(amount)
+            try:
+                amount = float(amount)
+            except ValueError:
+                await ctx.send("Invalid amount, please type all or a number")
+                return
+
     if amount > Offshore.get_data_from_key(key)[2]:
         await ctx.send("You can't withdraw more money from you're offshore account than you have")
+        return
+    if amount <= 0:
+        await ctx.send("no, you can't withdraw negative money")
         return
 
     print(f"{ctx.author.id} trying to withdraw {amount} cash from {key}")
@@ -1699,8 +1705,8 @@ async def collect_income_command(ctx):
 
     # 1. Call Income.collectincomes() to perform the collection
     # This method updates timestamps for collected incomes and returns messages
-    if cash_at_start <= 0 or bank_at_start <= 0:
-        collection_results = ["Tried to collect with negative money"]
+    if cash_at_start < 0 or bank_at_start < 0:
+        collection_results = ["Tried to collect with negative money", "It should be impossible to go to negative money", "Withdraw from an offshore bank account or ping mater"]
     else:
         collection_results = Income.collectincomes(user_id_str)
     
@@ -2690,65 +2696,10 @@ async def take_loan(ctx):
     
  
     await ctx.send("Taken out loan of Value $50,000")
-
-def create_blackjack_embed(game: BlackjackGame, player_id: int, bet_amount: int, show_dealer_full_hand: bool = False):
-    print("DEBUG: Inside create_blackjack_embed.") # DEBUG PRINT CB1
-    embed = discord.Embed(
-        title="🃏 Blackjack Game",
-        color=discord.Color.dark_green()
-    )
-
-    player_hand_str = ", ".join(str(card) for card in game.player_hand)
-    player_score = game.calculate_hand_value(game.player_hand)
-
-    embed.add_field(
-        name=f"Your Hand ({player_score})",
-        value=player_hand_str,
-        inline=False
-    )
-
-    if show_dealer_full_hand:
-        dealer_hand_str = ", ".join(str(card) for card in game.dealer_hand)
-        dealer_score = game.calculate_hand_value(game.dealer_hand)
-        print(f"DEBUG: Embed Dealer Full Hand String: '{dealer_hand_str}', Score: {dealer_score}") # DEBUG PRINT CB3
-        embed.add_field(
-            name=f"Dealer's Hand ({dealer_score})",
-            value=dealer_hand_str,
-            inline=False
-        )
-    else:
-        # Show only dealer's first card initially
-        dealer_hand_str = f"{game.dealer_hand[0]} and one hidden card" # This line was missing its assignment
-        embed.add_field(
-            name="Dealer's Hand",
-            value=dealer_hand_str,
-            inline=False
-        )
-    
-    embed.add_field(name="Bet", value=f"${bet_amount:,}", inline=False)
-
-    if game.is_game_over:
-        embed.description = f"**Game Over!** {game.result_message}"
-        if "busts" in game.result_message.lower() or "dealer wins" in game.result_message.lower():
-            embed.color = discord.Color.red()
-        elif "Player wins" in game.result_message:
-            embed.color = discord.Color.green()
-        else: # Push
-            embed.color = discord.Color.blue()
-    else:
-        embed.description = "Choose your next move: Hit or Stand?"
-
-    embed.set_footer(text=f"Player ID: {player_id}")
-    
-
-    return embed
-
+ 
 @bot.command(name="blackjack", aliases=['bj'], help="Starts a game of Blackjack with your bet!")
-async def blackjack_command(ctx: commands.Context, bet: str = "all"): # Changed to ctx and removed app_commands.describe
-    """
-    Starts a new game of Blackjack.
-    """
-    player_id_str = str(ctx.author.id) # Use ctx.author.id for prefix commands
+async def blackjack_command(ctx: commands.Context, bet: str = "all"):
+    player_id_str = str(ctx.author.id)
     
     try:
         if bet == "all":
@@ -2756,59 +2707,47 @@ async def blackjack_command(ctx: commands.Context, bet: str = "all"): # Changed 
         else:
             bet = int(bet)
     except ValueError:
-        await ctx.send("This isn't an integer, you can only bet whole numbers")
+        await ctx.send("Invalid bet amount. You can only bet whole numbers or 'all'.")
         return
 
-    # 1. Input Validation
     if bet <= 0:
         await ctx.send("You must bet a positive amount!")
         return
     
-    # 2. Check Player's Balance
     user_balance = Bank.read_balance(player_id_str) 
     if user_balance["cash"] < bet:
         await ctx.send(f"You don't have enough cash! Your current cash: ${user_balance['cash']:,.2f}")
         return
 
-    # Optional: Show typing indicator while preparing the game
-    await ctx.defer() # This shows the bot is 'typing'
-    
-    # 3. Initialize Game
+    await ctx.defer() # Show typing indicator
+
+    # Deduct bet at the start (this is common in blackjack)
+    Bank.addcash(player_id_str, -bet)
+    print(f"DEBUG: Player {player_id_str} bet {bet} and cash deducted.")
+
     game = BlackjackGame()
     game.deal_initial_hands()
     
-    # await ctx.send("Blackjack initalised or something")
-    # await ctx.send(str(game.player_hand))
-    # await ctx.send(str(game.dealer_hand))
-
-    # 4. Create the Interactive View
-    view = BlackjackView(game, ctx.author.id, bet) # Pass ctx.author.id
+    # Pass bot instance to the view
+    view = BlackjackView(game, ctx.author.id, bet, ctx.bot) 
     
-    # await ctx.send("Blackjack view intialised or something")
-
-    # 5. Check for immediate game over conditions (e.g., Blackjack on deal)
-    if game.is_game_over:
-        view.disable_buttons() # Disable Hit/Stand if game is already decided
-        if game.calculate_hand_value(game.dealer_hand) == 21:
-            Bank.addcash(str(view.player_id), bet)     
-            message = await ctx.send(embed=await views_embeds.create_balance_embed(player_id_str, bot, amountAddedToCash=bet))
-        else:
-            Bank.addcash(str(view.player_id), -bet)
-            message = await ctx.send(embed=await views_embeds.create_balance_embed(player_id_str, bot, amountAddedToCash=-bet))
-    
-    # 6. Check for immediate game over conditions (e.g., Blackjack on deal)
-    embed = create_blackjack_embed(
+    # Create the initial embed. show_dealer_full_hand depends on whether game is immediately over.
+    embed = views_embeds.create_blackjack_embed(
         game, 
-        ctx.author.id, # Pass ctx.uthor.id
+        ctx.author.id, 
         bet, 
-        show_dealer_full_hand=game.is_game_over 
+        show_dealer_full_hand=game.is_game_over # If game is immediately over (Blackjack), show dealer's hand
     )
 
-    # 7. Send the initial message with buttons
-    # For prefix commands, ctx.send returns the Message object 
+    # Send the initial message with buttons
     message = await ctx.send(embed=embed, view=view)
 
     view.message = message # Store the Message object in the view for future edits by buttons
+
+    # If the game was immediately over (e.g., player/dealer blackjack on deal),
+    # trigger the end_game logic here after the message is sent.
+    if game.is_game_over:
+        await view._end_game()
 
 
 
