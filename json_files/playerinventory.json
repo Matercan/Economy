@@ -1,40 +1,115 @@
 {
   "445059352521342978": {
-    "Knife": 1,
-    "Brick": 2,
-    "Pickaxe": 5,
-    "A good lawyer": 8
+    "Knife": {
+      "index": 1,
+      "quantity": 1
+    },
+    "Brick": {
+      "index": 2,
+      "quantity": 1
+    },
+    "Pickaxe": {
+      "index": 5,
+      "quantity": 1
+    },
+    "A good lawyer": {
+      "index": 8,
+      "quantity": 1
+    }
   },
   "727830793493413936": {
-    "Slippery gloves": 7,
-    "A good lawyer": 8,
-    "Knife": 1,
-    "jciqordsghhzpkjowi": 19,
-    "Freedom": 3,
-    "Shield": 6,
-    "dtshhnyompwbtixbijjswyxpwv": 21,
-    "lxhrsxmzudlkmkaiveh": 23
+    "Slippery gloves": {
+      "index": 7,
+      "quantity": 1
+    },
+    "A good lawyer": {
+      "index": 8,
+      "quantity": 1
+    },
+    "Knife": {
+      "index": 1,
+      "quantity": 1
+    },
+    "jciqordsghhzpkjowi": {
+      "index": 19,
+      "quantity": 1
+    },
+    "Freedom": {
+      "index": 3,
+      "quantity": 1
+    },
+    "Shield": {
+      "index": 6,
+      "quantity": 1
+    },
+    "dtshhnyompwbtixbijjswyxpwv": {
+      "index": 21,
+      "quantity": 1
+    },
+    "lxhrsxmzudlkmkaiveh": {
+      "index": 23,
+      "quantity": 1
+    }
   },
   "777170937682329601": {
-    "A good lawyer": 8,
-    "hjmpfoubiveodbmurmeardfpbk": 17,
-    "uvkmnxiaeyoeywzncpgkcyqbcj": 18,
-    "Knife": 1,
-    "Freedom": 3,
-    "Shield": 6
+    "A good lawyer": {
+      "index": 8,
+      "quantity": 1
+    },
+    "hjmpfoubiveodbmurmeardfpbk": {
+      "index": 17,
+      "quantity": 1
+    },
+    "uvkmnxiaeyoeywzncpgkcyqbcj": {
+      "index": 18,
+      "quantity": 1
+    },
+    "Knife": {
+      "index": 1,
+      "quantity": 1
+    },
+    "Freedom": {
+      "index": 3,
+      "quantity": 1
+    },
+    "Shield": {
+      "index": 6,
+      "quantity": 1
+    }
   },
   "606937826587705372": {
-    "fkixujxlhvanidwgxfwgwfsuzz": 22,
-    "Shield": 6,
-    "Knife": 1,
-    "A good lawyer": 8,
-    "Freedom": 3
+    "fkixujxlhvanidwgxfwgwfsuzz": {
+      "index": 22,
+      "quantity": 1
+    },
+    "Shield": {
+      "index": 6,
+      "quantity": 1
+    },
+    "Knife": {
+      "index": 1,
+      "quantity": 1
+    },
+    "A good lawyer": {
+      "index": 8,
+      "quantity": 1
+    },
+    "Freedom": {
+      "index": 3,
+      "quantity": 1
+    }
   },
   "763559063501012992": {
-    "Bomb": 0
+    "Bomb": {
+      "index": 0,
+      "quantity": 1
+    }
   },
   "1231349860050141265": {
-    "Knife": 1
+    "Knife": {
+      "index": 1,
+      "quantity": 1
+    }
   },
   "894167771796086785": {},
   "1330942602450833428": {},

@@ -777,7 +777,7 @@ class OffshoreView(discord.ui.View):
     async def handle_button_click(self, interaction: discord.Interaction):
         clicked_custom_id = interaction.data["custom_id"]
 
-        if clicked_custom_id not in Items.get_user_items(str(interaction.user.id)):
+        if clicked_custom_id not in list(Items.get_user_items(str(interaction.user.id))):
             await interaction.response.send_message("This is not your bank account to read", ephemeral=True)
             return
        

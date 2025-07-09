@@ -313,7 +313,7 @@ async def hello(ctx):
 async def timeout(ctx, member: discord.Member, minutes: int, ping: bool=True):
     try:
         
-        if "Shield" in Items.get_user_items(str(member.id)):
+        if "Shield" in list(Items.get_user_items(str(member.id))):
             await ctx.send(f"user {member.display_name} couldn't be timed out - they have a shield")
             if random.randint(1, 3) == 1:
                 await ctx.send(f"{member.mention} you're sheild has broken")
@@ -635,12 +635,12 @@ async def stab(ctx, member: discord.Member):
         return
     
     for role in ctx.author.roles:
-        if role.name == "Knife":
+        if role.name == "Knife" and "Knife" not in list(Items.get_user_items(ctx.author.id)):
             Items.addtoitems(str(ctx.author.id), "Knife")
 
     await ctx.send(f"{member.mention}, you've been stabbed!")
     
-    if "Knife" not in Items.get_user_items(str(ctx.author.id)):
+    if "Knife" not in list(Items.get_user_items(str(ctx.author.id))):
         await ctx.send("Unfortunately you don't have a knife.")
         return
 
@@ -1033,7 +1033,8 @@ async def on_message(message):
     ctx = await bot.get_context(message)
 
     if not economy.Economy.data_loaded and not ctx.author.bot: 
-        await ctx.send("Stop, data not loaded yet")
+        # await ctx.send("Stop, data not loaded yet")
+        print("DATA NOT LOADED AAAAAAAAa fuck")
         return
 
     if isinstance(ctx.channel, discord.DMChannel) and not ctx.author.bot:
@@ -1092,7 +1093,7 @@ async def on_message(message):
                 user_cash = Bank.read_balance(user_id)["cash"]
                 amount_lost = int(user_cash * amount_lost_percentage / 100) # Calculate as percentage
                 
-                if "A good lawyer" in Items.get_user_items(user_id) and random.randrange(1, 10) > 7:
+                if "A good lawyer" in list(Items.get_user_items(user_id)) and random.randrange(1, 10) > 7:
                     amount_lost = 10000
                     await ctx.send(f"Though because of {message.author}'s lawyer")
 
@@ -1149,13 +1150,15 @@ async def on_message(message):
     # if Bank.gettotal(user_id) <= 0 and not message.author.bot:
         # await take_loan(ctx)
   
-    
-    for item_index, item_name in enumerate(Items.get_user_items(str(message.author.id))):
-        if message.content.lower() == "!" + item_name.lower():
-            await use_item(ctx, item_name)
-    
+    # Allow a space between the prefix and the command
     if message.content.startswith("m! "):
         message.content = "m!" + message.content[3:]
+    
+    # Simpler m!use 
+    for item in list(Items.get_user_items(user_id)):
+        if message.content[2:].lower() == item.lower():
+            message.content = f"m!use {item}"
+
 
     await bot.process_commands(message)
     
@@ -1556,7 +1559,7 @@ async def offshore_bank_account_deposit(ctx, amount="all", key: str = "1"):
     await offshore_bank_account_command(ctx)
 
 @bot.command(name='oclear')
-async def duplicate_account_buskers(ctx, key: str):
+async def duplicate_account(ctx, key: str):
     account_data = Offshore.get_data_from_key(key)
     
     Offshore.generate_account(ctx.author.id, account_data[2])
@@ -1567,7 +1570,8 @@ async def duplicate_account_buskers(ctx, key: str):
     Offshore.save_balances()
 
     Items.save_item_sources()
-    Items.correct_item_source()
+    Items._ensure_inventory_consistency()
+    Offshore.clear_balance()
     await offshore_bank_account_command(ctx)
 
 @bot.command(name='odelete', aliases=['odel', 'od'])
@@ -1588,6 +1592,8 @@ async def delete_offshore_bank_account(ctx, key: str):
     Offshore.save_balances()
     Items.save_item_sources()
     Items.save_player_inventory()
+    Items._ensure_inventory_consistency()
+    Offshore.clear_balance()
     await offshore_bank_account_command(ctx)
 
 @bot.command(name='oupdate', aliases=['oup'])
@@ -1596,9 +1602,6 @@ async def update_offshore_accounts(ctx):
 
     keys = Offshore.get_user_keys(user_id)
     Offshore.update_accounts_from_keyes(keys)
-    
-    for key in keys:
-        Items.player_inventory[user_id][key] = Items.get_item_source_index_by_name(key)
 
     Items.save_player_inventory()
 
@@ -1802,7 +1805,7 @@ async def slut(ctx):
         message = message.replace('____', str(amount_lost))
         await ctx.send(embed=await views_embeds.create_balance_embed(user_id, bot, amountAddedToCash=amount_lost))
 
-        if "A good lawyer" in Items.get_user_items(user_id):
+        if "A good lawyer" in list(Items.get_user_items(user_id)):
             await ctx.send(message)
             await ctx.send("However, due to their good lawyer, the money was dealt with and troubles were sorted out behind the seens")
 
@@ -1900,7 +1903,7 @@ async def crime(ctx):
             Income.addtoincomes(user_id, "Organized crime ring leader", 13)
 
     # --- Handle Slippery Gloves Scenario (prevents loss, no gain) ---
-    elif 'Slippery gloves' in Items.get_user_items(user_id) and 'gain' not in raw_response_message:
+    elif 'Slippery gloves' in list(Items.get_user_items(user_id)) and 'gain' not in raw_response_message:
         # This branch implies 'Slippery gloves' prevented a loss, but didn't cause a gain.
         # Original code had a typo 'Slipery gloves'
         final_description = "Those slippery gloves prevented your capture, but you didn't gain anything."
@@ -1913,7 +1916,7 @@ async def crime(ctx):
         crime_success_dict[user_id] = 0 # Reset streak on loss
         
         # Check for "A good lawyer" item
-        if "A good lawyer" in Items.get_user_items(user_id):
+        if "A good lawyer" in list(Items.get_user_items(user_id)):
             final_description = "You were caught, but due to your good lawyer, the money was dealt with and troubles were sorted out behind the scenes! You pay a lawyer's fee."
             lawyer_fee = 10000 # Assuming this is a fixed fee
             Bank.addcash(user_id, -lawyer_fee) # Deduct lawyer fee from cash
@@ -2111,7 +2114,7 @@ async def rob(ctx, target: discord.Member):
     amount_gained = random.randint(80, 90) * Bank.read_balance(target_id_str)["cash"] // 100
     amount_lost = -random.randint(20, 40) * Bank.gettotal(user_id_str) // 100
 
-    if random.randint(1, 10) > 4 or 'Slippery gloves' in Items.get_user_items(user_id_str):
+    if random.randint(1, 10) > 4 or 'Slippery gloves' in list(Items.get_user_items(user_id_str)):
 
         crime_success_dict[user_id_str] += 1
             
@@ -2124,12 +2127,12 @@ async def rob(ctx, target: discord.Member):
 
         if crime_success_dict == 3:
             await ctx.send("Due to the impressive amount of crimes you have succeeded in a row, criminals flock to you with you as their boss (check m!in)")
-        if 'Slippery gloves' in Items.get_user_items(user_id_str):
+        if 'Slippery gloves' in list(Items.get_user_items(user_id_str)):
             Items.removefromitems(user_id_str, 'Slipery gloves', 1)
     else:
         await ctx.send(f"You were caught and pay {amount_lost} as fine")
         
-        if "A good lawyer" in Items.get_user_items(user_id_str):
+        if "A good lawyer" in list(Items.get_user_items(user_id_str)):
             await ctx.send("However, due to their good lawyer, the money was dealt with and troubles were sorted out behind the seens")
             
             if user_id_str not in crime_success_dict:
@@ -2274,7 +2277,7 @@ async def rob_bank(ctx):
         Income.addtoincomes(user_id_str, "Organized crime", 13)
 
     else:
-        if "A good lawyer" in Items.get_user_items(user_id_str):
+        if "A good lawyer" in list(Items.get_user_items(user_id_str)):
             embed.add_field(
                 name="They were defended by their lawyer",
                 value=f"{ctx.author.display_name} lost 100000 in fines",
@@ -2290,7 +2293,7 @@ async def rob_bank(ctx):
 
             
 
-        Bank.addcash(user_id_str, random.randint(20, 40) * current_cash // -100) if "A good lawyer" not in Items.get_user_items(user_id_str) else Bank.addcash(user_id_str, 1)
+        Bank.addcash(user_id_str, random.randint(20, 40) * current_cash // -100) if "A good lawyer" not in list(Items.get_user_items(user_id_str)) else Bank.addcash(user_id_str, 1)
         embed.add_field(name="Robbery unsuccessful",
                         value=f"{ctx.author.display_name} lost ${new_money - current_cash:,.2f} after being caught by the police",
                         inline=False)
@@ -2627,7 +2630,7 @@ async def display_inventory(ctx):
     """
 
     user_id_str = str(ctx.author.id)
-    inventory_data = Items.get_user_items(user_id_str)
+    inventory_data = list(Items.get_user_items(user_id_str))
 
     embed = discord.Embed(
         title=f"{ctx.author.display_name}'s items ⛏️",
@@ -2637,8 +2640,8 @@ async def display_inventory(ctx):
 
     item_emoji = ["🗡️", "⚔️", "🛡️", "💸"]
 
-    for item, i in enumerate(inventory_data):
-        item_data = Items.item_sources[Items.get_item_source_index_by_name(i)]
+    for i, item in enumerate(inventory_data):
+        item_data = Items.item_sources[Items.get_item_source_index_by_name(item)]
         if not item_data[1]: 
             embed.add_field(
                 name=item_data[0],
@@ -2665,7 +2668,8 @@ async def use_item(ctx, item: str, target: discord.Member = None):
     user_id_str = str(ctx.author.id)
     inventory_data = Items.get_user_items(user_id_str)
 
-    item_index_int = inventory_data.get(item[0].capitalize() + item[1:], -1)
+    item = inventory_data.get(item[0].capitalize() + item[1:], -1)
+    item_index_int = item.get("index")
 
     print(item_index_int)
 
