@@ -1021,16 +1021,12 @@ class Offshore:
             account[2] = 1
 
         days = (time.time() - account[3]) / 86400
-        print(days)
         amount = account[2]
-        print(amount)
         log_amount = log(amount, 10)
-        print(log_amount)
         log_days = log(days, 10) + 1 if days > 0 else 1
-        print(log_days)
         multiplier = 9 / 20
 
-        print(log_days * log_amount * multiplier)
+        print(f"interest for {account[0]}: {log_days * log_amount * multiplier}")
         return log_days * log_amount * multiplier
 
     @staticmethod
@@ -1198,44 +1194,23 @@ class Offshore:
             print(f"key updating: {key}")
             Offshore.update_account(Offshore.get_index_from_key(key))
 
-def main():
-    print("Expected all files should be in cwd/json_files/<file>")
-    print(f"Balances data file: {Bank._DATA_FILE}")
-    if os.path.exists(Bank._DATA_FILE):
-        print("Bank data file exists")
-    else:
-        print("Bank data file does not exist")
+class Economy:
+    data_loaded = False
 
+    def main():
+        # Load economy data. Do this once on_ready.
+        Bank.read_balance()
+        Income.loadincomes()
+        Income.create_sources() # Also ensures sources are initialized/loaded
+        Items.load_player_inventory() 
+        Items.correct_item_source() # Makes sure all of the indexes are correct for the inventory 
+        Items.create_item_sources() # Also ensures item sources are initialized/loaded
+        Offshore.load_balances() # Sets the balnaces variable to the one from the json file
+        Offshore.clear_balance() # Removes balances that nobody have
+        print("Economy data loaded/initialized for all classes.")
+        Economy.data_loaded = True
 
-    print(f"Income data files: {Income.SOURCES_DATA_FILE}, {Income.PLAYER_DATA_FILE}")
-    if os.path.exists(Income.SOURCES_DATA_FILE):
-        print("Income sources data file exists")
-    else:
-        print("Income sources data file does not exist")
-    if os.path.exists(Income.PLAYER_DATA_FILE):
-        print("Player incomes data file exists")
-    else:
-        print("Player incomes data file does not exist")
-    
-    print(f"Inventory data files: {Items.SOURCES_DATA_FILE}, {Items.PLAYER_DATA_FILE}")
-    if os.path.exists(Items.SOURCES_DATA_FILE):
-        print("Item sources data file exists")
-        Items.load_item_sources()
-        print(Items.item_sources)
-    else:
-        print("Item sources data does not exist")
-    if os.path.exists(Items.PLAYER_DATA_FILE):
-        print("Player inventory data file exists")
-        Items.load_player_inventory()
-        print(Items.player_inventory)
-    else:
-        print("Player inventory data file does not exist")
-
-    print(f"Offshore data file: {Offshore.DATA_PATH}")
-    if os.path.exists(Offshore.DATA_PATH):
-        print("Offshore data file exists")
-    else:
-        print("Offshore data does not exist")
+   
 
 if __name__ == '__main__':
-    main()
+    Economy.main()

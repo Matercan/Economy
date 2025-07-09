@@ -17,6 +17,9 @@ from economy import Bank, Income, Items, Offshore
 from game_logic import BlackjackGame, CardflipGame, HackingGame 
 from views_embeds import CommandsView, CooldownsView, HackingGameView, BlackjackView, ShopView
 import views_embeds
+import economy
+
+economy.Economy.data_loaded = False
 
 english_words = set(words.words())
 
@@ -35,7 +38,6 @@ RESTART_FLAG_FILE = "_restarting_flag.tmp"
 
 can_load_sources = False
 
-user_last_message_timestamps = {}
 
 
 intents = discord.Intents.all()
@@ -108,15 +110,7 @@ async def on_ready():
 
 
     # Load economy data. Do this once on_ready.
-    Bank.read_balance()
-    Income.loadincomes()
-    Income.create_sources() # Also ensures sources are initialized/loaded
-    Items.load_player_inventory() 
-    Items.correct_item_source() # Makes sure all of the indexes are correct for the inventory 
-    Items.create_item_sources() # Also ensures item sources are initialized/loaded
-    Offshore.load_balances() # Sets the balnaces variable to the one from the json file
-    Offshore.clear_balance() # Removes balances that nobody have
-    print("Economy data loaded/initialized for all classes.")
+    economy.Economy.main() 
 
     # Syncs the bots I think
     await bot.tree.sync()
@@ -413,6 +407,8 @@ async def shutdown(ctx):
 
 @bot.command()
 async def end(ctx):
+    if os.path.exists(RESTART_FLAG_FILE):
+        os.remove(RESTART_FLAG_FILE)
     if ctx.author.id == 777170937682329601:
         await ctx.send("Mater is shooting the bot in the face, too long of a coding adevnture ig")
         await bot.close()
@@ -1031,10 +1027,15 @@ async def cooldowns(ctx):
 @bot.event
 async def on_message(message):
 
+
     user_id = str(message.author.id)
 
     ctx = await bot.get_context(message)
-    
+
+    if not economy.Economy.data_loaded and not ctx.author.bot: 
+        await ctx.send("Stop, data not loaded yet")
+        return
+
     if isinstance(ctx.channel, discord.DMChannel) and not ctx.author.bot:
         await ctx.send("THE BOT DOESN'T ACCEPT DMS!!!!!")
         if message.content.startswith("m! "):
@@ -1044,7 +1045,12 @@ async def on_message(message):
         return 
    
     if ctx.author.bot:
+        await bot.process_commands(message)
         return
+
+    if Bank.gettotal(user_id) <= 0 and Offshore.get_user_keys(user_id) == []:
+        await ctx.send("Have some starting money, or an escape from poverty")
+        Bank.addcash(user_id, 100)
 
     if "general" in message.channel.name and not message.content.startswith("m!"):
         return
@@ -1142,18 +1148,7 @@ async def on_message(message):
 
     # if Bank.gettotal(user_id) <= 0 and not message.author.bot:
         # await take_loan(ctx)
- 
-    current_time = message.created_at # message.created_at is a datetime object
-
-    if user_id not in user_last_message_timestamps:
-        user_last_message_timestamps[user_id] = []
-
-    # Add the new timestamp
-    user_last_message_timestamps[user_id].append(current_time)
-
-    # Keep only the last two timestamps
-    if len(user_last_message_timestamps[user_id]) > 2:
-        user_last_message_timestamps[user_id].pop(0) # Remove the oldest timestamp
+  
     
     for item_index, item_name in enumerate(Items.get_user_items(str(message.author.id))):
         if message.content.lower() == "!" + item_name.lower():
@@ -1408,7 +1403,7 @@ async def give(ctx, member: discord.Member, money: float):
         Bank.addcash(user_id=user_id, money=-money)
         await ctx.send(f"{member.display_name} has recieved your money")
         await ctx.send(embed=await views_embeds.create_balance_embed(user_id, bot, amountAddedToCash=-money))
-        await ctx.send(embed=await views_embeds.create_balance_embed(user_id, bot, amountAddedToCash=money))
+        await ctx.send(embed=await views_embeds.create_balance_embed(target_id, bot, amountAddedToCash=money))
         
     except (KeyError) as e:
         print(f"An error occurred in !give command: {e}") # Log the actual error for debugging
@@ -1774,7 +1769,13 @@ Slut_responses = [
     "Your exceptional 'cuddle services' at the local furry convention were a massive hit! You successfully gained ____ and probably a few new lint rollers.",
     "You tried to seduce a stoic femboy barista for a free coffee, but he just gave you decaf and charged extra. You lost ____ and your faith in cheap thrills.",
     "While attempting to woo a wealthy fox, you tripped over a root and spilled your expensive elixir all over yourself. You lost ____, and now you smell faintly of wet dog.",
-    "Your attempt to start a 'furry fashion advice' TikTok account flopped harder than a pancake. You lost ____ on props and frankly, your reputation."
+    "Your attempt to start a 'furry fashion advice' TikTok account flopped harder than a pancake. You lost ____ on props and frankly, your reputation.",
+    "Your mesmerizing 'dance of the worker ant' performance at the 'Underground Bug Ball' captivated the entire colony. You gained ____ in tribute, mostly in the form of discarded breadcrumbs and tiny, shiny things.",
+    "You managed to charm a notoriously grumpy piranha into giving you its most prized possession: a collection of tiny, polished river stones. You sold them as 'genuine piranha pearls' and gained a whopping ____!",
+    "Your exceptional talent for 'gill-flirting' at the deep-sea disco earned you a significant amount of bioluminescent currency. You gained ____ and became an instant legend among the glowing octopuses.",
+    "You attempted to 'flirt' your way into an exclusive ant queen's chambers, but her guard ants weren't impressed by your human-sized advances. You lost ____ in dignity and endured a very public escort off the premises.",
+    "While trying to impress a school of highly judgmental tuna, you attempted a dangerous underwater acrobatic move, resulting in a spectacular belly-flop. You gained nothing but a bruised ego and lost ____ when you had to pay for a new oxygen tank.",
+    "Your 'love potion' (mostly just pond scum) for attracting rare exotic fish backfired, instead attracting a very large, very hungry barracuda. You lost ____ and nearly became lunch."
 ]
 
 
@@ -1840,7 +1841,13 @@ crime_responses = [
     "While attempting to exfiltrate data from a furry's laptop, you accidentally opened their very private Neovim config file. The cringe caused your system to crash, and you lost ____ when they charged you for 'emotional damages and Neovim support'.",
     "You skillfully convinced a group of squirrels that 'finders keepers' applied to all the local park's unattended wallets. You split the take 60/40 (in your favor, of course) and gained ____!",
     "Through sheer force of questionable charisma, you talked a highly secure bank vault into opening itself. The guards were too bewildered to react, and you walked out with a cool gain of ____.",
-    "You pulled off the legendary 'Invisible Sandwich Heist,' stealing a chef's prize-winning, perfectly balanced lunch right off their plate without them ever noticing. The chef's confusion bought you enough time to fence the sandwich for a solid gain of ____."
+    "You pulled off the legendary 'Invisible Sandwich Heist,' stealing a chef's prize-winning, perfectly balanced lunch right off their plate without them ever noticing. The chef's confusion bought you enough time to fence the sandwich for a solid gain of ____.",
+    "You skillfully infiltrated a highly secure ant farm, convincing the carpenter ants to stage a diversion while you made off with the queen's prized honeydew stash. You gained ____ selling it on the underground insect market!",
+    "Through cunning deception, you tricked a school of rare clownfish into investing their entire life savings in a pyramid scheme involving algae futures. They lost everything, but you gained a tidy sum of ____!",
+    "You orchestrated the 'Great Goldfish Bowl Heist,' distracting the owner with a meticulously choreographed synchronized swimming routine performed by a shoal of guppies. You made off with the decorative pebbles, gaining ____ from their black market value.",
+    "You attempted to smuggle exotic angelfish across state lines, but a particularly vigilant border patrol anglerfish sniffed out your plan. You lost ____ in fines and had to attend mandatory 'ethical fish-keeping' classes.",
+    "Your plot to steal the picnic basket from a colony of aggressive fire ants went horribly wrong. They swarmed you, and you lost ____ in ant bite cream and therapy for your newfound formic acid phobia.",
+    "You tried to con a wise old catfish out of its 'lucky fishing lure,' but it saw right through your flimsy disguise. You lost ____ when it reported you to the aquatic authorities, who then issued you a lifetime ban from all fishing docks."
 ]
 
 crime_success_dict = {}
@@ -1848,7 +1855,6 @@ crime_success_dict = {}
 
 @bot.command(name='crime')
 async def crime(ctx):
-    # print(crime_success_dict)
     global crime_success_dict
 
     cooldown_msg = check_cooldown(ctx, 'crime')
@@ -1858,62 +1864,83 @@ async def crime(ctx):
         return
     
     user_id = str(ctx.author.id)
-    user_total = Bank.gettotal(user_id=user_id)
-    amount_gained = random.randint(1000, 10000)
-    amount_lost = -user_total * random.randint(20, 40) // 100
-    amount_lost = int(amount_lost)
-
-    balance_embed = await views_embeds.create_balance_embed(user_id, bot)
-
+    user_total_cash = Bank.read_balance(user_id)["cash"] # Get current cash for loss calculation
+    
+    # Initialize crime_success_dict for the user if not present
     if user_id not in crime_success_dict:
         crime_success_dict[user_id] = 0
 
-    response_message = crime_responses[random.randint(0, len(crime_responses) - 1)]
-    if 'gain' in response_message or 'Slippery gloves' in Items.get_user_items(user_id):
-        if 'gain' in response_message:
-            crime_success_dict[user_id] += 1
-            response_message = response_message.replace('____', str(amount_gained))
-            Bank.addcash(user_id=user_id, money=amount_gained)
-            balance_embed = await views_embeds.create_balance_embed(user_id, bot, amountAddedToCash=amount_gained) 
-        else:
-            await ctx.send("Those slippery gloves prevented your capture, but you don't gain anything")
-            if 'Slippery gloves' in Items.get_user_items(user_id):
-                Items.removefromitems(user_id, 'Slipery gloves', 1)
+    # Determine outcome based on random response and items
+    raw_response_message = random.choice(crime_responses) # Use random.choice for simplicity
+    
+    amount_gained = random.randint(1000, 10000)
+    # Calculate amount_lost based on current user's cash, not total assets
+    amount_lost = int(user_total_cash * random.randint(20, 40) / 100)
+    # Ensure amount_lost is positive for clarity in calculations, then apply as negative
+    if amount_lost == 0 and user_total_cash > 0: # Ensure some loss if cash exists and calculation leads to 0
+        amount_lost = 1
+    elif amount_lost == 0: # If user has no cash, ensure minimal loss or 0
+        amount_lost = 0
 
+    # Variables to hold the final message and color
+    final_description = ""
+    embed_color = discord.Color.default() # Default color
+
+    # --- Handle Gain Scenarios ---
+    if 'gain' in raw_response_message:
+        crime_success_dict[user_id] += 1
+        final_description = raw_response_message.replace('____', f"${amount_gained:,}")
+        Bank.addcash(user_id=user_id, money=amount_gained)
+        amount_change_for_balance_embed = amount_gained
+        embed_color = discord.Color.green() # Green for gain
+        
+        # Check for crime streak bonus
         if crime_success_dict[user_id] == 3:
-            
             await ctx.send("Due to the impressive amount of crimes you have succeeded in a row, criminals flock to you with you as their boss (check m!in)")
             Income.addtoincomes(user_id, "Organized crime ring leader", 13)
 
-    else:
-        response_message = response_message.replace('____', str(amount_lost))
-        
-        if "A good lawyer" in Items.get_user_items(user_id):
-            balance_embed = await views_embeds.create_balance_embed(user_id, bot, amountAddedToCash=-1e4)
-            await ctx.send("However, due to their good lawyer, the money was dealt with and troubles were sorted out behind the seens")
-            
-            
-            if user_id not in crime_success_dict:
-                crime_success_dict[user_id] = 0
-            
-            crime_success_dict[user_id] += 1
-            
-            if crime_success_dict[user_id] == 5:
-                Income.addtoincomes(user_id, "Organised crime", 13)
-    
-            Bank.addbank(user_id, -10000)
-            await ctx.send(embed=balance_embed)
-            return
+    # --- Handle Slippery Gloves Scenario (prevents loss, no gain) ---
+    elif 'Slippery gloves' in Items.get_user_items(user_id) and 'gain' not in raw_response_message:
+        # This branch implies 'Slippery gloves' prevented a loss, but didn't cause a gain.
+        # Original code had a typo 'Slipery gloves'
+        final_description = "Those slippery gloves prevented your capture, but you didn't gain anything."
+        Items.removefromitems(user_id, 'Slippery gloves', 1) # Corrected typo here
+        amount_change_for_balance_embed = 0 # No change in money
+        embed_color = discord.Color.blue() # Neutral/Blue for prevented loss
 
-        Bank.addcash(user_id=user_id, money=amount_lost)
-        crime_success_dict[user_id] = 0
-        balance_embed = await views_embeds.create_balance_embed(user_id, bot, amountAddedToCash=amount_lost) 
-    
-    embed = discord.embed(
-        title="Crime report",
-        description=response_message,
-        color=discord.Color.red())
-    await ctx.send(embed=embed)
+    # --- Handle Loss Scenarios ---
+    else: # This means it's a loss-related response
+        crime_success_dict[user_id] = 0 # Reset streak on loss
+        
+        # Check for "A good lawyer" item
+        if "A good lawyer" in Items.get_user_items(user_id):
+            final_description = "You were caught, but due to your good lawyer, the money was dealt with and troubles were sorted out behind the scenes! You pay a lawyer's fee."
+            lawyer_fee = 10000 # Assuming this is a fixed fee
+            Bank.addcash(user_id, -lawyer_fee) # Deduct lawyer fee from cash
+            amount_change_for_balance_embed = -lawyer_fee
+            embed_color = discord.Color.gold() # Yellow/Gold for lawyer intervention
+            # The original code's Income.addtoincomes(user_id, "Organised crime", 13)
+            # and crime_success_dict[user_id] += 1 here seems misplaced if this is a "loss prevented" scenario.
+            # I'm removing it for now; adjust if your game logic requires it differently.
+
+        else: # Standard loss
+            final_description = raw_response_message.replace('____', f"${amount_lost:,}")
+            Bank.addcash(user_id=user_id, money=-amount_lost) # Deduct the calculated loss
+            amount_change_for_balance_embed = -amount_lost
+            embed_color = discord.Color.red() # Red for loss
+
+    # --- Send the Messages ---
+    # Create the crime report embed
+    crime_embed = discord.Embed(
+        title="Crime Report",
+        description=final_description,
+        color=embed_color
+    )
+    await ctx.send(embed=crime_embed)
+
+    # Create and send the balance embed
+    # Ensure amountAddedToCash is passed for the update message
+    balance_embed = await views_embeds.create_balance_embed(user_id, bot, amountAddedToCash=amount_change_for_balance_embed)
     await ctx.send(embed=balance_embed)
     
 
@@ -1927,7 +1954,11 @@ work_responses = [
     "Your job was to teach a group of very fluffy, very enthusiastic foxes how to compile their own custom Linux kernels. You barely survived the 'segmentation fault' tantrums, but you earned enough to buy a new mechanical keyboard.",
     "You worked as a 'Bash Script Whisperer' for a tech startup run entirely by furries. Your task was to untangle their convoluted .bashrc files, all while exclusively using Neovim. Your hands ache, but your bank account is purring.",
     "You were hired to optimize the startup time of a Linux-powered robot that serves snacks at furry conventions. After hours in Neovim, tweaking systemd services, you got it down to under 2 seconds! You earned a hefty bonus and a lifetime supply of convention snacks.",
-    "Your new gig: migrating a femboy's entire productivity workflow from VS Code to Neovim on their Arch Linux setup. It was a harrowing, caffeine-fueled journey, but you successfully completed the task and earned enough to pay off your technical debt."
+    "Your new gig: migrating a femboy's entire productivity workflow from VS Code to Neovim on their Arch Linux setup. It was a harrowing, caffeine-fueled journey, but you successfully completed the task and earned enough to pay off your technical debt.",
+    "You spent the day as a professional 'Ant Farm Architect,' designing intricate tunnel systems and food storage chambers. It was surprisingly fulfilling, and your paycheck was queen-sized!",
+    "Your new gig involved being a 'Fish Whisperer' for anxious aquarium owners, calming down stressed-out bettas and counseling angelfish with identity crises. You earned a decent sum and infinite fishy gratitude.",
+    "You worked tirelessly as a 'Deep-Sea Disco Ball Cleaner,' polishing ancient barnacles off reflective surfaces for hours. Your arms ache, but your bank account is swimming in cash!",
+    "You were employed as a 'Larva Nanny' for a particularly demanding colony of leaf-cutter ants. It was messy, sticky work, but your dedication earned you a substantial amount of protein pellets and a solid wage."
 ]
 
 

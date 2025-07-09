@@ -586,9 +586,17 @@ class BlackjackView(discord.ui.View):
     
     # New helper method to finalize the game and update the message
     async def _end_game(self):
+
+        for item in self.children:
+            if isinstance(item, discord.ui.Button):
+                if item.disabled:
+                    print("You've already won")
+                    return
+
         self.disable_buttons() # Ensure buttons are disabled
         
         # Determine winner and adjust balance
+            
         if "player wins" in self.game.result_message.lower():
             Bank.addcash(str(self.player_id), 2 * self.bet_amount) # Win bet (cancels out money lost at start)
             money_change = self.bet_amount
@@ -599,6 +607,7 @@ class BlackjackView(discord.ui.View):
             print(f"DEBUG: Player {self.player_id} loses {self.bet_amount}")
         else: # Push
             money_change = 0
+            Bank.addcash(str(self.player_id), self.bet_amount)
             print(f"DEBUG: Player {self.player_id} pushes.")
 
         # Update the main blackjack embed to show full dealer hand and result
@@ -665,18 +674,15 @@ class BlackjackView(discord.ui.View):
         
         await interaction.response.defer()
 
+        print(self.game.is_game_over)
         if self.game.is_game_over: # Prevent actions if game is already over
             await interaction.followup.send("This game is already over!", ephemeral=True)
             return
 
-        self.disable_buttons()
-        print("DEBUG: Buttons disabled.")
         
         self.game.dealer_play() # Dealer plays until 17+ or busts
-        print("DEBUG: Dealer played.")
-        
-        self.game.determine_winner() # Determine the final winner and set result_message
-        print("DEBUG: Winner determined. Result: {self.game.result_message}")
+        print("DEBUG: Dealer played.")       
+        print(f"DEBUG: Winner determined. Result: {self.game.result_message}")
         
         await self._end_game() # Finalize the game and update embeds
     
@@ -1040,20 +1046,20 @@ async def create_balance_embed(user_id: str, bot, amountAddedToCash: float = 0, 
     totalAddedStr = ""
 
     if amountAddedToCash < 0:
-        cashAddedStr = f" (${amountAddedToCash:,.0f})" # Added parentheses for clarity
+        cashAddedStr = f" \n(${amountAddedToCash:,.0f})" # Added parentheses for clarity
     elif amountAddedToCash > 0:
-        cashAddedStr = f" (+${amountAddedToCash:,.0f})" # Added parentheses for clarity
+        cashAddedStr = f" \n(+${amountAddedToCash:,.0f})" # Added parentheses for clarity
 
     if amountAddedToBank < 0:
-        bankAddedStr = f" (${amountAddedToBank:,.0f})" # Added parentheses for clarity
+        bankAddedStr = f" \n(${amountAddedToBank:,.0f})" # Added parentheses for clarity
     elif amountAddedToBank > 0:
-        bankAddedStr = f" (+${amountAddedToBank:,.0f})" # Added parentheses for clarity
+        bankAddedStr = f" \n(+${amountAddedToBank:,.0f})" # Added parentheses for clarity
     
     total_change_delta = amountAddedToCash + amountAddedToBank
     if total_change_delta > 0:
-        totalAddedStr = f" (+${total_change_delta:,.0f})"
+        totalAddedStr = f" \n(+${total_change_delta:,.0f})"
     elif total_change_delta < 0:
-        totalAddedStr = f" (${total_change_delta:,.0f})"
+        totalAddedStr = f" \n(${total_change_delta:,.0f})"
 
     print(f"DEBUG: cash added: {cashAddedStr}, {bankAddedStr}, {totalAddedStr}")
 
