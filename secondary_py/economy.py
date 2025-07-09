@@ -1328,13 +1328,22 @@ class Offshore:
                 continue
 
             item_source_data = Items.item_sources[item_source_index]
-            
+            print(f"item source data: {item_source_data}") 
+            print(f"item name: {item_name}")
             # 2. Check if this item source represents an offshore bank account
             # We assume the name of the item is the offshore key.
             # Identification is based on the description containing "'s Offshore bank account".
+
+
             is_offshore_item_source = (
-                len(item_source_data) > 3 and "'s Offshore bank account".lower() in item_source_data[3].lower() and item_source_data[0] == item_name
+                len(item_source_data) > 3 and "'s Offshore bank account".lower() in item_source_data[3].lower() and item_name == item_source_data[0]
             )
+
+
+
+            print(f"Is it an offshore bank account?: {'s Offshore bank account'.lower() in item_source_data[3].lower()} ")
+            print(f"Is the data length greater length > 3?: {len(item_source_data) > 3}")
+            print(f"Is the data name the item name?: {item_source_data[0] == item_name}")
 
             if not is_offshore_item_source:
                 continue # Skip if it's not an item representing an offshore account
@@ -1346,9 +1355,8 @@ class Offshore:
             #    in Offshore.balances AND belongs to the specified user_id.
             for account_data in Offshore.balances:
                 account_key_in_offshore = account_data[0]
-                user_id_in_offshore = account_data[1]
-
-                if (offshore_key_from_item == account_key_in_offshore and user_id == user_id_in_offshore):
+                                
+                if (offshore_key_from_item == account_key_in_offshore):
                     keys.append(offshore_key_from_item)
                     break # Found this key for this user, move to the next item_name
 
