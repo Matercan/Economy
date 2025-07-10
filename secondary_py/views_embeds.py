@@ -575,7 +575,6 @@ class BlackjackView(discord.ui.View):
             
         if self.game.is_game_over:
             self.disable_buttons()
-            self._end_game()
             print("DEBUG: Game immediately over in __init__.")
             
     def disable_buttons(self):

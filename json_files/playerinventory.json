@@ -2,7 +2,7 @@
   "445059352521342978": {
     "Knife": {
       "index": 1,
-      "quantity": 5
+      "quantity": 6
     },
     "Brick": {
       "index": 2,
@@ -135,6 +135,10 @@
     "Monster": {
       "index": 13,
       "quantity": 1
+    },
+    "Knife": {
+      "index": 1,
+      "quantity": 1
     }
   },
   "1231349860050141265": {
@@ -158,7 +162,7 @@
   "1318037624304435330": {
     "Bomb": {
       "index": 0,
-      "quantity": 6
+      "quantity": 7
     }
   },
   "473316308289847298": {
