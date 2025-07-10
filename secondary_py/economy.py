@@ -1001,37 +1001,52 @@ class Items:
         return item_data is not None and item_data.get("quantity", 0) >= required_quantity
 
     @staticmethod
-    def generate_user_specific_item(user_id: str, item_index: int, value_effect):
-        if not Items.item_sources:
-            Items.create_item_sources() # Ensure item sources are loaded
+    def generate_user_specific_item(user_id: str, item_index: int, value_effect) -> str | None:
+        """
+        Generates a unique item source and adds it to the user's inventory.
+        Specifically for offshore accounts, it ensures description consistency.
+        Returns the unique_item_name (which is the offshore key) or None on failure.
+        """
+        if not Items.item_sources: Items.create_item_sources()
+        
+        # Validate item_index before accessing Items.item_sources
+        if not (0 <= item_index < len(Items.item_sources)):
+            print(f"Error: Base item index {item_index} for offshore account is invalid.")
+            return None
 
         item_name_base = Items.item_sources[item_index][0]
+
         generated_suffix = ""
         letters = ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i', 'j', 'k', 'l', 'm', 'n',
                    'o', 'p', 'q', 'r', 's', 't', 'u', 'v', 'w', 'x', 'y', 'z']
-
-        # Generate a random suffix for uniqueness
-        for _ in range(random.randint(3, 7)): # Generate a suffix between 3 and 7 chars long
-            generated_suffix += random.choice(letters)
+        for _ in range(random.randint(3, 7)): generated_suffix += random.choice(letters)
         
-        unique_item_name = f"{item_name_base} of {generated_suffix.capitalize()}" # Example: "Sword of Xyz"
+        unique_item_name = f"{item_name_base} of {generated_suffix.capitalize()}"
 
-        # Ensure this unique item name is added to item_sources if it doesn't exist
-        # This prevents duplicate sources for dynamically generated items.
-        # However, for user-specific items, you might *not* want to add them to global sources.
-        # This implies a new type of item (personal/temporary) or a different way to store them.
-        # For simplicity, assuming it *is* added to item_sources for now.
+        # --- IMPORTANT: Ensure description consistency for offshore accounts ---
+        custom_description = None
+        # Check if the base item is truly meant to be an "Offshore bank account" type
+        # This check is crucial to ensure we only apply the custom description for offshore accounts
+        if item_name_base == "Offshore bank account": # Assumes "Offshore bank account" is the generic base name
+            # This description MUST match the pattern expected by get_user_keys
+            custom_description = f"{user_id}'s offshore bank account" # Ensure lowercase 'o' here
+        # --- End of consistency fix ---
+
+        # If the unique item doesn't exist, create it
         if Items.get_item_source_index_by_name(unique_item_name) == -1:
-            Items.create_source(unique_item_name, True, value_effect, f"{user_id}'s unique {item_name_base}")
+            # Pass the custom description if it's an offshore account, otherwise use a generic one
+            Items.create_source(unique_item_name, True, value_effect, custom_description if custom_description else f"{user_id}'s unique {item_name_base}")
         
-        # Now, add it to the user's inventory using the correct add_item_to_inventory method
         new_item_source_index = Items.get_item_source_index_by_name(unique_item_name)
+        
         if new_item_source_index != -1:
             Items.add_item_to_inventory(user_id, unique_item_name, new_item_source_index, quantity=1)
-            Items.save_player_inventory() # Save after adding to player inventory
+            Items.save_player_inventory() # Save player inventory after adding item
             print(f"Generated and added unique item '{unique_item_name}' to {user_id}'s inventory.")
+            return unique_item_name # <<-- RETURN THE GENERATED NAME
         else:
             print(f"Error: Could not find source index for generated item '{unique_item_name}'. Item not added.")
+            return None # Indicate failure
         
 
 class Offshore:
@@ -1194,16 +1209,34 @@ class Offshore:
         return account[2] * pow(multiplier, (time.time() - account[3]) / 86400)
 
     @staticmethod
-    def generate_account(user_id: str, balance: float) -> str:
-        
-        Items.generate_user_specific_item(user_id, Items.get_item_source_index_by_name("Offshore bank account"), balance)
-        balanceKey = Items.item_sources[len(Items.item_sources) - 1][0]
+    def generate_account(user_id: str, balance: float) -> str | None:
+        # Get the unique item name directly from the generation method
+        # This is the actual key for the offshore account
+        balanceKey = Items.generate_user_specific_item(
+            user_id, 
+            Items.get_item_source_index_by_name("Offshore bank account"), # Ensure this base item exists!
+            balance
+        )
+
+        if balanceKey is None:
+            print(f"Failed to generate unique offshore account item for user {user_id}.")
+            return None # Indicate failure if item generation failed
+
         interest = log(balance, 10) / 2
 
-        Offshore.balances.append([balanceKey, interest, balance, time.time()]) 
+        # --- IMPORTANT: Fix Offshore.balances structure here! ---
+        # Append [key, user_id, balance]
+        # If you *must* store interest and time, you need to change Offshore.balances's definition
+        # to e.g., list of [key, user_id, balance, interest, timestamp] tuples/lists consistently everywhere.
+        Offshore.balances.append([balanceKey, interest, balance, time.time()]) # Corrected structure
+
         Offshore.save_balances()
-        Items.save_player_inventory()
-        Items.save_item_sources()
+        # Items.save_player_inventory() is already called within generate_user_specific_item
+        # Items.save_item_sources() needs to be called if create_source modified it.
+        # It's safest to ensure they are saved.
+        Items.save_player_inventory() # Redundant but safe
+        Items.save_item_sources()     # Ensure item sources are saved after potential creation
+
         return balanceKey
 
     @staticmethod

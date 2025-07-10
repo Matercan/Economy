@@ -2444,8 +2444,8 @@ async def guillotine(ctx):
     # Or state a generic message like "All loyal citizens gained a portion of the wealth!"
 
     await ctx.send(embed=embed)
-    await ctx.send(await views_embeds.create_balance_embed(user_id_str, bot, amountAddedToBank=money_gained_by_saviour))
-    await ctx.send(await views_embeds.create_balance_embed(richest_user_id_str, bot, amountAddedToBank=-richest_total_wealth))
+    await ctx.send(embed=await views_embeds.create_balance_embed(user_id_str, bot, amountAddedToBank=money_gained_by_saviour))
+    await ctx.send(embed=await views_embeds.create_balance_embed(richest_user_id_str, bot, amountAddedToBank=-richest_total_wealth))
 
 @bot.command(name='guillotine-user', aliases=['guill-user', 'guollotine-user'])
 async def guillotine_target(ctx, target: discord.Member):
@@ -2531,6 +2531,7 @@ async def list_items(ctx):
     """
     
     view = ShopView()
+    view.message = ctx.message
     
     # Calculate initial items for the first page (page 0)
     initial_start = view.page * view.itemsPerPage
@@ -2547,6 +2548,7 @@ async def list_items(ctx):
 async def buy_item(ctx, *, item: str):
     """
     Let's a user buy an item
+
     Usage: !buy-item 
     """
 
@@ -2581,7 +2583,7 @@ async def buy_item(ctx, *, item: str):
         await ctx.send("You cannot buy the item with your cash on hand - Withdraw from the bank first")
         return
     elif Bank.gettotal(user_id_str) <= cost:
-        await ctx.send(f"you need {cost - Bank.gettotal(user_id_str)} more to purchase {item_data[0]}")
+        await ctx.send(f"you need {cost - Bank.gettotal(user_id_str)} more to purchase {views_embeds.format_items_list(item_data[0])}")
         return
     if item_data[7]:
         has_role = False
@@ -2592,7 +2594,7 @@ async def buy_item(ctx, *, item: str):
                 if role.name.lower() == role_required.lower():
                     has_role = True
         if not has_role:
-            await ctx.send(f"This item requires one of {item_data[6]}")
+            await ctx.send(f"This item requires one of {views_embeds.format_items_list(item_data[6])}")
             return
 
     embed = discord.Embed(

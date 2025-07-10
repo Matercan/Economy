@@ -2,7 +2,7 @@
   "445059352521342978": {
     "Knife": {
       "index": 1,
-      "quantity": 1
+      "quantity": 5
     },
     "Brick": {
       "index": 2,
@@ -15,13 +15,17 @@
     "A good lawyer": {
       "index": 8,
       "quantity": 1
+    },
+    "Shield": {
+      "index": 6,
+      "quantity": 5
+    },
+    "Monster": {
+      "index": 13,
+      "quantity": 1
     }
   },
   "727830793493413936": {
-    "Slippery gloves": {
-      "index": 7,
-      "quantity": 1
-    },
     "A good lawyer": {
       "index": 8,
       "quantity": 1
@@ -49,6 +53,30 @@
     "lxhrsxmzudlkmkaiveh": {
       "index": 23,
       "quantity": 1
+    },
+    "Slippery gloves": {
+      "index": 7,
+      "quantity": 1
+    },
+    "Bomb": {
+      "index": 0,
+      "quantity": 1
+    },
+    "Brick": {
+      "index": 2,
+      "quantity": 1
+    },
+    "Mayonnaise": {
+      "index": 10,
+      "quantity": 1
+    },
+    "Oil": {
+      "index": 11,
+      "quantity": 1
+    },
+    "Monster": {
+      "index": 13,
+      "quantity": 1
     }
   },
   "777170937682329601": {
@@ -74,7 +102,7 @@
     },
     "Shield": {
       "index": 6,
-      "quantity": 1
+      "quantity": 5
     }
   },
   "606937826587705372": {
@@ -82,13 +110,9 @@
       "index": 22,
       "quantity": 1
     },
-    "Shield": {
-      "index": 6,
-      "quantity": 1
-    },
     "Knife": {
       "index": 1,
-      "quantity": 1
+      "quantity": 3
     },
     "A good lawyer": {
       "index": 8,
@@ -96,6 +120,10 @@
     },
     "Freedom": {
       "index": 3,
+      "quantity": 2
+    },
+    "Offshore bank account of Tkog": {
+      "index": 24,
       "quantity": 1
     }
   },
@@ -103,11 +131,39 @@
     "Bomb": {
       "index": 0,
       "quantity": 1
+    },
+    "Monster": {
+      "index": 13,
+      "quantity": 1
     }
   },
   "1231349860050141265": {
     "Knife": {
       "index": 1,
+      "quantity": 1
+    }
+  },
+  "640117958579978241": {
+    "Monster": {
+      "index": 13,
+      "quantity": 1
+    }
+  },
+  "1005502355304894534": {
+    "Bomb": {
+      "index": 0,
+      "quantity": 1
+    }
+  },
+  "1318037624304435330": {
+    "Bomb": {
+      "index": 0,
+      "quantity": 6
+    }
+  },
+  "473316308289847298": {
+    "Bomb": {
+      "index": 0,
       "quantity": 1
     }
   }

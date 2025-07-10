@@ -569,16 +569,15 @@ class BlackjackView(discord.ui.View):
                 self.game.result_message = "Both have Blackjack! It's a push."
             else:
                 self.game.result_message = "Blackjack! Player wins!"
-                
         elif dealer_score == 21:
             self.game.is_game_over = True
             self.game.result_message = "Dealer has Blackjack! Dealer wins."
             
         if self.game.is_game_over:
             self.disable_buttons()
+            self._end_game()
             print("DEBUG: Game immediately over in __init__.")
-            # Do NOT transfer money here. Let _end_game handle it.
-
+            
     def disable_buttons(self):
         for item in self.children:
             if isinstance(item, discord.ui.Button):
@@ -596,19 +595,34 @@ class BlackjackView(discord.ui.View):
         self.disable_buttons() # Ensure buttons are disabled
         
         # Determine winner and adjust balance
-            
-        if "player wins" in self.game.result_message.lower():
-            Bank.addcash(str(self.player_id), 2 * self.bet_amount) # Win bet (cancels out money lost at start)
-            money_change = self.bet_amount
-            print(f"DEBUG: Player {self.player_id} wins {self.bet_amount}")
-        elif "dealer wins" in self.game.result_message.lower():
-            Bank.addcash(str(self.player_id), 0) # Lose bet (money is already deducted at start)
-            money_change = -self.bet_amount
-            print(f"DEBUG: Player {self.player_id} loses {self.bet_amount}")
-        else: # Push
-            money_change = 0
-            Bank.addcash(str(self.player_id), self.bet_amount)
-            print(f"DEBUG: Player {self.player_id} pushes.")
+        if "Blackjack!" in self.game.result_message:
+            blackjackMultiplier = 1.25
+            if "player wins" in self.game.result_message.lower():
+                Bank.addcash(str(self.player_id), 2 * blackjackMultiplier * self.bet_amount) # Win gives you your money back and more
+                money_change = (2 * blackjackMultiplier - 1) * self.bet_amount
+                print(f"DEBUG: Player {self.player_id} wins {money_change} and got blackjack")
+            elif "dealer wins" in self.game.result_message.lower():
+                Bank.addcash(str(self.player_id), -(blackjackMultiplier - 1) * self.bet_amount) # Take away extra money for blackjack
+                money_change = - self.bet_amount * blackjackMultiplier
+                print(f"DEBUG: Player {self.player_id} lost {money_change}")
+            else:
+                Bank.addcash(str(self.player_id), self.bet_amount)
+                money_change = 0
+                print(f"DEBUG: Player {self.player_id} pushes")
+            pass
+        else: 
+            if "player wins" in self.game.result_message.lower():
+                Bank.addcash(str(self.player_id), 2 * self.bet_amount) # Win bet (cancels out money lost at start)
+                money_change = self.bet_amount
+                print(f"DEBUG: Player {self.player_id} wins {self.bet_amount}")
+            elif "dealer wins" in self.game.result_message.lower():
+                Bank.addcash(str(self.player_id), 0) # Lose bet (money is already deducted at start)
+                money_change = -self.bet_amount
+                print(f"DEBUG: Player {self.player_id} loses {self.bet_amount}")
+            else: # Push
+                money_change = 0
+                Bank.addcash(str(self.player_id), self.bet_amount)
+                print(f"DEBUG: Player {self.player_id} pushes.")
 
         # Update the main blackjack embed to show full dealer hand and result
         blackjack_embed = create_blackjack_embed(self.game, self.player_id, self.bet_amount, show_dealer_full_hand=True)
